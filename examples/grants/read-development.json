@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "grants": [
+    {
+      "grant_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "effect": "allow",
+      "scope": {
+        "client": "1111111111111111111111111111111111111111111111111111111111111111",
+        "principal": null,
+        "agent": null,
+        "server": "4444444444444444444444444444444444444444444444444444444444444444",
+        "tool": null,
+        "capabilities": ["read_data"],
+        "environment": "development",
+        "not_before_ms": null,
+        "expires_at_ms": null
+      }
+    },
+    {
+      "grant_ref": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "effect": "deny",
+      "scope": {
+        "client": null,
+        "principal": null,
+        "agent": null,
+        "server": null,
+        "tool": null,
+        "capabilities": ["delete_data", "credential_access"],
+        "environment": null,
+        "not_before_ms": null,
+        "expires_at_ms": null
+      }
+    }
+  ]
+}

@@ -44,6 +44,14 @@ Use [local policies](docs/POLICY.md) to validate and test the restricted Rego
 profile, generate native-store signing keys, and activate verified bundles.
 Policy evaluation works offline. It does not yet enable gateway tool calls.
 
+Use [local grants](docs/GRANTS.md) to validate exact scopes and test whether an
+action has an explicit allowance or denial. These local diagnostics invoke no tools.
+
+```sh
+cargo run --locked -- mcp grants check --rules examples/grants/read-development.json
+cargo run --locked -- mcp grants test --rules examples/grants/read-development.json --input examples/grants/read-context.json --json
+```
+
 ```sh
 cargo run --locked -- mcp policy test --source examples/policies/read-and-review.rego --input examples/policies/read-input.json --json
 ```

@@ -43,7 +43,7 @@ impl Domain {
 }
 
 /// Lowercase SHA-256 hexadecimal digest. Deserialization rejects all other shapes.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(transparent)]
 pub struct Fingerprint(String);
 impl<'de> Deserialize<'de> for Fingerprint {

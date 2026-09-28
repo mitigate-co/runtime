@@ -111,6 +111,14 @@ The managed stdio adapter retains an initial fingerprint baseline and re-enumera
 The MCP-007 listener additionally rejects ambiguous envelopes, reused IDs and out-of-order initialization, bounds local streams, and prevents clientInfo or request metadata from changing caller identity. Profile identity is explicitly declared, never authenticated by implication. Cancellation and disconnect drop in-flight service work; the upstream owner must confirm cleanup. No permissive service or network listener is included. See [gateway boundaries](GATEWAY.md) and ADR 0010. This protocol library alone is not an enforcing gateway.
 
 - A local admin/root user can usually tamper with local security software.
+- Local grants use explicit exact scopes and deny precedence. A missing constraint
+  is rejected rather than interpreted as a wildcard; unknown clients cannot be
+  allowed. Grants and policy remain separate checks, and partial allowances cannot
+  be combined for a broader action. The pure matcher trusts gateway-supplied facts
+  and time; it does not authenticate profiles or prevent privileged clock rollback.
+  These local rule files are not automatically trusted cloud input. See
+  [grant boundaries](GRANTS.md) and ADR 0015. Call execution remains disabled until
+  reviewed launch binding, schema validation, approval, limits and audit composition.
 - Local audit uses bounded SQLite metadata and a hash chain. Raw content is excluded;
   retention intentionally removes an oldest prefix and preserves its checkpoint.
   Corruption or unexpected schema prevents export and required gateway startup.
