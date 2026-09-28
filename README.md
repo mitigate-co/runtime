@@ -38,6 +38,8 @@ Use `--details` for full human reports, or `--json` for the versioned machine co
 
 ## Verify
 
+The [gateway listener reference](docs/GATEWAY.md) documents the local protocol and identity boundary being integrated in MCP-007/008. Exercise the listener with `cargo run --locked -p mitigate-mcp-fixture -- listener-contract`. Full gateway enforcement remains in development.
+
 ```sh
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings

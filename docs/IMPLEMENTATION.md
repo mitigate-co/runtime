@@ -9,8 +9,9 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-003 — Tool enumeration | Merged | PR #3, main `f3e85ff`. Explicit stdio launch, protocol negotiation, bounded pagination, environment isolation and job/group cleanup. 24 Windows tests; all three OS CI runs and security gates passed. |
 | MCP-004 — Fingerprints and diff | Merged | PR #4, main `45cd2ab`. Separate input/output/description/identity/server facts, explicit snapshots and offline diff. 34 Windows tests; all three OS CI runs and security gates passed. |
 | MCP-005 — Capability classification | Merged | PR #5, main `27e7375`. Deterministic taxonomy, source/confidence, conservative risk flags and fingerprint-bound admin overrides. Windows job-completion regression fixed and documented. 44 Windows tests; all three OS CI runs and security gates passed. |
-| MCP-006 — CLI UX | In verification | Human tables/details, stable JSON/errors, opt-in findings exits, actual-binary contract harness and reference. 49 Windows tests plus CLI harness pass locally; remote CI/merge pending. |
-| MCP-007 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
+| MCP-006 — CLI UX | Merged | PR #6, main `1b0a234`. Human tables/details, stable JSON/errors, opt-in findings exits and actual-binary contract harness. 49 Windows tests; all three OS CI runs and security gates passed. |
+| MCP-007 — Gateway listener | In verification | Bounded protocol library, explicit profiles and service relay boundary. 62 Windows tests, listener demo, lint/dependency/license/secret checks pass locally; remote CI/merge pending. CLI/upstream integration will close the package with MCP-008. |
+| MCP-008 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
 
