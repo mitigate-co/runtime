@@ -303,7 +303,19 @@ pub(super) fn server(
             )
         }
     };
+    let summary = serde_json::json!({
+        "source": source, "name": name, "transport": transport,
+        "destination": destination, "argument_count": args.len(),
+        "package_name": package_name, "package_version": package_version,
+        "credential_reference_types": types, "risks": risks
+    });
+    let config_fingerprint = mitigate_fingerprint::fingerprint(
+        mitigate_fingerprint::Domain::ConfigurationSummary,
+        &summary,
+    )
+    .map_err(|_| ())?;
     Ok(DiscoveredServer {
+        config_fingerprint,
         source_kind: source,
         source_path: source.path(),
         server_name: name.to_owned(),

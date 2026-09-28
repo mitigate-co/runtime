@@ -151,7 +151,7 @@ fn scanner_reports_scope_and_fixture_without_an_account() {
         assert!(!output.contains("/customer/workspace"));
         if json {
             let report: Value = serde_json::from_str(&output).unwrap();
-            assert_eq!(report["schema_version"], 1);
+            assert_eq!(report["schema_version"], 2);
             assert_eq!(report["sources"].as_array().unwrap().len(), 2);
             assert_eq!(report["servers"].as_array().unwrap().len(), 3);
         } else {
@@ -250,6 +250,68 @@ fn inspect_requires_execution_intent_and_does_not_echo_invalid_config() {
     assert_eq!(
         serde_json::from_str::<Value>(&error).unwrap()["error"],
         "mcp_configuration_invalid"
+    );
+}
+
+#[test]
+fn diff_runs_offline_and_rejects_invalid_snapshots_without_source_content() {
+    let fixture = Fixture::new();
+    let before = fixture.0.join("before.json");
+    let after = fixture.0.join("after.json");
+    let inventory = mitigate_mcp::Inventory {
+        protocol_version: "2025-11-25".into(),
+        server_name: "fixture".into(),
+        server_version: "1.0.0".into(),
+        tools_supported: true,
+        tools: vec![],
+    };
+    let snapshot = mitigate_mcp::Snapshot::from_inventory(&inventory).unwrap();
+    snapshot.write_new(&before).unwrap();
+    snapshot.write_new(&after).unwrap();
+    for json in [false, true] {
+        let mut args = vec![
+            "mcp",
+            "diff",
+            "--before",
+            before.to_str().unwrap(),
+            "--after",
+            after.to_str().unwrap(),
+        ];
+        if json {
+            args.push("--json");
+        }
+        let result = cli(&args);
+        assert!(result.status.success());
+        assert!(result.stderr.is_empty());
+        if json {
+            let report: Value = serde_json::from_slice(&result.stdout).unwrap();
+            assert_eq!(report["tools"], serde_json::json!([]));
+            assert_eq!(report["server_facts_changed"], false);
+        } else {
+            assert_eq!(
+                String::from_utf8(result.stdout).unwrap().trim(),
+                "No changes."
+            );
+        }
+    }
+    fs::write(&after, br#"{"secret":"snapshot-canary"}"#).unwrap();
+    let result = cli(&[
+        "mcp",
+        "diff",
+        "--before",
+        before.to_str().unwrap(),
+        "--after",
+        after.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(result.status.code(), Some(2));
+    assert!(result.stdout.is_empty());
+    let error = String::from_utf8(result.stderr).unwrap();
+    assert!(!error.contains("canary"));
+    assert!(!error.contains(after.to_str().unwrap()));
+    assert_eq!(
+        serde_json::from_str::<Value>(&error).unwrap()["error"],
+        "mcp_snapshot_invalid"
     );
 }
 

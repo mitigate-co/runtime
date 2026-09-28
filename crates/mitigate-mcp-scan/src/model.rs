@@ -93,6 +93,8 @@ pub enum CredentialReferenceType {
 /// closed egress contract. Raw commands, argv, env, headers and URL paths are absent.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct DiscoveredServer {
+    /// Fingerprint of these redacted summary facts, not exact launch provenance.
+    pub config_fingerprint: mitigate_fingerprint::Fingerprint,
     /// Configuration adapter that observed this declaration.
     pub source_kind: SourceKind,
     /// Known relative configuration file location.

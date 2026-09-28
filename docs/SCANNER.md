@@ -23,7 +23,9 @@ The formats were checked against [Claude Code's MCP reference](https://code.clau
 
 ## Local output and data handling
 
-JSON schema version 1 reports sources and ordered server declarations. It includes a bounded local label, transport, executable basename or endpoint origin, argument count, declared npx package/version when recognizable, credential mechanism categories and configuration risks. Package versions are declarations, never installed provenance or resolved registry tags. Unknown versions remain null.
+JSON schema version 2 reports sources and ordered server declarations. It adds `config_fingerprint` to the v1 contract. It includes a bounded local label, transport, executable basename or endpoint origin, argument count, declared npx package/version when recognizable, credential mechanism categories and configuration risks. Package versions are declarations, never installed provenance or resolved registry tags. Unknown versions remain null.
+
+`config_fingerprint` hashes only those redacted summary facts using the [versioned local fingerprint profile](FINGERPRINTS.md). It does not include raw argument values, credential values or omitted URL components. A secret rotation, argument-value edit with the same argument count, or URL-path edit may leave this summary unchanged. This fingerprint must **never** authorize execution or bind an approval; exact executable/launch identity belongs to the gateway trust boundary.
 
 Reports exclude raw command paths, arguments, environment/header names and values, OAuth values, helper commands, referenced filenames, and URL user information, paths, queries and fragments. Parser/OS diagnostics never echo configuration content or absolute paths. Human output escapes server labels and destination text.
 

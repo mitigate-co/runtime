@@ -26,6 +26,14 @@ cargo run --locked -- mcp inspect --launch-config target/fixture-launch.json --a
 
 `inspect` starts the selected program with your OS privileges. It never calls tools. The gateway and enforcement are not implemented yet.
 
+Add `--snapshot target/before.json` to save fingerprints to a new local file. After a later inspection saved to another file, compare them offline:
+
+```sh
+cargo run --locked -- mcp diff --before target/before.json --after target/after.json --json
+```
+
+See [fingerprints and snapshots](docs/FINGERPRINTS.md) for the complete tested example, privacy boundary and numeric compatibility limits.
+
 ## Verify
 
 ```sh

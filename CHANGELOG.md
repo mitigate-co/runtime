@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — fingerprints and diff
+
+- `mcp inspect --snapshot` writes an explicit new local fingerprint snapshot; `mcp diff` compares snapshots without executing a server.
+- Separate identity, input/output schema, normalized description and server-facts fingerprints with canonical JSON and distinct hash domains.
+- Reject incompatible/ambiguous snapshots and numeric constraints that cannot fit the safe canonical profile without loss.
+- Discovery output advances to schema v2 with a fingerprint of redacted summary facts; this is not exact executable/argument provenance.
+
 ## Unreleased — explicit tool enumeration
 
 - `mcp inspect` starts a reviewed stdio MCP server only with `--allow-exec`, negotiates a supported version and enumerates tools without calling them.
