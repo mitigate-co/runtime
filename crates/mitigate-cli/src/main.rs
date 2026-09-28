@@ -3,6 +3,7 @@ mod args;
 mod audit;
 mod gateway;
 mod output;
+mod policy;
 mod secrets;
 
 use args::{Cli, Command, ConfigCommand, McpCommand};
@@ -43,6 +44,9 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command: McpCommand::Policy { command },
+        } => return policy::run(command, cli.json),
         Command::Mcp {
             command: McpCommand::Audit { command },
         } => return audit::run(command, cli.json),

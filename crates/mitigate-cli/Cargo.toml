@@ -12,6 +12,9 @@ name = "mitigate"
 path = "src/main.rs"
 
 [dependencies]
+mitigate-policy = { path = "../mitigate-policy", version = "0.1.0" }
+zeroize.workspace = true
+getrandom.workspace = true
 mitigate-audit = { path = "../mitigate-audit", version = "0.1.0" }
 mitigate-fingerprint = { path = "../mitigate-fingerprint", version = "0.1.0" }
 mitigate-secrets = { path = "../mitigate-secrets", version = "0.1.0" }

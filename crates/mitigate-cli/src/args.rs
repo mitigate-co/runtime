@@ -71,6 +71,11 @@ pub(crate) enum SecretsCommand {
 
 #[derive(Subcommand)]
 pub(crate) enum McpCommand {
+    /// Validate, sign, activate and test local MCP policies.
+    Policy {
+        #[command(subcommand)]
+        command: PolicyCommand,
+    },
     /// Create, verify, read or prune a local metadata audit database.
     Audit {
         #[command(subcommand)]
@@ -141,6 +146,72 @@ pub(crate) enum McpCommand {
         /// Return exit code 3 when at least one configuration risk is present.
         #[arg(long)]
         fail_on_risk: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum PolicyCommand {
+    /// Check source against the restricted Mitigate Rego Profile.
+    Check {
+        #[arg(long)]
+        source: PathBuf,
+    },
+    /// Test local source and metadata only; never authorize or invoke a tool.
+    Test {
+        #[arg(long)]
+        source: PathBuf,
+        #[arg(long)]
+        input: PathBuf,
+    },
+    /// Generate a native-store signing key and a new public trust document.
+    Keygen {
+        #[arg(long)]
+        trust_out: PathBuf,
+    },
+    /// Sign reviewed source with a native credential reference; write a new bundle.
+    Sign {
+        #[arg(long)]
+        source: PathBuf,
+        #[arg(long)]
+        trust: PathBuf,
+        #[arg(long)]
+        key_ref: String,
+        #[arg(long)]
+        version: u64,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Create a new empty policy store bound to an independent trust document.
+    Init {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        trust: PathBuf,
+    },
+    /// Verify and atomically activate a newer signed bundle.
+    Activate {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        trust: PathBuf,
+        #[arg(long)]
+        bundle: PathBuf,
+    },
+    /// Reverify and report the active local policy without printing source.
+    Status {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        trust: PathBuf,
+    },
+    /// Evaluate the stored verified policy on a local metadata fixture.
+    Evaluate {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        trust: PathBuf,
+        #[arg(long)]
+        input: PathBuf,
     },
 }
 

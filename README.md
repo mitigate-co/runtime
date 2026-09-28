@@ -8,7 +8,9 @@ Development has started. No release binaries or production-ready gateway are pub
 
 Install Rust through rustup and a native C build toolchain (Visual Studio C++ build
 tools on Windows, Xcode command-line tools on macOS, or a C compiler on Linux).
-The repository pins its Rust toolchain and lockfile; SQLite is bundled from source.
+Windows also needs the matching MSVC Spectre-mitigated x64/x86 libraries, required
+by Regorus. The repository pins its Rust toolchain and lockfile; SQLite is bundled
+from source.
 
 ```sh
 cargo run --locked -- version
@@ -37,6 +39,14 @@ Use [local audit](docs/AUDIT.md) to record inventory requests and denied calls:
 initialize a private database with `mitigate mcp audit init --db FILE`, then add
 `--audit-db FILE` to serve. Verify, page through, or prune its bounded metadata
 history locally. No arguments, results or credentials are audit fields.
+
+Use [local policies](docs/POLICY.md) to validate and test the restricted Rego
+profile, generate native-store signing keys, and activate verified bundles.
+Policy evaluation works offline. It does not yet enable gateway tool calls.
+
+```sh
+cargo run --locked -- mcp policy test --source examples/policies/read-and-review.rego --input examples/policies/read-input.json --json
+```
 
 Add `--snapshot target/before.json` to save fingerprints to a new local file. After a later inspection saved to another file, compare them offline:
 

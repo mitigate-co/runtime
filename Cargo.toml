@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/mitigate-cli", "crates/mitigate-config", "crates/mitigate-mcp-scan", "crates/mitigate-json", "crates/mitigate-mcp", "crates/mitigate-fingerprint", "crates/mitigate-gateway", "crates/mitigate-secrets", "crates/mitigate-audit", "fixtures/mcp-server"]
+members = ["crates/mitigate-cli", "crates/mitigate-config", "crates/mitigate-mcp-scan", "crates/mitigate-json", "crates/mitigate-mcp", "crates/mitigate-fingerprint", "crates/mitigate-gateway", "crates/mitigate-secrets", "crates/mitigate-audit", "crates/mitigate-policy", "fixtures/mcp-server"]
 default-members = ["crates/mitigate-cli"]
 exclude = ["vendor/process-wrap", "vendor/libsqlite3-sys"]
 
@@ -24,6 +24,8 @@ url = "=2.5.8"
 sha2 = "=0.10.9"
 zeroize = "=1.9.0"
 getrandom = "=0.4.3"
+regorus = { version = "=0.12.0", default-features = false, features = ["std", "arc"] }
+ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["zeroize"] }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "limits", "hooks"] }
 serde_json_canonicalizer = "=0.3.2"
 tokio = { version = "=1.53.1", default-features = false, features = ["rt", "process", "io-util", "time", "macros", "signal"] }
