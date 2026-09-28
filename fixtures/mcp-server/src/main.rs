@@ -29,6 +29,12 @@ fn tool(name: &str) -> Value {
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     let mode = args.get(1).map_or("ok", String::as_str);
+    if mode == "offline-contract" {
+        governance_contract::verify_offline(std::path::Path::new(
+            args.get(2).expect("explicit CLI path"),
+        ));
+        return;
+    }
     if mode == "governance-contract" {
         governance_contract::verify(std::path::Path::new(
             args.get(2).expect("explicit CLI path"),
