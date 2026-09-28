@@ -94,6 +94,34 @@ async fn initializes_paginates_normalizes_and_omits_content() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn pre_cancelled_launch_and_invalid_deadline_never_reach_preflight() {
+    let project = Project::new();
+    let base = json!({"schema_version":1,"executable_path":project.0.join("nonexistent.exe"),"working_directory":project.0});
+    let config: LaunchConfig = serde_json::from_value(base.clone()).unwrap();
+    assert_eq!(
+        mitigate_mcp::enumerate_with_shutdown(&config, async {})
+            .await
+            .err(),
+        Some(Error::Cancelled)
+    );
+    assert_eq!(
+        mitigate_mcp::StdioServer::connect_with_shutdown(&config, async {})
+            .await
+            .err(),
+        Some(Error::Cancelled)
+    );
+    let mut invalid = base;
+    invalid["timeout_ms"] = json!(u64::MAX);
+    // Library callers may use Deserialize directly, bypassing from_bytes.
+    let config: LaunchConfig = serde_json::from_value(invalid).unwrap();
+    assert_eq!(enumerate(&config).await.err(), Some(Error::Configuration));
+    assert_eq!(
+        mitigate_mcp::StdioServer::connect(&config).await.err(),
+        Some(Error::Configuration)
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn rejects_hostile_protocol_and_resource_exhaustion_without_echoing_errors() {
     let project = Project::new();
     for (mode, expected) in [

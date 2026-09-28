@@ -18,6 +18,11 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
+    /// Store local credentials without putting their values in configuration.
+    Secrets {
+        #[command(subcommand)]
+        command: SecretsCommand,
+    },
     /// Show the installed Runtime version and configuration schema.
     Version,
     /// Validate local Runtime configuration without starting servers.
@@ -29,6 +34,38 @@ pub(crate) enum Command {
     Mcp {
         #[command(subcommand)]
         command: McpCommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum SecretsCommand {
+    /// Import a credential from a pipe into the native OS store; return its reference.
+    Import {
+        /// Required: read the credential from non-terminal stdin, never an argument.
+        #[arg(long, required = true)]
+        stdin: bool,
+    },
+    /// Replace one existing reference's value using non-terminal stdin.
+    Replace {
+        /// Opaque reference from a previous import.
+        #[arg(long)]
+        reference: String,
+        /// Required: read the replacement value from a pipe.
+        #[arg(long, required = true)]
+        stdin: bool,
+    },
+    /// Check that one credential can be read; never reveal its value.
+    Check {
+        #[arg(long)]
+        reference: String,
+    },
+    /// Delete one local credential. Existing upstream processes must be restarted.
+    Delete {
+        #[arg(long)]
+        reference: String,
+        /// Required: confirm deletion of this one local reference.
+        #[arg(long, required = true)]
+        confirm: bool,
     },
 }
 

@@ -79,6 +79,18 @@ Windows cleanup additionally checks actual job membership, rather than treating 
 
 ## Known limitations
 
+The MCP-009 secret broker stores values only in the current user's native credential
+store. Opaque references cannot select other services, arbitrary paths or vault
+providers. Child bindings are explicitly reviewed, bounded and resolved before
+launch; unknown/locked/missing/ambiguous records fail without ambient fallback.
+Values and provider errors never enter normal diagnostics. Windows records use
+Local persistence. Native OS operations are trusted IPC, not Platform egress.
+See [credential handling](SECRETS.md) and ADR 0012 for native prompts and failure
+semantics. This does not hide credentials from the selected upstream, its
+descendants, another privileged same-user process, or every memory dump/swap page.
+Deleting a reference does not revoke copied provider credentials. Full telemetry
+privacy enforcement, grants and approvals remain later production gates.
+
 The executable gateway currently requires inventory-only mode and denies all calls before upstream invocation. It validates explicit profile input before launching anything, pages bounded definitions and confirms upstream cleanup on EOF, timeout or graceful shutdown. Its standard-I/O worker lifetime ends at CLI process exit; see ADR 0011. Abrupt OS termination can skip Rust destructors, especially on Unix, so graceful cleanup tests do not establish crash-proof descendant containment. No sandbox or full enforcement guarantee is implied.
 
 The managed stdio adapter retains an initial fingerprint baseline and re-enumerates before each authorized transport call. Drift prevents invocation; malformed responses and errors invalidate and terminate the connection. Cancellation poisons the connection before releasing its borrow, preventing a later call from consuming a stale response. Tests verify descendant cleanup and absence of invocation on drift. These are transport controls, not proof of server behavior or a substitute for policy, schema validation, grants and approval. See [upstream boundaries](UPSTREAM.md).

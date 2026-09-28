@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — native secret broker
+
+- Store credentials in the current user's native OS store and reference them with opaque IDs in reviewed launch documents.
+- Add pipe-only import/rotation, content-free availability checks and explicit deletion.
+- Resolve all credential bindings before launch, clear owned values, reject name conflicts and refuse ambient fallback.
+- Test actual native store operations and child injection with temporary synthetic credentials. No Platform or plaintext fallback is required.
+
 ## Unreleased — inventory gateway CLI
 
 - Add explicit `mcp serve --inventory-only` with reviewed launch intent, optional caller profile and MCP-only stdout.

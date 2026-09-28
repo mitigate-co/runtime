@@ -3,6 +3,7 @@
 mod cli_contract;
 mod gateway_contract;
 mod listener_contract;
+mod secret_contract;
 mod upstream_contract;
 
 use serde_json::{Value, json};
@@ -25,6 +26,25 @@ fn tool(name: &str) -> Value {
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     let mode = args.get(1).map_or("ok", String::as_str);
+    if mode == "secret-contract" {
+        secret_contract::verify(std::path::Path::new(
+            args.get(2).expect("explicit CLI binary path"),
+        ));
+        return;
+    }
+    if mode == "credential" || mode == "credential-v1" {
+        std::fs::write(&args[2], b"started").unwrap();
+        let expected = if mode == "credential-v1" {
+            "broker-secret-canary-v1"
+        } else {
+            "broker-secret-canary-v2"
+        };
+        assert!(std::env::var("BROKER_TOKEN").is_ok_and(|v| v == expected));
+        assert!(std::env::var_os("UNRELATED_CREDENTIAL_CANARY").is_none());
+        assert!(std::env::var_os("PATH").is_none());
+        assert!(!args.iter().any(|v| v.contains("broker-secret-canary")));
+        eprintln!("broker-secret-canary-v2");
+    }
     if mode == "gateway-contract" {
         gateway_contract::verify(std::path::Path::new(
             args.get(2).expect("explicit CLI binary path"),

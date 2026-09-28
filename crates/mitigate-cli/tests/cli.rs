@@ -71,6 +71,50 @@ fn version_and_configuration_work_without_account_or_home() {
 }
 
 #[test]
+fn secret_commands_reject_invalid_intent_and_references_without_value_echo() {
+    for args in [
+        vec!["secrets", "import", "--json"],
+        vec![
+            "secrets",
+            "import",
+            "--stdin",
+            "--value",
+            "secret-command-canary",
+            "--json",
+        ],
+        vec![
+            "secrets",
+            "check",
+            "--reference",
+            "secret-command-canary",
+            "--json",
+        ],
+        vec![
+            "secrets",
+            "delete",
+            "--reference",
+            "sec_0123456789abcdef0123456789abcdef",
+            "--json",
+        ],
+        vec![
+            "secrets",
+            "replace",
+            "--reference",
+            "secret-command-canary",
+            "--stdin",
+            "--json",
+        ],
+    ] {
+        let output = cli(&args);
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty());
+        let error: Value = serde_json::from_slice(&output.stderr).unwrap();
+        assert_eq!(error["schema_version"], 1);
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("secret-command-canary"));
+    }
+}
+
+#[test]
 fn config_errors_are_stable_and_do_not_echo_content_or_paths() {
     let fixture = Fixture::new();
     for (content, code) in [

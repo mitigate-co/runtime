@@ -2,6 +2,7 @@
 mod args;
 mod gateway;
 mod output;
+mod secrets;
 
 use args::{Cli, Command, ConfigCommand, McpCommand};
 use clap::{Parser, error::ErrorKind};
@@ -41,6 +42,7 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Secrets { command } => return secrets::run(command, cli.json),
         Command::Mcp {
             command:
                 McpCommand::Serve {
@@ -96,9 +98,12 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                     .enable_all()
                     .build()
                     .map_err(|_| mitigate_mcp::Error::Launch)?;
-                runtime.block_on(mitigate_mcp::enumerate_with_shutdown(&config, async {
-                    let _ = tokio::signal::ctrl_c().await;
-                }))
+                let result =
+                    runtime.block_on(mitigate_mcp::enumerate_with_shutdown(&config, async {
+                        let _ = tokio::signal::ctrl_c().await;
+                    }));
+                runtime.shutdown_timeout(std::time::Duration::from_millis(50));
+                result
             });
             let inventory = match result {
                 Ok(inventory) => inventory,

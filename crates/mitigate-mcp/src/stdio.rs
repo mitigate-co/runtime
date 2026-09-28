@@ -29,10 +29,19 @@ impl Drop for Session {
 }
 
 impl Session {
-    pub fn start(config: &LaunchConfig) -> Result<Self> {
+    pub async fn start(config: &LaunchConfig) -> Result<Self> {
         config.validate()?;
         let (executable, cwd) = config.paths()?;
         let environment = config.environment()?;
+        let secrets = config.secrets().await?;
+        let environment_size: usize = environment.iter().map(|(k, v)| k.len() + v.len()).sum();
+        let secret_size: usize = secrets
+            .iter()
+            .map(|(k, v)| k.len() + v.expose(str::len))
+            .sum();
+        if environment_size + secret_size > 65_536 {
+            return Err(Error::Environment);
+        }
         let mut command = CommandWrap::with_new(executable, |command| {
             command
                 .args(&config.argv)
@@ -42,6 +51,11 @@ impl Session {
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null());
+            for (name, secret) in &secrets {
+                secret.expose(|value| {
+                    command.env(name, value);
+                });
+            }
         });
         command.wrap(KillOnDrop);
         #[cfg(windows)]
@@ -54,6 +68,10 @@ impl Session {
         #[cfg(unix)]
         command.wrap(process_wrap::tokio::ProcessGroup::leader());
         let mut child = command.spawn().map_err(|_| Error::Launch)?;
+        // std::process copies environment values internally; release the builder
+        // immediately and clear our owned values on both success and failure.
+        drop(command);
+        drop(secrets);
         let input = child.stdin().take();
         let output = child.stdout().take().ok_or(Error::Launch)?;
         Ok(Self {
@@ -103,10 +121,17 @@ pub async fn enumerate_with_shutdown(
     config: &LaunchConfig,
     shutdown: impl std::future::Future<Output = ()>,
 ) -> Result<Inventory> {
-    let mut session = Session::start(config)?;
+    config.validate()?;
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(config.timeout_ms);
+    tokio::pin!(shutdown);
+    let mut session = tokio::select! {
+        biased;
+        _ = &mut shutdown => return Err(Error::Cancelled),
+        result = tokio::time::timeout_at(deadline, Session::start(config)) => result.map_err(|_| Error::Timeout)??,
+    };
     let result = tokio::select! {
-        result = tokio::time::timeout(Duration::from_millis(config.timeout_ms), protocol::inventory(&mut session)) => result.map_err(|_| Error::Timeout).and_then(|r|r),
-        _ = shutdown => Err(Error::Cancelled),
+        result = tokio::time::timeout_at(deadline, protocol::inventory(&mut session)) => result.map_err(|_| Error::Timeout).and_then(|r|r),
+        _ = &mut shutdown => Err(Error::Cancelled),
     };
     // End the entire group before reaping its leader, including descendants that
     // retain pipes. Hard termination bounds cleanup of an uncooperative server.

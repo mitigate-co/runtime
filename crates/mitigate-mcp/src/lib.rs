@@ -28,6 +28,8 @@ pub enum Error {
     Executable,
     /// Explicit environment reference is invalid, missing or too large.
     Environment,
+    /// A referenced native credential could not be resolved; nothing is launched.
+    Credential,
     /// The OS refused to create the process/job/pipes.
     Launch,
     /// A pipe closed or failed before a complete response arrived.
@@ -63,6 +65,7 @@ impl Error {
             Self::Configuration => "mcp_configuration_invalid",
             Self::Executable => "mcp_executable_invalid",
             Self::Environment => "mcp_environment_unavailable",
+            Self::Credential => "mcp_credential_unavailable",
             Self::Launch => "mcp_launch_failed",
             Self::Disconnected => "mcp_disconnected",
             Self::Protocol => "mcp_protocol_invalid",
@@ -85,6 +88,7 @@ impl fmt::Display for Error {
             Self::Configuration => "Review the launch configuration against the supported schema and limits.",
             Self::Executable => "Select an absolute trusted executable and working directory; Windows requires an .exe file.",
             Self::Environment => "Check the explicitly allowed environment references and their size limits.",
+            Self::Credential => "A native credential is missing, locked, invalid or unavailable. Check the launch references and unlock the OS store before retrying.",
             Self::Launch => "The server could not start. Check executable permissions and process restrictions.",
             Self::Disconnected => "The server connection is closed, invalidated or failed before the request completed. Reconnect before retrying.",
             Self::Protocol => "The server returned invalid or ambiguous MCP data. Check its protocol compatibility.",

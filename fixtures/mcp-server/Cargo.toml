@@ -11,6 +11,7 @@ name = "mitigate-test-mcp"
 path = "src/main.rs"
 
 [dependencies]
+mitigate-secrets = { path = "../../crates/mitigate-secrets", version = "0.1.0" }
 serde_json.workspace = true
 mitigate-mcp = { path = "../../crates/mitigate-mcp", version = "0.1.0" }
 mitigate-gateway = { path = "../../crates/mitigate-gateway", version = "0.1.0" }
