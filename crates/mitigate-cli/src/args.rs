@@ -107,6 +107,11 @@ pub(crate) enum SecretsCommand {
 
 #[derive(Subcommand)]
 pub(crate) enum McpCommand {
+    /// Look up attributed public facts; never install servers or change grants.
+    Registry {
+        #[command(subcommand)]
+        command: RegistryCommand,
+    },
     /// Show verified local references for exact grants and control targets; never call tools.
     Context {
         /// Explicit process configuration, separate from discovery files.
@@ -229,6 +234,19 @@ pub(crate) enum McpCommand {
         /// Return exit code 3 when at least one configuration risk is present.
         #[arg(long)]
         fail_on_risk: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum RegistryCommand {
+    /// Read all matching claims from an explicit local public catalog; no network.
+    Lookup {
+        /// Explicit public catalog JSON; no automatic downloads or home-directory search.
+        #[arg(long)]
+        catalog: PathBuf,
+        /// Canonical public namespace/server reference, not a local inventory ID.
+        #[arg(long)]
+        subject: String,
     },
 }
 

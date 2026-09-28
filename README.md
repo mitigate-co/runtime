@@ -88,6 +88,15 @@ Use `--details` for full human reports, or `--json` for the versioned machine co
 
 ## Verify
 
+Look up [source-attributed public registry facts](docs/REGISTRY.md) offline:
+
+```sh
+cargo run --locked -- mcp registry lookup --catalog examples/registry/catalog.json --subject io.example/synthetic-server --json
+```
+
+The supplied example is synthetic. Lookups preserve source disagreement and
+show freshness; they do not install servers, authenticate publishers or grant access.
+
 Run the [privacy self-test and egress inspector](docs/PRIVACY_COMMANDS.md) locally:
 
 ```sh

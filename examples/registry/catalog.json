@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "generated_at_ms": 1790553600000,
+  "expires_at_ms": 1793145600000,
+  "sources": [
+    {
+      "source_ref": "synthetic-publisher",
+      "url": "https://example.com/synthetic-mcp/manifest",
+      "kind": "publisher",
+      "retrieved_at_ms": 1790553600000
+    },
+    {
+      "source_ref": "synthetic-review",
+      "url": "https://example.org/synthetic-mcp/review",
+      "kind": "independent_review",
+      "retrieved_at_ms": 1790553600000
+    }
+  ],
+  "facts": [
+    {
+      "fact_ref": "repository",
+      "subject": "io.example/synthetic-server",
+      "source_ref": "synthetic-publisher",
+      "observed_at_ms": 1790553600000,
+      "confidence": "high",
+      "assertion": { "kind": "repository", "url": "https://example.com/synthetic-mcp" }
+    },
+    {
+      "fact_ref": "publisher-package",
+      "subject": "io.example/synthetic-server",
+      "source_ref": "synthetic-publisher",
+      "observed_at_ms": 1790553600000,
+      "confidence": "high",
+      "assertion": { "kind": "package", "ecosystem": "npm", "name": "@synthetic/mcp-fixture", "version": "1.0.0" }
+    },
+    {
+      "fact_ref": "review-package",
+      "subject": "io.example/synthetic-server",
+      "source_ref": "synthetic-review",
+      "observed_at_ms": 1790553600000,
+      "confidence": "low",
+      "assertion": { "kind": "package", "ecosystem": "npm", "name": "@synthetic/mcp-fixture", "version": "0.9.0" }
+    },
+    {
+      "fact_ref": "transport",
+      "subject": "io.example/synthetic-server",
+      "source_ref": "synthetic-publisher",
+      "observed_at_ms": 1790553600000,
+      "confidence": "high",
+      "assertion": { "kind": "transport", "transport": "stdio" }
+    },
+    {
+      "fact_ref": "capability",
+      "subject": "io.example/synthetic-server",
+      "source_ref": "synthetic-review",
+      "observed_at_ms": 1790553600000,
+      "confidence": "medium",
+      "assertion": { "kind": "capability", "capability": "read_data" }
+    },
+    {
+      "fact_ref": "release",
+      "subject": "io.example/synthetic-server",
+      "source_ref": "synthetic-publisher",
+      "observed_at_ms": 1790553600000,
+      "confidence": "high",
+      "assertion": { "kind": "release", "version": "1.0.0", "published_at_ms": 1790467200000 }
+    }
+  ]
+}

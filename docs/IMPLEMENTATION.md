@@ -20,7 +20,8 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-014 — Kill switch and limits | Merged | Controls PR #15, governance PR #20 and exact-reference setup PR #21, main `72e68fe`. Governed calls enforce stops/targets/quotas alongside policy/grants/approvals and required audit. Both final CI runs passed all three operating systems and security gates. |
 | MCP-015 — Offline behavior | In verification | PR #22 verifies cached allow/deny and unavailable approvals with actual processes. The durable outbox validates candidates before persistence and isolates optional delivery state from local authority; final cross-OS gates remain required. |
 | MCP-016 — Privacy boundary | CLI and boundary in verification | PR #23 defines the closed candidate, PR #24 the durable admission journal. `privacy self-test` rejects 147 synthetic candidates through real admission; `egress inspect` uses read-only scoped inspection. Full actual-CLI cross-OS verification and later enrolled integrity remain required. |
-| MCP-017 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
+| MCP-017 — Registry v0 | Runtime contract/client in verification | Closed source-attributed catalogs and explicit offline CLI lookup; conflicting claims and stale/unknown status remain visible. Hosted import/API/UI in private Platform are still open. |
+| MCP-018 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
 
@@ -102,3 +103,11 @@ tests, the compile-fail check, strict crate lint, executable probe, advisory aud
 license/source checks and Gitleaks passed. Full CLI checking is blocked locally
 by the missing MSVC Spectre libraries; actual subprocess tests are required in
 all three OS CI runs and are not yet reported as passed.
+
+The Runtime registry slice adds a closed bounded public import contract and
+`mcp registry lookup --catalog FILE --subject NAMESPACE/SERVER`. Eight local
+Windows hostile/provenance/resource tests, strict crate lint and the standalone
+synthetic lookup demonstration passed. Full CLI verification remains required
+in CI while the local Spectre dependency is unavailable. No new external
+dependency/version, online lookup or authorization input was added. See
+[registry contract](REGISTRY.md); hosted work belongs in private Platform.

@@ -1098,6 +1098,7 @@ dependencies = [
  "mitigate-mcp",
  "mitigate-mcp-scan",
  "mitigate-policy",
+ "mitigate-registry",
  "mitigate-secrets",
  "serde",
  "serde_json",
@@ -1212,6 +1213,16 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+]
+
+[[package]]
+name = "mitigate-registry"
+version = "0.1.0"
+dependencies = [
+ "mitigate-json",
+ "serde",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
