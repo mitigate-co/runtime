@@ -107,7 +107,7 @@ async fn approvals(binary: &Path, root: &Path) {
     assert!(
         ApprovalStore::open(&project.path("approvals.sqlite"))
             .unwrap()
-            .list(now())
+            .list(SystemClock)
             .unwrap()
             .is_empty()
     );
@@ -126,7 +126,7 @@ async fn approvals(binary: &Path, root: &Path) {
     assert_eq!(
         ApprovalStore::open(&project.path("approvals.sqlite"))
             .unwrap()
-            .get(&pending.approval_ref, now())
+            .get(&pending.approval_ref, SystemClock)
             .unwrap()
             .state,
         State::Consumed
@@ -151,7 +151,7 @@ async fn approvals(binary: &Path, root: &Path) {
     assert_eq!(
         ApprovalStore::open(&project.path("approvals.sqlite"))
             .unwrap()
-            .get(&pending.approval_ref, now())
+            .get(&pending.approval_ref, SystemClock)
             .unwrap()
             .cancellation,
         Some(mitigate_policy::approvals::Cancellation::ContextChanged)
@@ -163,7 +163,7 @@ async fn approvals(binary: &Path, root: &Path) {
     assert_eq!(
         ApprovalStore::open(&project.path("approvals.sqlite"))
             .unwrap()
-            .get(&pending.approval_ref, now())
+            .get(&pending.approval_ref, SystemClock)
             .unwrap()
             .state,
         State::Cancelled

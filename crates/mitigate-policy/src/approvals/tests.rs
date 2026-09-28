@@ -47,6 +47,61 @@ fn pending(store: &mut ApprovalStore) -> Record {
 }
 
 #[test]
+fn time_is_sampled_under_the_store_lock_and_clock_failure_preserves_state() {
+    use crate::clock::LockedClock;
+    let dir = Directory::new();
+    let db = dir.db();
+    let mut store = ApprovalStore::create(&db).unwrap();
+    let record = store
+        .request(binding(), LockedClock(&db, Some(1000)), 1000)
+        .unwrap();
+    assert_eq!(record.created_at_ms, 1000);
+    assert_eq!(record.expires_at_ms, 2000);
+    assert!(matches!(
+        store.decide(
+            &record.approval_ref,
+            Choice::Approve,
+            operator(),
+            LockedClock(&db, None)
+        ),
+        Err(Error::Clock)
+    ));
+    assert_eq!(
+        store
+            .get(&record.approval_ref, LockedClock(&db, Some(1000)))
+            .unwrap()
+            .state,
+        State::Requested
+    );
+    store
+        .decide(
+            &record.approval_ref,
+            Choice::Approve,
+            operator(),
+            LockedClock(&db, Some(1100)),
+        )
+        .unwrap();
+    assert!(matches!(
+        store.consume(
+            &record.approval_ref,
+            &binding(),
+            LockedClock(&db, Some(1099))
+        ),
+        Err(Error::Clock)
+    ));
+    assert!(matches!(
+        store
+            .consume(
+                &record.approval_ref,
+                &binding(),
+                LockedClock(&db, Some(2000))
+            )
+            .unwrap(),
+        Consumption::Unavailable(State::Expired)
+    ));
+}
+
+#[test]
 fn approval_survives_restart_but_consumption_never_replays() {
     let dir = Directory::new();
     let mut store = ApprovalStore::create(&dir.db()).unwrap();

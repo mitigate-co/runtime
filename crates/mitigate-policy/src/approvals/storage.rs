@@ -1,5 +1,6 @@
 //! Bounded SQLite mailbox shared by the local gateway and operator CLI.
 use super::*;
+use crate::Clock;
 use crate::files::{safe_file, write_new};
 use rusqlite::{
     Connection, OpenFlags, TransactionBehavior, config::DbConfig, limits::Limit, params,
@@ -45,17 +46,22 @@ impl ApprovalStore {
     }
     /// Create a request valid for 100–300,000 milliseconds. The gateway must use
     /// fresh session/call references, hold arguments in memory and bound its wait.
-    pub fn request(&mut self, binding: Binding, now: u64, ttl_ms: u64) -> Result<Record, Error> {
+    pub fn request(
+        &mut self,
+        binding: Binding,
+        clock: impl Clock,
+        ttl_ms: u64,
+    ) -> Result<Record, Error> {
         let binding = binding.normalized()?;
-        let expires_at_ms = now
-            .checked_add(ttl_ms)
-            .filter(|t| *t <= MAX_TIME)
-            .ok_or(Error::Input)?;
         if !(100..=MAX_TTL).contains(&ttl_ms) {
             return Err(Error::Input);
         }
         let reference = fresh_reference()?;
-        self.update(now, |records| {
+        self.update(clock, |records, now| {
+            let expires_at_ms = now
+                .checked_add(ttl_ms)
+                .filter(|t| *t <= MAX_TIME)
+                .ok_or(Error::Input)?;
             if records.contains_key(&reference)
                 || records.values().any(|r| {
                     r.binding.session_ref == binding.session_ref
@@ -89,12 +95,12 @@ impl ApprovalStore {
         })
     }
     /// List the bounded store after applying expiry/retention. No raw tool data.
-    pub fn list(&mut self, now: u64) -> Result<Vec<Record>, Error> {
-        self.update(now, |records| Ok(records.values().cloned().collect()))
+    pub fn list(&mut self, clock: impl Clock) -> Result<Vec<Record>, Error> {
+        self.update(clock, |records, _| Ok(records.values().cloned().collect()))
     }
     /// Inspect one request after applying expiry; never consume it.
-    pub fn get(&mut self, reference: &Fingerprint, now: u64) -> Result<Record, Error> {
-        self.update(now, |records| {
+    pub fn get(&mut self, reference: &Fingerprint, clock: impl Clock) -> Result<Record, Error> {
+        self.update(clock, |records, _| {
             records.get(reference).cloned().ok_or(Error::Missing)
         })
     }
@@ -105,9 +111,9 @@ impl ApprovalStore {
         reference: &Fingerprint,
         choice: Choice,
         operator: Fingerprint,
-        now: u64,
+        clock: impl Clock,
     ) -> Result<Record, Error> {
-        self.update(now, |records| {
+        self.update(clock, |records, now| {
             let record = records.get_mut(reference).ok_or(Error::Missing)?;
             if record.state != State::Requested
                 && !(choice == Choice::Deny && record.state == State::Approved)
@@ -134,9 +140,9 @@ impl ApprovalStore {
         &mut self,
         reference: &Fingerprint,
         reason: Cancellation,
-        now: u64,
+        clock: impl Clock,
     ) -> Result<Record, Error> {
-        self.update(now, |records| {
+        self.update(clock, |records, now| {
             let record = records.get_mut(reference).ok_or(Error::Missing)?;
             cancel(record, reason, now);
             Ok(record.clone())
@@ -149,10 +155,10 @@ impl ApprovalStore {
         &mut self,
         reference: &Fingerprint,
         current: &Binding,
-        now: u64,
+        clock: impl Clock,
     ) -> Result<Consumption, Error> {
         let current = current.clone().normalized()?;
-        self.update(now, |records| {
+        self.update(clock, |records, now| {
             let record = records.get_mut(reference).ok_or(Error::Missing)?;
             if record.binding != current {
                 cancel(record, Cancellation::ContextChanged, now);
@@ -179,17 +185,18 @@ impl ApprovalStore {
     }
     fn update<T>(
         &mut self,
-        now: u64,
-        operation: impl FnOnce(&mut Records) -> Result<T, Error>,
+        clock: impl Clock,
+        operation: impl FnOnce(&mut Records, u64) -> Result<T, Error>,
     ) -> Result<T, Error> {
-        if now > MAX_TIME {
-            return Err(Error::Clock);
-        }
         budget(&self.conn)?;
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let (last_time, original) = read(&tx)?;
+        let now = clock
+            .now_ms()
+            .filter(|t| *t <= MAX_TIME)
+            .ok_or(Error::Clock)?;
         if now < last_time {
             return Err(Error::Clock);
         }
@@ -204,7 +211,7 @@ impl ApprovalStore {
             .retain(|_, r| r.state.active() || now.saturating_sub(r.updated_at_ms) < RETENTION_MS);
         // Persist observed expiry even when an operator attempts an invalid
         // transition. A later clock rollback cannot revive that observation.
-        let result = operation(&mut records);
+        let result = operation(&mut records, now);
         for key in original.keys().filter(|k| !records.contains_key(*k)) {
             tx.execute("DELETE FROM approvals WHERE reference=?1", [key.as_str()])?;
         }

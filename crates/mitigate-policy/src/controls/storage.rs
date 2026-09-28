@@ -1,5 +1,6 @@
 //! One transactional local control plane; no quota reset on process restart.
 use super::*;
+use crate::Clock;
 use crate::files::{safe_file, write_new};
 use rusqlite::{
     Connection, OpenFlags, TransactionBehavior, config::DbConfig, limits::Limit as SqlLimit, params,
@@ -204,7 +205,7 @@ impl ControlStore {
         &mut self,
         change: Change,
         operator: Fingerprint,
-        now: u64,
+        clock: impl Clock,
     ) -> Result<Snapshot, Error> {
         change.validate()?;
         budget(&self.conn)?;
@@ -212,6 +213,7 @@ impl ControlStore {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let (original, _) = read(&tx)?;
+        let now = clock.now_ms().ok_or(Error::Clock)?;
         original.check_clock(now)?;
         let mut state = original.clone();
         if state.change(&change, now)? {
@@ -245,26 +247,28 @@ impl ControlStore {
     }
     /// Diagnose an action without consuming quota or changing any stored state.
     /// The result can race with live calls/changes and must never authorize one.
-    pub fn preview(&mut self, context: &Context, now: u64) -> Result<Admission, Error> {
+    pub fn preview(&mut self, context: &Context, clock: impl Clock) -> Result<Admission, Error> {
         context.validate()?;
         budget(&self.conn)?;
         let tx = self.conn.transaction()?;
         let (mut state, _) = read(&tx)?;
+        let now = clock.now_ms().ok_or(Error::Clock)?;
         state.check_clock(now)?;
         let result = state.admit(context, now);
         tx.commit()?;
         Ok(result)
     }
     /// Check emergency/target disables, then charge all matching quotas in one
-    /// transaction. Caller supplies trusted time and rechecks before dispatch.
+    /// transaction. Production callers pass SystemClock and recheck before dispatch.
     /// A committed admission remains charged if later checks/calls fail.
-    pub fn admit(&mut self, context: &Context, now: u64) -> Result<Admission, Error> {
+    pub fn admit(&mut self, context: &Context, clock: impl Clock) -> Result<Admission, Error> {
         context.validate()?;
         budget(&self.conn)?;
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let (original, _) = read(&tx)?;
+        let now = clock.now_ms().ok_or(Error::Clock)?;
         original.check_clock(now)?;
         let mut state = original.clone();
         let result = state.admit(context, now);

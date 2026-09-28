@@ -5,7 +5,7 @@ use mitigate_audit::{AuditStore, Retention};
 use mitigate_fingerprint::Fingerprint;
 use mitigate_mcp::{LaunchConfig, LaunchReview, Snapshot, StdioServer};
 use mitigate_policy::{
-    Authority, PolicyStore, SignedBundle,
+    Authority, PolicyStore, SignedBundle, SystemClock,
     approvals::{ApprovalStore, Choice, Record, State},
     controls::{Change, ControlStore},
     public_key,
@@ -15,7 +15,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::Stdio,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
@@ -25,12 +25,6 @@ use tokio::{
 
 fn reference(ch: char) -> Fingerprint {
     serde_json::from_value(json!(ch.to_string().repeat(64))).unwrap()
-}
-fn now() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64
 }
 fn write(path: &Path, value: Value) {
     fs::write(path, serde_json::to_vec(&value).unwrap()).unwrap();
@@ -128,7 +122,7 @@ impl Project {
     fn control(&self, change: Change) {
         ControlStore::open(&self.path("controls.sqlite"))
             .unwrap()
-            .apply(change, reference('2'), now())
+            .apply(change, reference('2'), SystemClock)
             .unwrap();
     }
     async fn pending(&self) -> Record {
@@ -136,7 +130,7 @@ impl Project {
             loop {
                 let records = ApprovalStore::open(&self.path("approvals.sqlite"))
                     .unwrap()
-                    .list(now())
+                    .list(SystemClock)
                     .unwrap();
                 if let Some(record) = records.into_iter().find(|r| r.state == State::Requested) {
                     return record;
@@ -150,7 +144,7 @@ impl Project {
     fn decide(&self, record: &Record, choice: Choice) {
         ApprovalStore::open(&self.path("approvals.sqlite"))
             .unwrap()
-            .decide(&record.approval_ref, choice, reference('3'), now())
+            .decide(&record.approval_ref, choice, reference('3'), SystemClock)
             .unwrap();
     }
     fn events(&self) -> Vec<Value> {
@@ -298,19 +292,24 @@ pub(super) fn change_during_refresh(mode: &str, directory: &Path) {
     if mode == "relay-governance-stop" {
         ControlStore::open(&directory.join("controls.sqlite"))
             .unwrap()
-            .apply(Change::Stop {}, reference('2'), now())
+            .apply(Change::Stop {}, reference('2'), SystemClock)
             .unwrap();
     } else {
         assert_eq!(mode, "relay-governance-revoke");
         let mut approvals = ApprovalStore::open(&directory.join("approvals.sqlite")).unwrap();
         let record = approvals
-            .list(now())
+            .list(SystemClock)
             .unwrap()
             .into_iter()
             .find(|r| r.state == State::Approved)
             .unwrap();
         approvals
-            .decide(&record.approval_ref, Choice::Deny, reference('4'), now())
+            .decide(
+                &record.approval_ref,
+                Choice::Deny,
+                reference('4'),
+                SystemClock,
+            )
             .unwrap();
     }
 }

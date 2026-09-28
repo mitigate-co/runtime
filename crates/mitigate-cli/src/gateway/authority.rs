@@ -10,7 +10,7 @@ use mitigate_audit::{
 use mitigate_fingerprint::Fingerprint;
 use mitigate_gateway::Fault;
 use mitigate_policy::{
-    ActivePolicy, Decision as PolicyDecision, PolicyInput, PolicyStore,
+    ActivePolicy, Decision as PolicyDecision, PolicyInput, PolicyStore, SystemClock,
     approvals::{self, ApprovalStore, Binding, Cancellation, Consumption, State as ApprovalState},
     controls::{Admission, Context, ControlStore},
     grants::{GrantContext, GrantSet},
@@ -219,7 +219,7 @@ impl State {
         {
             if let Some(reference) = &call.detail.approval_ref {
                 self.approvals
-                    .cancel(reference, Cancellation::ContextChanged, now()?)
+                    .cancel(reference, Cancellation::ContextChanged, SystemClock)
                     .map_err(|_| Fault::GovernanceUnavailable)?;
             }
             call.detail.decision = Decision::Deny;
@@ -291,7 +291,7 @@ impl State {
                 call,
                 state
                     .controls
-                    .preview(&call.controls()?, now()?)
+                    .preview(&call.controls()?, SystemClock)
                     .map_err(|_| Fault::GovernanceUnavailable)?,
             )?;
             if decision != PolicyDecision::RequireApproval {
@@ -300,7 +300,7 @@ impl State {
             let binding = call.bind(state.environment.clone())?;
             let record = state
                 .approvals
-                .request(binding.clone(), now()?, state.approval_timeout_ms)
+                .request(binding.clone(), SystemClock, state.approval_timeout_ms)
                 .map_err(|_| Fault::GovernanceUnavailable)?;
             call.detail.approval_ref = Some(record.approval_ref);
             call.binding = Some(binding);
@@ -319,7 +319,7 @@ impl State {
                 call,
                 state
                     .controls
-                    .preview(&call.controls()?, now()?)
+                    .preview(&call.controls()?, SystemClock)
                     .map_err(|_| Fault::GovernanceUnavailable)?,
             )?;
             let reference = call
@@ -329,7 +329,7 @@ impl State {
                 .ok_or(Fault::GovernanceUnavailable)?;
             let record = state
                 .approvals
-                .get(reference, now()?)
+                .get(reference, SystemClock)
                 .map_err(|_| Fault::GovernanceUnavailable)?;
             if let Some(decision) = record.decisions.last() {
                 call.context.approval_actor = Some(ApprovalActor {
@@ -364,7 +364,7 @@ impl State {
                 call,
                 state
                     .controls
-                    .admit(&call.controls()?, now()?)
+                    .admit(&call.controls()?, SystemClock)
                     .map_err(|_| Fault::GovernanceUnavailable)?,
             )?;
             if let Some(binding) = &call.binding {
@@ -375,7 +375,7 @@ impl State {
                     .ok_or(Fault::GovernanceUnavailable)?;
                 match state
                     .approvals
-                    .consume(reference, binding, now()?)
+                    .consume(reference, binding, SystemClock)
                     .map_err(|_| Fault::GovernanceUnavailable)?
                 {
                     Consumption::Ready(permit) => {
@@ -388,7 +388,7 @@ impl State {
                     _ => {
                         let record = state
                             .approvals
-                            .get(reference, now()?)
+                            .get(reference, SystemClock)
                             .map_err(|_| Fault::GovernanceUnavailable)?;
                         if let Some(decision) = record.decisions.last() {
                             call.context.approval_actor = Some(ApprovalActor {
@@ -425,7 +425,7 @@ impl State {
             if !call.dispatched {
                 if let Some(reference) = &call.detail.approval_ref {
                     self.approvals
-                        .cancel(reference, Cancellation::SessionEnded, now()?)
+                        .cancel(reference, Cancellation::SessionEnded, SystemClock)
                         .map_err(|_| Fault::GovernanceUnavailable)?;
                 }
                 call.context.phase = CallPhase::Decision;

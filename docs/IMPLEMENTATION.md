@@ -61,4 +61,12 @@ disk exhaustion/WSL I/O failures in three process tests; its partial result is n
 a passing gate. Cross-OS CI must verify the complete final change.
 Operator setup/reference ergonomics remain open within MCP-014.
 
+An intermittent executable CI failure exposed pre-lock clock sampling in shared
+approval/control stores. Production callers now use in-transaction `SystemClock`
+observations; deterministic lock probes retain rollback, expiry and quota checks.
+The policy suite (53), CLI authority/unit tests (11) and CLI integration tests (17)
+passed locally after the correction, together with strict workspace lint and the
+CLI/fixture build. WSL could not launch the final executable check after host disk
+exhaustion recurred. Final executable/CI validation is pending.
+
 Known launch gates include gateway semantics, grants, Regorus conformance, approvals, secrets, audit, optional sync, registry/fleet, hostile/privacy corpus and signed platform releases. Private vulnerability reporting is enabled. No public binary release or hosted deployment has occurred.

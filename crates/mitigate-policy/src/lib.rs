@@ -2,6 +2,7 @@
 //! credentials enter the interpreter. Policy source never enters diagnostics.
 pub mod approvals;
 mod bundle;
+mod clock;
 pub mod controls;
 mod files;
 pub mod grants;
@@ -12,6 +13,7 @@ mod storage;
 mod tests;
 
 pub use bundle::{ActivePolicy, Authority, Receipt, SignedBundle, public_key};
+pub use clock::{Clock, SystemClock};
 pub use files::{read_document, write_new};
 pub use input::{Decision, GrantState, PolicyInput};
 pub use profile::Policy;

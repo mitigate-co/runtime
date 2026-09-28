@@ -93,6 +93,13 @@ approval storage fails closed; no Platform request or permissive fallback occurs
 
 ## Storage and attribution
 
+Production operations pass `mitigate_policy::SystemClock`. The store observes
+UTC time after acquiring its transaction, so concurrent operator/gateway work
+cannot reorder pre-lock samples. Explicit `u64` observations remain available
+for deterministic simulations. Genuine backward time, unavailable time and
+expired approvals still fail closed; no tolerance or clock clamping is used.
+See [ADR 0023](decisions/0023-transactional-clock-observation.md).
+
 The store is a separate SQLite database: private `0600` file on Unix, inherited
 parent-directory ACL on Windows, regular-file checks, bounded SQL execution,
 250 ms busy timeout, full synchronous rollback-journal transactions, fixed schema

@@ -77,8 +77,9 @@ must be present, using null for unknown identity. A known identity target does
 not match an unknown subject. Global and server/tool controls still match;
 grants independently require an explicitly mapped client before allowing action.
 
-Library `ControlStore::admit` receives trusted gateway facts and UTC Unix
-milliseconds. It re-reads current control state, checks disables, calculates all
+Library `ControlStore::admit` receives trusted gateway facts and `SystemClock`
+for production time. It acquires its transaction, re-reads current control state,
+then samples UTC, checks disables, calculates all
 quotas and commits consumption atomically before returning `Allowed`. Separate
 processes sharing this database cannot overspend the same bucket. The gateway
 must enforce grants, policy, exact launch/schema binding, approval and required
@@ -87,6 +88,12 @@ a cached preview as a permit. An admitted call stays charged when a later check
 or upstream call fails; automatic refunds would enable quota bypass.
 
 ## Storage and recovery
+
+Time observation is serialized with store operations. Production callers use
+`mitigate_policy::SystemClock`; explicit `u64` values remain useful in deterministic
+simulations. This avoids false clock-rollback errors from pre-lock sampling without
+weakening persistent rollback or quota checks. Unavailable/backward time returns
+no allowance. See [ADR 0023](decisions/0023-transactional-clock-observation.md).
 
 The database allows 256 disabled targets, 128 configured buckets and the most
 recent 256 administrator changes. Each actual change increments a monotonic

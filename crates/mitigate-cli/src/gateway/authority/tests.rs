@@ -104,7 +104,7 @@ impl Fixture {
     fn approval(&self) -> approvals::Record {
         ApprovalStore::open(&self.config.approvals_db)
             .unwrap()
-            .list(now().unwrap())
+            .list(SystemClock)
             .unwrap()
             .pop()
             .unwrap()
@@ -113,7 +113,7 @@ impl Fixture {
         let approval_ref = self.approval().approval_ref;
         ApprovalStore::open(&self.config.approvals_db)
             .unwrap()
-            .decide(&approval_ref, choice, reference(operator), now().unwrap())
+            .decide(&approval_ref, choice, reference(operator), SystemClock)
             .unwrap();
     }
     fn records(&self) -> Vec<Value> {
@@ -255,14 +255,14 @@ fn live_control_and_grant_changes_are_rechecked_and_quota_is_not_refunded_after_
     assert_eq!(state.authorize_request(), Ok(false));
     let mut control = ControlStore::open(&fixture.config.controls_db).unwrap();
     control
-        .apply(Change::Stop {}, reference('2'), now().unwrap())
+        .apply(Change::Stop {}, reference('2'), SystemClock)
         .unwrap();
     assert_eq!(state.dispatch(), Err(Fault::Stopped));
     state
         .finish(ResultClass::Uncertain, Some(Fault::Stopped))
         .unwrap();
     control
-        .apply(Change::Resume {}, reference('2'), now().unwrap())
+        .apply(Change::Resume {}, reference('2'), SystemClock)
         .unwrap();
     fixture.begin(&mut state, true);
     assert_eq!(state.authorize_request(), Ok(false));
@@ -283,7 +283,7 @@ fn live_control_and_grant_changes_are_rechecked_and_quota_is_not_refunded_after_
                 },
             },
             reference('2'),
-            now().unwrap(),
+            SystemClock,
         )
         .unwrap();
     fixture.begin(&mut state, true);
