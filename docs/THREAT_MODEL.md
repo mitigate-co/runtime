@@ -201,6 +201,12 @@ HTTPS and cancel on opt-out; an already owned lease can survive queue purge in
 memory. Pure signing or receipt parsing is not authorization or queue completion.
 See [signed events](SIGNED_EVENTS.md) and ADR 0031.
 
+The native signing method requires a durably restored confirmed record and never
+accepts caller-supplied replacement key, identity or origin. Pending or uncertain
+confirmation cannot release a signature through that method; uncertain writes
+require reopening first. The enrollment operation lock remains held by its owner.
+This is a local lifecycle guarantee, not evidence of current remote authority.
+
 The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
 code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local

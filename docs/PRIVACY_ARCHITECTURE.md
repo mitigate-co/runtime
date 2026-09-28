@@ -183,6 +183,11 @@ immutable plaintext anchor holds only a canonical Platform origin and random
 credential reference. Confirming a matching receipt removes the bootstrap code.
 Neither component performs network requests or enables synchronization.
 
+Native event signing uses the confirmed record's original key, opaque identity
+and pinned origin. It rejects pending enrollment and a lease from another queue
+partition, without storing signatures, changing credentials or enabling sync.
+Current consent, valid leases and remote revocation remain separate delivery gates.
+
 The optional [HTTPS transport](ENROLLMENT_HTTPS.md) explicitly sends the bootstrap
 claim to its signed audience with certificate verification, no redirects or
 ambient proxies, bounded deadlines/response and fixed errors. Dependency `log`

@@ -9,7 +9,9 @@ operation remains independent of Platform.
 
 The pure [signed event contract](SIGNED_EVENTS.md) requires a committed, checked
 outbox lease and binds it to this enrollment and Platform. It does not establish
-confirmed native state, current consent or authority to send.
+confirmed native state, current consent or authority to send. The native lifecycle
+provides a separate signing method that requires a confirmed local receipt and
+uses only its restored key, identity and pinned origin.
 
 ## Bootstrap boundary
 

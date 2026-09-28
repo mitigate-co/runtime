@@ -18,6 +18,13 @@ The owning sender must check those conditions immediately before transmission an
 cancel outstanding work on opt-out. Platform must resolve the active enrolled key
 and current organization authority; a valid signature alone grants neither.
 
+The native lifecycle's `EnrollmentStore::sign_event` adds the confirmed local
+receipt requirement and selects the original key, identity and pinned origin
+itself. It refuses pending enrollment and wrong queue partitions, while keeping
+the enrollment operation lock held. Reopening after uncertain confirmation must
+observe confirmed native state before this method can sign. That local receipt
+still does not establish current remote authorization, consent or lease validity.
+
 ## Request version 1
 
 Send only to `POST /api/v1/runtime/events` at the configured canonical HTTPS
@@ -100,5 +107,5 @@ fixture, recreates its signature and checks the exact Rust output. Mutations of
 all transcript fields, every event field/fact, the final LF and the signature fail.
 CI runs the fixture on Windows, macOS and Linux.
 
-This contract does not yet compose a confirmed native key, HTTPS event sender,
-consent/lease cancellation, automatic gateway producer or hosted receiver.
+The native signing path does not yet compose an HTTPS event sender, consent/lease
+cancellation, automatic gateway producer or hosted receiver.

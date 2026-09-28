@@ -189,3 +189,12 @@ See [signed events](SIGNED_EVENTS.md) and ADR 0031; this does not yet activate a
 sender or compose confirmed native credentials with delivery.
 The full Linux workspace/all-feature suite passed 275 test cases, with no failures;
 the lock helper is invoked by its parent test. The staged secret scan found no leaks.
+
+Native event signing now requires confirmed local enrollment and uses the restored
+key, identity and pinned origin under the existing operation lock. Pending state
+and another enrollment's queue are refused. Interrupted confirmation tests require
+reopening to reconcile actual native state before signing. All 32 enrollment
+tests and four compile-fail checks passed on Windows/Linux, plus strict workspace
+Clippy. Real Windows Credential Manager and isolated Linux Secret Service fixtures
+passed identical-signature recovery and exact credential/queue cleanup without
+network requests. Event HTTPS, consent coordination and hosted ingest remain open.
