@@ -40,6 +40,7 @@ jobs:
           target/debug/mitigate-test-mcp.exe secret-contract target/debug/mitigate.exe
       - name: Verify native credentials on macOS
         if: runner.os == 'macOS'
+        timeout-minutes: 3
         shell: bash
         run: |
           original=$(security default-keychain -d user | tr -d '"' | xargs)

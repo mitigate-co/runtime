@@ -33,6 +33,9 @@ licensed maintained libraries, with platform dependencies compiled only for that
 - `apple-native-keyring-store` 1.0.2, only `keychain`, using security-framework.
   MIT OR Apache-2.0. Uses native Keychain memory management; no iCloud/protected
   store feature is selected. Native Keychain may request user permission.
+  Native contract tests keep credential reads in the same CLI application that
+  imported them; macOS can prompt when a different executable tries to read.
+  The real child checks both the initial and rotated values after injection.
 - `secret-service` 5.2.0, only `rt-tokio-crypto-rust`, on Linux. MIT OR Apache-2.0.
   Uses zbus for local D-Bus and RustCrypto for the Secret Service protocol. This
   adds an IPC/crypto dependency graph but avoids native libdbus/OpenSSL packaging.

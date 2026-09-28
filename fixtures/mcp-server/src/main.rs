@@ -32,9 +32,14 @@ fn main() {
         ));
         return;
     }
-    if mode == "credential" {
+    if mode == "credential" || mode == "credential-v1" {
         std::fs::write(&args[2], b"started").unwrap();
-        assert!(std::env::var("BROKER_TOKEN").is_ok_and(|v| v == "broker-secret-canary-v2"));
+        let expected = if mode == "credential-v1" {
+            "broker-secret-canary-v1"
+        } else {
+            "broker-secret-canary-v2"
+        };
+        assert!(std::env::var("BROKER_TOKEN").is_ok_and(|v| v == expected));
         assert!(std::env::var_os("UNRELATED_CREDENTIAL_CANARY").is_none());
         assert!(std::env::var_os("PATH").is_none());
         assert!(!args.iter().any(|v| v.contains("broker-secret-canary")));
