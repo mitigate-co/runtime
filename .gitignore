@@ -8,3 +8,8 @@
 *.pem
 *.key
 *.pfx
+# Local policy quickstart state; never include customer policies or trust records.
+/trust.json
+/policy.db
+/policy.db-*
+/policy-v*.json

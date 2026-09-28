@@ -33,12 +33,22 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then cli="$cli.exe"; fi
           cargo run --locked -p mitigate-mcp-fixture -- cli-contract "$cli"
           cargo run --locked -p mitigate-mcp-fixture -- gateway-contract "$cli"
+          python scripts/verify-policy.py "$cli"
+      - name: Compare policy decisions with OPA reference
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/opa" https://github.com/open-policy-agent/opa/releases/download/v1.21.0/opa_linux_amd64_static
+          echo "5eef70644868bb04d0556bcc795ee42f2ab379e73f51d1bfa30f83e1305bc9b9  $RUNNER_TEMP/opa" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/opa"
+          python scripts/verify-policy.py target/debug/mitigate --opa "$RUNNER_TEMP/opa"
       - name: Verify native credentials on Windows
         if: runner.os == 'Windows'
         shell: bash
         run: |
           cargo test --locked -p mitigate-secrets native_windows_record_uses_local_persistence -- --ignored
           target/debug/mitigate-test-mcp.exe secret-contract target/debug/mitigate.exe
+          python scripts/verify-policy.py target/debug/mitigate.exe --native
       - name: Verify native credentials on macOS
         if: runner.os == 'macOS'
         timeout-minutes: 3
@@ -51,6 +61,7 @@ jobs:
           security unlock-keychain -p mitigate-ci-fixture "$keychain"
           security default-keychain -d user -s "$keychain"
           target/debug/mitigate-test-mcp secret-contract target/debug/mitigate
+          python scripts/verify-policy.py target/debug/mitigate --native
       - name: Verify native credentials on Linux
         if: runner.os == 'Linux'
         shell: bash

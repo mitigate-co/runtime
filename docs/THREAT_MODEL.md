@@ -79,6 +79,19 @@ Windows cleanup additionally checks actual job membership, rather than treating 
 
 ## Known limitations
 
+MCP-011's policy boundary verifies independently pinned Ed25519 signatures and
+the restricted Rego AST before activation. Source and raw tool payloads do not
+enter decision reports; raw payloads have no policy-input field. Parser bounds
+precede Regorus, and allowed expressions cannot generate unbounded collections
+or perform I/O. Timeouts/conflicts are errors, never implicit allow. Atomic
+replacement and persistent increasing versions prevent normal rollback/replay;
+the loaded last-known-good policy survives invalid refresh/storage failures.
+Separate trust/cache files remain vulnerable to a privileged same-user attacker
+or full old-store restoration. Signing authenticates an authority, not policy
+correctness. This is not hardware rollback protection or a process memory quota.
+See [policy profile and limits](POLICY.md). Grant/approval enforcement remains a
+later gateway composition requirement; these tools do not enable invocation.
+
 The MCP-009 secret broker stores values only in the current user's native credential
 store. Opaque references cannot select other services, arbitrary paths or vault
 providers. Child bindings are explicitly reviewed, bounded and resolved before

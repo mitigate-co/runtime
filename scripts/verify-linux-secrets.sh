@@ -5,3 +5,4 @@ set -euo pipefail
 test "$XDG_DATA_HOME" = "$RUNNER_TEMP/mitigate-keyring-fixture"
 printf '%s' 'mitigate-ci-fixture' | gnome-keyring-daemon --unlock --components=secrets >/dev/null
 target/debug/mitigate-test-mcp secret-contract target/debug/mitigate
+python3 scripts/verify-policy.py target/debug/mitigate --native

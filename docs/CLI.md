@@ -86,6 +86,11 @@ On Windows append `.exe` to the binary path. This checks actual JSON/human repor
 
 ## Recovery
 
+The [policy reference](POLICY.md) documents `mcp policy check`, `test`, `keygen`,
+`sign`, `init`, `activate`, `status` and `evaluate`. Source tests do not invoke
+tools. Stored evaluation requires a separately pinned authority and verified
+bundle. Source, raw metadata values and private keys are omitted from reports.
+
 - `cli_invalid_arguments`: run the command with `--help`; inspection requires `--allow-exec`.
 - `scan_*` / `config_*`: correct the selected file or limits; invalid present sources fail the entire scan.
 - `mcp_configuration_invalid` / `mcp_executable_invalid`: review the [launch schema](ENUMERATION.md), absolute executable and working directory.
@@ -94,5 +99,10 @@ On Windows append `.exe` to the binary path. This checks actual JSON/human repor
 - `mcp_cleanup_failed`: inspect the selected server process before retrying; termination could not be confirmed.
 - `audit_integrity_failed`: preserve the database; investigate without resetting or overwriting.
 - `audit_unavailable`: check disk space, competing writers and permissions; verify before retrying.
+- `policy_profile_invalid`: check the restricted Rego syntax and resource bounds.
+- `policy_bundle_unverified`: verify the independently pinned public key and signed manifest.
+- `policy_version_rejected`: use a higher signed version; inspect current status after uncertain writes.
+- `policy_evaluation_failed`: execution is not authorized; review overlapping rules and retry.
+- `policy_signing_key_unavailable`: check the native key reference and unlock the OS store.
 
 The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory pagination and shutdown. Gateway enforcement, grants, approvals and Platform synchronization remain later packages.

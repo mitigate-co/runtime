@@ -1,0 +1,21 @@
+[package]
+name = "mitigate-policy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+mitigate-fingerprint = { path = "../mitigate-fingerprint", version = "0.1.0" }
+mitigate-json = { path = "../mitigate-json", version = "0.1.0" }
+mitigate-mcp = { path = "../mitigate-mcp", version = "0.1.0" }
+serde.workspace = true
+serde_json.workspace = true
+regorus.workspace = true
+ed25519-dalek.workspace = true
+rusqlite.workspace = true
+sha2.workspace = true
+
+[lints]
+workspace = true

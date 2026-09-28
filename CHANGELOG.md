@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — local signed policy
+
+- Embed Regorus with a versioned, structurally bounded Rego profile and closed metadata input/decision output.
+- Add native-store signing keys, independently pinned Ed25519 trust, atomic local activation and persistent version checks.
+- Preserve loaded policy on failed refresh and reverify cached bundles on restart. No network or unsigned activation path is added.
+- Add hostile-policy/signature/storage tests, actual CLI/native signing contracts and OPA reference conformance. Gateway calls remain disabled pending grants and approvals.
+
 ## Unreleased — local audit
 
 - Add bounded SQLite audit with a closed metadata schema, transactional retention and a verifiable hash chain.

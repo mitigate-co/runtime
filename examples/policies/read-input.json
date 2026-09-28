@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "client": null,
+  "principal": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "agent": null,
+  "server": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "tool": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "schema_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "capabilities": ["read_data"],
+  "schema_changed": false,
+  "grant": "explicit",
+  "offline": false
+}
