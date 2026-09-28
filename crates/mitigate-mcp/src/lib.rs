@@ -19,7 +19,7 @@ pub use model::{Inventory, InventoryReport, Tool, ToolSummary};
 pub use snapshot::{ChangeKind, Snapshot, SnapshotDiff, ToolChange};
 use std::fmt;
 pub use stdio::{enumerate, enumerate_with_shutdown};
-pub use upstream::{Progress, StdioServer};
+pub use upstream::{CallFailure, Progress, StdioServer};
 
 /// Fixed operational errors; never carries upstream messages, arguments or paths.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

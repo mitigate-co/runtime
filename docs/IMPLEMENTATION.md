@@ -43,4 +43,11 @@ binary refusing new records without modifying history. Cross-OS CI/merge remains
 pending. Governed invocation, approval waiting and audit lifecycle composition
 remain open gates.
 
+Final dispatch boundary is in verification: the upstream adapter invokes an
+owner gate after schema/inventory/selected-code checks, before sending a tool call.
+Five gate regressions and all 19 real-process upstream tests, strict workspace
+lint and the executable relay demonstration passed locally. Timeout/cancellation
+cannot dispatch a late gate result; explicit refusal preserves healthy reuse.
+The governing service must still supply policy/approval/control/audit enforcement.
+
 Known launch gates include gateway semantics, grants, Regorus conformance, approvals, secrets, audit, optional sync, registry/fleet, hostile/privacy corpus and signed platform releases. Private vulnerability reporting is enabled. No public binary release or hosted deployment has occurred.

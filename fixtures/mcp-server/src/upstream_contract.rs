@@ -1,5 +1,5 @@
 //! Real-process relay demonstration, restricted to this synthetic executable.
-use mitigate_mcp::{LaunchConfig, StdioServer};
+use mitigate_mcp::{CallFailure, LaunchConfig, StdioServer};
 use serde_json::json;
 
 pub(super) fn verify() {
@@ -13,12 +13,21 @@ pub(super) fn verify() {
         .unwrap();
     runtime.block_on(async {
         let mut server = StdioServer::connect(&config).await.unwrap();
+        assert_eq!(
+            server
+                .call_with_gate("read_status", json!({}), None, || async {
+                    Err("fixture_denied")
+                })
+                .await,
+            Err(CallFailure::Rejected("fixture_denied"))
+        );
         let mut events = Vec::new();
         let result = server
-            .call(
+            .call_with_gate(
                 "read_status",
                 json!({"value":"synthetic-input"}),
                 Some(&mut |p| events.push(p)),
+                || async { Ok::<(), ()>(()) },
             )
             .await
             .unwrap();
@@ -28,6 +37,6 @@ pub(super) fn verify() {
         server.close().await.unwrap();
     });
     println!(
-        "Upstream contract verified: real subprocess, fresh inventory, synthetic call, progress counters and confirmed cleanup."
+        "Upstream contract verified: real subprocess, fresh inventory, refused and accepted dispatch gates, synthetic call, progress counters and confirmed cleanup."
     );
 }

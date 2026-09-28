@@ -8,6 +8,22 @@ use crate::{
 use serde_json::{Value, json};
 use std::time::Duration;
 
+/// Separates a final authorization refusal from an upstream/validation failure.
+/// Neither variant authorizes retries: an upstream failure may follow dispatch.
+#[derive(Debug, PartialEq, Eq)]
+pub enum CallFailure<E> {
+    /// The owner's final gate refused before any tools/call was sent. A healthy
+    /// connection remains usable. The owner controls the safe error vocabulary.
+    Rejected(E),
+    /// Validation, refresh, timeout or transport failure. Effects may be unknown.
+    Upstream(Error),
+}
+impl<E> From<Error> for CallFailure<E> {
+    fn from(error: Error) -> Self {
+        Self::Upstream(error)
+    }
+}
+
 /// Sanitized progress counters. Upstream free-form progress messages are omitted.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Progress {
@@ -176,13 +192,47 @@ impl StdioServer {
         &mut self,
         name: &str,
         arguments: Value,
-        mut progress: Option<&mut dyn FnMut(Progress)>,
+        progress: Option<&mut dyn FnMut(Progress)>,
     ) -> Result<Value> {
+        match self
+            .call_with_gate(name, arguments, progress, || async {
+                Ok::<(), std::convert::Infallible>(())
+            })
+            .await
+        {
+            Ok(result) => Ok(result),
+            Err(CallFailure::Upstream(error)) => Err(error),
+            Err(CallFailure::Rejected(never)) => match never {},
+        }
+    }
+
+    /// Validate arguments and both schemas, refresh definitions, check selected
+    /// launch code, then run the owner's final gate exactly once before dispatch.
+    ///
+    /// The gate receives no content and cannot mutate this call's arguments or
+    /// connection. It must recheck authorization, consume any approval and commit
+    /// pre-dispatch audit. `Ok(())` satisfies this owner-defined gate only; this
+    /// transport does not evaluate policy. Long human waits belong before calling
+    /// this method. The transaction deadline includes the gate; late success is
+    /// refused. Rejection preserves a healthy connection. Cancellation/timeout
+    /// poisons and terminates it, including while the gate is pending.
+    ///
+    /// A gate's detached storage task may finish after cancellation, but it must
+    /// never own a transport or execute a tool. Gate commits may therefore exist
+    /// without dispatch/completion, and must never be reused or refunded as proof
+    /// of no effects. There is no automatic retry or distributed atomic commit.
+    pub async fn call_with_gate<E, F: std::future::Future<Output = std::result::Result<(), E>>>(
+        &mut self,
+        name: &str,
+        arguments: Value,
+        mut progress: Option<&mut dyn FnMut(Progress)>,
+        gate: impl FnOnce() -> F,
+    ) -> std::result::Result<Value, CallFailure<E>> {
         if !self.usable {
-            return Err(Error::Disconnected);
+            return Err(Error::Disconnected.into());
         }
         if !arguments.is_object() || !self.inventory.tools.iter().any(|tool| tool.name == name) {
-            return Err(Error::Protocol);
+            return Err(Error::Protocol.into());
         }
         // Validate size/complexity before any new upstream request. Raw content
         // never enters errors, including invalid input supplied by library callers.
@@ -203,12 +253,13 @@ impl StdioServer {
         input.validate(&arguments).await?;
         self.process.begin_transaction();
         self.client.begin_transaction();
+        let until = tokio::time::Instant::now() + self.deadline;
         let mut operation = Operation {
             process: &mut self.process,
             usable: &mut self.usable,
             completed: false,
         };
-        let result = tokio::time::timeout(self.deadline, async {
+        let result = tokio::time::timeout_at(until, async {
             refresh(
                 &mut self.client,
                 operation.process,
@@ -219,6 +270,16 @@ impl StdioServer {
             // Refresh itself may take time or run mutable server code. Check
             // selected code after refresh, immediately before tools/call.
             operation.process.check_launch().await?;
+            if tokio::time::Instant::now() >= until {
+                return Err(Error::Timeout.into());
+            }
+            let admission = gate().await;
+            // timeout_at can poll a ready inner future after its deadline. In
+            // particular, a non-yielding gate must never dispatch on late success.
+            if tokio::time::Instant::now() >= until {
+                return Err(Error::Timeout.into());
+            }
+            admission.map_err(CallFailure::Rejected)?;
             let token = json!(self.client.next_request_id());
             let mut params = json!({"name":name,"arguments":arguments});
             if progress.is_some() {
@@ -266,17 +327,18 @@ impl StdioServer {
                 match result.get("structuredContent") {
                     Some(value) => schema.validate(value).await?,
                     None if result.get("isError").and_then(Value::as_bool) == Some(true) => (),
-                    None => return Err(Error::SchemaMismatch),
+                    None => return Err(Error::SchemaMismatch.into()),
                 }
             }
             Ok(result)
         })
         .await
-        .map_err(|_| Error::Timeout)
+        .map_err(|_| CallFailure::Upstream(Error::Timeout))
         .and_then(|r| r);
-        operation.completed = result.is_ok();
+        operation.completed = result.is_ok() || matches!(result, Err(CallFailure::Rejected(_)));
+        let interrupted = !operation.completed;
         drop(operation);
-        if result.is_err() {
+        if interrupted {
             self.process.close().await?;
         }
         result
