@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "00112233445566778899aabbccddeeff",
+  "time_ms": 1000,
+  "detail": {
+    "operation": "tool_call",
+    "client_ref": null,
+    "principal_ref": null,
+    "agent_ref": null,
+    "attribution": "unknown",
+    "server_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "tool_ref": null,
+    "capability_classes": [],
+    "schema_fingerprint": null,
+    "policy_ref": null,
+    "policy_version": null,
+    "decision": "deny",
+    "approval_ref": null,
+    "result_class": "not_invoked",
+    "duration_ms": 0,
+    "evidence_ref": null
+  }
+}

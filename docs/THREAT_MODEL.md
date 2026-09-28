@@ -118,6 +118,12 @@ The MCP-007 listener additionally rejects ambiguous envelopes, reused IDs and ou
   workers retain bounded admission slots after timeout/cancellation. This is not
   a thread-killing timeout or OS sandbox. See [schema validation](SCHEMA_VALIDATION.md)
   and ADR 0019. Raw result content is still workload data, not safe telemetry.
+- Governed-call audit separates pre-dispatch authorization from observed outcome.
+  Required caller/tool/policy/approval facts are checked before a dispatch record
+  can be appended. The store does not itself authorize execution or authenticate
+  operators. Missing completion is unknown outcome, never permission to replay.
+  Mixed-version chains preserve legacy encoding; old readers refuse new records
+  without rewriting them. See [call audit](AUDIT.md) and ADR 0020.
 - Local control state and quota balances survive normal restarts and use atomic
   shared-database admission. Emergency/exact disables precede quotas; a failed
   commit releases no allowance. Missing/corrupt/busy/full storage and backward

@@ -125,6 +125,12 @@ and backtraces must not expose values handled by dependencies. A subprocess test
 injects a synthetic panic payload with backtraces enabled and verifies omission.
 Library embedders remain responsible for their own process-wide panic hooks.
 
+Version-two local audit adds only typed correlation, phase, exact definition/
+policy references and declared operator-choice metadata. It contains no raw
+arguments/results or hashes of argument content. Version-one records receive no
+synthetic attribution or added null fields. Neither version is a Platform egress
+contract; exports must not be forwarded around the Zero-Content boundary.
+
 ## Implemented local control metadata
 
 The MCP-014 control database stores exact hashed references, numeric quota state,

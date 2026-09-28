@@ -3,9 +3,11 @@
 //! The hash chain detects unrecomputed modifications, not malicious rewrites or
 //! rollback by someone controlling the entire database. This is not a sync schema.
 
+mod call;
 mod event;
 mod storage;
 
+pub use call::{ApprovalActor, ApprovalChoice, CallContext, CallPhase, OperatorSource};
 pub use event::{Attribution, Decision, Event, EventDetails, Operation, ResultClass};
 pub use storage::{AuditStore, Page, Record, Retention, Verification};
 

@@ -34,6 +34,7 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then cli="$cli.exe"; fi
           cargo run --locked -p mitigate-mcp-fixture -- cli-contract "$cli"
           cargo run --locked -p mitigate-mcp-fixture -- gateway-contract "$cli"
+          cargo run --locked -p mitigate-mcp-fixture -- audit-contract "$cli"
           python scripts/verify-policy.py "$cli"
           python scripts/verify-grants.py "$cli"
           python scripts/verify-approvals.py "$cli"

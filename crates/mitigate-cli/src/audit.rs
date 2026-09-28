@@ -48,19 +48,26 @@ pub(crate) fn run(command: AuditCommand, machine: bool) -> io::Result<ExitCode> 
             } else {
                 let mut out = io::stdout().lock();
                 if let Some(rows) = value["records"].as_array() {
-                    writeln!(out, "SEQUENCE  TIME (UNIX MS)  OPERATION  DECISION  RESULT")?;
+                    writeln!(
+                        out,
+                        "SEQUENCE  TIME (UNIX MS)  OPERATION  DECISION  RESULT  PHASE"
+                    )?;
                     for row in rows {
                         let event = &row["event"];
                         let detail = &event["detail"];
                         writeln!(
                             out,
-                            "{}  {}  {}  {}  {}",
+                            "{}  {}  {}  {}  {}  {}",
                             row["sequence"],
                             event["time_ms"],
                             detail["operation"].as_str().unwrap_or(""),
                             detail["decision"].as_str().unwrap_or(""),
-                            detail["result_class"].as_str().unwrap_or("")
+                            detail["result_class"].as_str().unwrap_or(""),
+                            event["call"]["phase"].as_str().unwrap_or("-")
                         )?;
+                        if let Some(reference) = event["call"]["call_ref"].as_str() {
+                            writeln!(out, "  Call: {reference}")?;
+                        }
                     }
                     if rows.is_empty() {
                         writeln!(out, "No retained events.")?;

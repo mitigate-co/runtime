@@ -1,5 +1,6 @@
 //! Synthetic local server; no real credentials, network connections or tool calls.
 
+mod audit_contract;
 mod cli_contract;
 mod gateway_contract;
 mod listener_contract;
@@ -29,6 +30,13 @@ fn main() {
     let mode = args.get(1).map_or("ok", String::as_str);
     if mode == "schema-contract" {
         schema_contract::verify();
+        return;
+    }
+    if mode == "audit-contract" {
+        audit_contract::verify(
+            std::path::Path::new(args.get(2).expect("explicit CLI path")),
+            args.get(3).map(std::path::Path::new),
+        );
         return;
     }
     if mode == "secret-contract" {

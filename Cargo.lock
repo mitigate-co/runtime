@@ -1160,6 +1160,7 @@ dependencies = [
 name = "mitigate-mcp-fixture"
 version = "0.1.0"
 dependencies = [
+ "mitigate-audit",
  "mitigate-gateway",
  "mitigate-mcp",
  "mitigate-secrets",

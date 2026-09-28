@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 rusqlite.workspace = true
+mitigate-audit = { path = "../../crates/mitigate-audit", version = "0.1.0" }
 mitigate-secrets = { path = "../../crates/mitigate-secrets", version = "0.1.0" }
 serde_json.workspace = true
 mitigate-mcp = { path = "../../crates/mitigate-mcp", version = "0.1.0" }
