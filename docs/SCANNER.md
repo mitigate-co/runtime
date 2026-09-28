@@ -41,4 +41,4 @@ Exit 0 means discovery completed, including an empty result or declarations need
 
 Tests cover deterministic ordering, absent sources, duplicate keys, bounds, malformed and ambiguous settings, credential canaries, hostile shell declarations without execution, package declaration uncertainty, CLI failures and account-free operation. Unix CI exercises source and parent symlink rejection; Windows code rejects all reparse attributes, not just symbolic links.
 
-MCP-003 adds explicit tool enumeration. Fingerprints, capability classification, grants, gateway policy and Platform synchronization remain separate ordered packages. Configuration risks here must not be treated as tool capability classification or authorization.
+[Explicit tool enumeration](ENUMERATION.md) uses a separate reviewed launch configuration and execution flag. Fingerprints, capability classification, grants, gateway policy and Platform synchronization remain separate ordered packages. Configuration risks here must not be treated as tool capability classification or authorization.

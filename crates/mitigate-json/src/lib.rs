@@ -63,8 +63,17 @@ impl<'de> Deserialize<'de> for StrictValue {
     }
 }
 
-pub(super) fn parse(bytes: &[u8]) -> Result<Value, ()> {
-    let StrictValue(value) = serde_json::from_slice(bytes).map_err(|_| ())?;
+/// Rejected JSON; contains no parser diagnostics or original content.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct InvalidJson;
+
+/// Parse at most 1 MiB, rejecting duplicate keys and excessive complexity.
+/// Returned values remain untrusted local content and must never be logged.
+pub fn parse(bytes: &[u8]) -> Result<Value, InvalidJson> {
+    if bytes.len() > 1_048_576 {
+        return Err(InvalidJson);
+    }
+    let StrictValue(value) = serde_json::from_slice(bytes).map_err(|_| InvalidJson)?;
     fn bounded(value: &Value, depth: usize, budget: &mut usize) -> Result<(), ()> {
         if depth > 32 || *budget == 0 {
             return Err(());
@@ -89,6 +98,20 @@ pub(super) fn parse(bytes: &[u8]) -> Result<Value, ()> {
         }
         Ok(())
     }
-    bounded(&value, 0, &mut 32_768)?;
+    bounded(&value, 0, &mut 32_768).map_err(|_| InvalidJson)?;
     Ok(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn rejects_nested_ambiguity_and_complexity_without_diagnostics() {
+        assert!(parse(br#"{"a":[{"key":1,"key":2}]}"#).is_err());
+        assert!(parse(&vec![b' '; 1_048_577]).is_err());
+        assert!(parse(format!("{}0{}", "[".repeat(33), "]".repeat(33)).as_bytes()).is_err());
+        assert!(parse(format!("[{}0]", "0,".repeat(32_768)).as_bytes()).is_err());
+        assert!(parse(format!("\"{}\"", "a".repeat(65_537)).as_bytes()).is_err());
+        assert_eq!(parse(br#"{"ok":[null,true,2,2.5]}"#).unwrap()["ok"][3], 2.5);
+    }
 }

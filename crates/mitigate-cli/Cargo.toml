@@ -12,6 +12,8 @@ name = "mitigate"
 path = "src/main.rs"
 
 [dependencies]
+mitigate-mcp = { path = "../mitigate-mcp", version = "0.1.0" }
+tokio.workspace = true
 mitigate-config = { version = "0.1.0", path = "../mitigate-config" }
 mitigate-mcp-scan = { version = "0.1.0", path = "../mitigate-mcp-scan" }
 clap.workspace = true

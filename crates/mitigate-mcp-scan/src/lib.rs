@@ -1,7 +1,6 @@
 //! Read-only project discovery. No environment expansion, secret lookup, network,
 //! recursive traversal, imported-script execution, or automatic MCP server launch.
 
-mod document;
 mod model;
 mod normalize;
 
@@ -179,7 +178,7 @@ pub fn scan_project(root: &Path, limits: &ScanLimits) -> Result<ScanReport, Scan
         });
         if let Some(bytes) = bytes {
             let value =
-                document::parse(&bytes).map_err(|_| fail(ScanErrorCode::InvalidDocument))?;
+                mitigate_json::parse(&bytes).map_err(|_| fail(ScanErrorCode::InvalidDocument))?;
             let servers = value
                 .get("mcpServers")
                 .and_then(|v| v.as_object())

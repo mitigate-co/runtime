@@ -216,6 +216,43 @@ fn scanner_errors_and_custom_limits_have_stable_exit_contracts() {
     }
 }
 
+#[test]
+fn inspect_requires_execution_intent_and_does_not_echo_invalid_config() {
+    let fixture = Fixture::new();
+    let path = fixture.file(br#"{"schema_version":1,"executable_path":"secret-canary","working_directory":"unused","env":{"TOKEN":"secret-canary"}}"#);
+    let unapproved = cli(&[
+        "mcp",
+        "inspect",
+        "--launch-config",
+        path.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(unapproved.status.code(), Some(2));
+    assert!(unapproved.stdout.is_empty());
+    assert!(
+        String::from_utf8(unapproved.stderr)
+            .unwrap()
+            .contains("--allow-exec")
+    );
+    let approved = cli(&[
+        "mcp",
+        "inspect",
+        "--launch-config",
+        path.to_str().unwrap(),
+        "--allow-exec",
+        "--json",
+    ]);
+    assert_eq!(approved.status.code(), Some(2));
+    assert!(approved.stdout.is_empty());
+    let error = String::from_utf8(approved.stderr).unwrap();
+    assert!(!error.contains("secret-canary"));
+    assert!(!error.contains(path.to_str().unwrap()));
+    assert_eq!(
+        serde_json::from_str::<Value>(&error).unwrap()["error"],
+        "mcp_configuration_invalid"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn refuses_symlink_configuration() {

@@ -41,6 +41,15 @@ enum Command {
 
 #[derive(Subcommand)]
 enum McpCommand {
+    /// Start an explicitly trusted local server and enumerate tools without calls.
+    Inspect {
+        /// Reviewed Runtime launch configuration, separate from discovery files.
+        #[arg(long)]
+        launch_config: PathBuf,
+        /// Required: this executes the configured program with your OS privileges.
+        #[arg(long, required = true)]
+        allow_exec: bool,
+    },
     /// Read Claude Code and Cursor project configurations locally.
     Scan {
         /// Project directory; only documented configuration paths are inspected.
@@ -108,6 +117,59 @@ fn config_error(error: ConfigError, json: bool) -> io::Result<()> {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command:
+                McpCommand::Inspect {
+                    launch_config,
+                    allow_exec: _,
+                },
+        } => {
+            let result = mitigate_mcp::LaunchConfig::from_file(&launch_config).and_then(|config| {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|_| mitigate_mcp::Error::Launch)?;
+                runtime.block_on(mitigate_mcp::enumerate_with_shutdown(&config, async {
+                    let _ = tokio::signal::ctrl_c().await;
+                }))
+            });
+            match result {
+                Ok(inventory) => {
+                    if cli.json {
+                        write_json(&inventory.report(), io::stdout().lock())?;
+                    } else {
+                        let mut output = io::stdout().lock();
+                        writeln!(
+                            output,
+                            "{} tool(s). MCP {}. No tools called.",
+                            inventory.tools.len(),
+                            inventory.protocol_version
+                        )?;
+                        if !inventory.tools_supported {
+                            writeln!(output, "Server does not advertise tools.")?;
+                        }
+                        for tool in &inventory.tools {
+                            writeln!(output, "{}", tool.name)?;
+                        }
+                    }
+                }
+                Err(error) => {
+                    if cli.json {
+                        write_json(
+                            &ErrorReport {
+                                schema_version: 1,
+                                error: error.code(),
+                                message: error.to_string(),
+                            },
+                            io::stderr().lock(),
+                        )?;
+                    } else {
+                        writeln!(io::stderr().lock(), "{}: {error}", error.code())?;
+                    }
+                    return Ok(ExitCode::from(2));
+                }
+            }
+        }
         Command::Mcp {
             command:
                 McpCommand::Scan {

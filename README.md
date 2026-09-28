@@ -15,7 +15,16 @@ cargo run --locked -- mcp scan --root examples/scanner-project
 cargo run --locked -- mcp scan --root examples/scanner-project --json
 ```
 
-These commands work without an account, credentials, or a network connection once build dependencies are available. The scanner reads two documented project configuration locations without launching or contacting servers. Replace the fixture root with your project directory to inspect its declarations. [Scanner scope and output](docs/SCANNER.md) explains what is checked and excluded; [configuration v1](docs/CONFIGURATION.md) documents resource limits. Tool enumeration and the gateway are not available yet.
+These commands work without an account, credentials, or a network connection once build dependencies are available. The scanner reads two documented project configuration locations without launching or contacting servers. Replace the fixture root with your project directory to inspect its declarations. [Scanner scope and output](docs/SCANNER.md) explains what is checked and excluded; [configuration v1](docs/CONFIGURATION.md) documents resource limits.
+
+To enumerate a trusted server, use the separate [explicit launch workflow](docs/ENUMERATION.md). The synthetic demonstration runs locally:
+
+```sh
+cargo run --locked -p mitigate-mcp-fixture -- launch-config > target/fixture-launch.json
+cargo run --locked -- mcp inspect --launch-config target/fixture-launch.json --allow-exec --json
+```
+
+`inspect` starts the selected program with your OS privileges. It never calls tools. The gateway and enforcement are not implemented yet.
 
 ## Verify
 
