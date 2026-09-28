@@ -57,10 +57,17 @@ impl StdioServer {
         config: &LaunchConfig,
         shutdown: impl std::future::Future<Output = ()>,
     ) -> Result<Self> {
-        let mut process = Session::start(config)?;
-        let mut client = Client::new();
+        config.validate()?;
         let deadline = Duration::from_millis(config.timeout_ms);
-        let initialization = tokio::time::timeout(deadline, async {
+        let until = tokio::time::Instant::now() + deadline;
+        tokio::pin!(shutdown);
+        let mut process = tokio::select! {
+            biased;
+            _ = &mut shutdown => return Err(Error::Cancelled),
+            result = tokio::time::timeout_at(until, Session::start(config)) => result.map_err(|_| Error::Timeout)??,
+        };
+        let mut client = Client::new();
+        let initialization = tokio::time::timeout_at(until, async {
             let mut inventory = protocol::initialize(&mut client, &mut process).await?;
             if inventory.tools_supported {
                 inventory.tools = protocol::list_tools(&mut client, &mut process).await?;
@@ -70,7 +77,7 @@ impl StdioServer {
         });
         let result = tokio::select! {
             result = initialization => result.map_err(|_| Error::Timeout).and_then(|r|r),
-            _ = shutdown => Err(Error::Cancelled),
+            _ = &mut shutdown => Err(Error::Cancelled),
         };
         match result {
             Ok((inventory, baseline)) => Ok(Self {

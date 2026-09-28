@@ -1,0 +1,28 @@
+[package]
+name = "mitigate-secrets"
+description = "Local native credentials and scoped execution leases"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+zeroize.workspace = true
+getrandom.workspace = true
+tokio.workspace = true
+
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+keyring-core = { version = "=1.0.0", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+windows-native-keyring-store = { version = "=1.1.0", default-features = false }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "=1.0.2", default-features = false, features = ["keychain"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+secret-service = { version = "=5.2.0", default-features = false, features = ["rt-tokio-crypto-rust"] }
+
+[lints]
+workspace = true

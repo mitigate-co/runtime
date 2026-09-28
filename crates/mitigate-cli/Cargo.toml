@@ -12,6 +12,7 @@ name = "mitigate"
 path = "src/main.rs"
 
 [dependencies]
+mitigate-secrets = { path = "../mitigate-secrets", version = "0.1.0" }
 mitigate-mcp = { path = "../mitigate-mcp", version = "0.1.0" }
 mitigate-gateway = { path = "../mitigate-gateway", version = "0.1.0" }
 mitigate-json = { path = "../mitigate-json", version = "0.1.0" }

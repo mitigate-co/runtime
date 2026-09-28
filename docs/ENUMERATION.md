@@ -23,11 +23,12 @@ The first command builds the synthetic fixture server and writes its absolute ex
 | `working_directory` | Yes | Absolute existing directory |
 | `argv` | No | Literal argument array, maximum 64 entries, 4 KiB each, 32 KiB total |
 | `allowed_environment_keys` | No | Up to 32 named references from the current environment; values are never stored in this file |
-| `timeout_ms` | No | Whole enumeration deadline, default 30,000; range 100–120,000 |
+| `secret_references` | No | Native bindings with `environment_key` and opaque `secret_ref`; maximum 32 explicit keys combined with environment references |
+| `timeout_ms` | No | Whole credential-resolution and enumeration deadline, default 30,000; range 100–120,000 |
 
 Configuration is strict JSON, at most 64 KiB. Unknown/duplicate fields, inline `env` values, NUL arguments, duplicate/case-conflicting environment names and unsupported schema versions are refused. No shell string is constructed. Executable resolution never searches PATH. Absolute paths are canonicalized, but another process with the same OS identity can still replace a file; this is explicit execution of trusted local software, not verified executable provenance or isolation.
 
-The child starts with an empty environment except available `SystemRoot`, `WINDIR`, `TEMP` and `TMP`. PATH, HOME, loader switches, proxies and API keys are not inherited unless explicitly named. Referenced values must already exist and be bounded (8 KiB each, 64 KiB total environment). The future OS secret broker is a separate package; this command does not claim to provide a credential vault. Do not put secrets in argv.
+The child starts with an empty environment except available `SystemRoot`, `WINDIR`, `TEMP` and `TMP`. PATH, HOME, loader switches, proxies and API keys are not inherited unless explicitly named. Ambient references must exist and be bounded (8 KiB each). [Native credentials](SECRETS.md) are resolved before spawn, limited to 2560 UTF-8 bytes each, and never fall back to ambient values. Both share a 64 KiB total environment budget. Values are not stored in launch files. Do not put secrets in argv.
 
 ## Supported protocol
 
@@ -35,7 +36,7 @@ Stdio uses one JSON-RPC message per newline. The client offers `2025-11-25` and 
 
 Pagination supports up to 32 pages and 512 unique, case-sensitive tools. Repeated cursors and duplicate tool names fail the inventory. Names use ASCII letters, digits, underscore, hyphen and dot (1–128 bytes). Input schemas require an object with `type: "object"`; output schemas, when present, must be objects. Definitions are bounded and retained locally; remote schema references are never fetched. This is shape validation, not full JSON Schema semantic validation.
 
-The client answers pings and rejects unsupported server requests with a fixed method-not-supported response. It advertises no sampling, roots, elicitation or tasks. Logs and other notifications are discarded. A tool-list-change notification during enumeration aborts the result so mixed versions are not silently accepted. HTTP/SSE and call relay arrive in MCP-008; they are not supported by `inspect` yet.
+The client answers pings and rejects unsupported server requests with a fixed method-not-supported response. It advertises no sampling, roots, elicitation or tasks. Logs and other notifications are discarded. A tool-list-change notification during enumeration aborts the result so mixed versions are not silently accepted. The [managed adapter](UPSTREAM.md) supports stdio call transport for authorized library callers. The initial launch matrix is stdio; HTTP/SSE are discovery-only and `inspect` never invokes tools.
 
 Reference: [MCP lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle), [stdio transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports), [tool listing](https://modelcontextprotocol.io/specification/2025-11-25/server/tools), reviewed 2026-09-27.
 

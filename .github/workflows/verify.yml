@@ -32,6 +32,32 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then cli="$cli.exe"; fi
           cargo run --locked -p mitigate-mcp-fixture -- cli-contract "$cli"
           cargo run --locked -p mitigate-mcp-fixture -- gateway-contract "$cli"
+      - name: Verify native credentials on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cargo test --locked -p mitigate-secrets native_windows_record_uses_local_persistence -- --ignored
+          target/debug/mitigate-test-mcp.exe secret-contract target/debug/mitigate.exe
+      - name: Verify native credentials on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          original=$(security default-keychain -d user | tr -d '"' | xargs)
+          keychain="$RUNNER_TEMP/mitigate-fixture.keychain-db"
+          trap 'security default-keychain -d user -s "$original"; security delete-keychain "$keychain"' EXIT
+          security create-keychain -p mitigate-ci-fixture "$keychain"
+          security unlock-keychain -p mitigate-ci-fixture "$keychain"
+          security default-keychain -d user -s "$keychain"
+          target/debug/mitigate-test-mcp secret-contract target/debug/mitigate
+      - name: Verify native credentials on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y dbus-x11 gnome-keyring
+          export XDG_DATA_HOME="$RUNNER_TEMP/mitigate-keyring-fixture"
+          mkdir -p "$XDG_DATA_HOME"
+          dbus-run-session -- bash scripts/verify-linux-secrets.sh
   dependencies:
     runs-on: ubuntu-latest
     timeout-minutes: 20
