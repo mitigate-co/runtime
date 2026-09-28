@@ -3,6 +3,7 @@
 //! Launching requires a caller-reviewed executable and configuration. Process
 //! groups/jobs manage lifecycle; they do not sandbox the server's OS privileges.
 
+pub mod classification;
 mod launch;
 mod model;
 mod protocol;
@@ -48,6 +49,8 @@ pub enum Error {
     Fingerprint,
     /// Snapshot is unavailable, invalid, incompatible or already exists on write.
     Snapshot,
+    /// Explicit classification overrides are invalid, stale or unmatched.
+    Classification,
 }
 
 impl Error {
@@ -69,6 +72,7 @@ impl Error {
             Self::Cleanup => "mcp_cleanup_failed",
             Self::Fingerprint => "mcp_fingerprint_invalid",
             Self::Snapshot => "mcp_snapshot_invalid",
+            Self::Classification => "mcp_classification_invalid",
         }
     }
 }
@@ -90,6 +94,7 @@ impl fmt::Display for Error {
             Self::Cleanup => "Process cleanup could not be confirmed. Check the server process before retrying.",
             Self::Fingerprint => "A definition exceeds the fingerprint profile or contains an unsafe large numeric constraint. Review the fingerprint reference.",
             Self::Snapshot => "Use a valid compatible snapshot for reading or a new writable filename for saving; existing files are never overwritten.",
+            Self::Classification => "Review the explicit classification file, its limits and fingerprints against a fresh snapshot; every override must match the current server and tool definition.",
         })
     }
 }

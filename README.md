@@ -24,7 +24,7 @@ cargo run --locked -p mitigate-mcp-fixture -- launch-config > target/fixture-lau
 cargo run --locked -- mcp inspect --launch-config target/fixture-launch.json --allow-exec --json
 ```
 
-`inspect` starts the selected program with your OS privileges. It never calls tools. The gateway and enforcement are not implemented yet.
+`inspect` starts the selected program with your OS privileges. It never calls tools. Its [capability report](docs/CLASSIFICATION.md) shows evidence and review flags; explicit local overrides remain bound to current tool definitions. The gateway and enforcement are not implemented yet.
 
 Add `--snapshot target/before.json` to save fingerprints to a new local file. After a later inspection saved to another file, compare them offline:
 

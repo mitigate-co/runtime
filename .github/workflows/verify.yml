@@ -22,6 +22,7 @@ jobs:
       - run: cargo run --locked -p mitigate-mcp-fixture -- launch-config > target/fixture-launch.json
       - run: cargo run --locked -- mcp inspect --launch-config target/fixture-launch.json --allow-exec --snapshot target/fixture-snapshot.json --json
       - run: cargo run --locked -- mcp diff --before target/fixture-snapshot.json --after target/fixture-snapshot.json --json
+      - run: cargo run --locked -- mcp inspect --launch-config target/fixture-launch.json --allow-exec --classification-overrides examples/classification-overrides.json --json
   dependencies:
     runs-on: ubuntu-latest
     timeout-minutes: 20

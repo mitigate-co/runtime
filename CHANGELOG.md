@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — capability classification
+
+- Inspection JSON advances to schema 2 with a closed capability taxonomy, confidence, evidence sources and risk flags.
+- Ignore description instructions and metadata values; retain unknown risk for open or opaque schemas.
+- Add explicit local classification overrides bound to server/tool fingerprints. Stale or ambiguous overrides fail without a partial report; inferred risk remains visible.
+
 ## Unreleased — fingerprints and diff
 
 - `mcp inspect --snapshot` writes an explicit new local fingerprint snapshot; `mcp diff` compares snapshots without executing a server.

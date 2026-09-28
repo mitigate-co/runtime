@@ -315,6 +315,31 @@ fn diff_runs_offline_and_rejects_invalid_snapshots_without_source_content() {
     );
 }
 
+#[test]
+fn invalid_classification_is_rejected_before_attempting_a_launch() {
+    let fixture = Fixture::new();
+    let policy = fixture.file(br#"{"secret":"override-canary"}"#);
+    let result = cli(&[
+        "mcp",
+        "inspect",
+        "--launch-config",
+        "absent-launch.json",
+        "--classification-overrides",
+        policy.to_str().unwrap(),
+        "--allow-exec",
+        "--json",
+    ]);
+    assert_eq!(result.status.code(), Some(2));
+    assert!(result.stdout.is_empty());
+    let text = String::from_utf8(result.stderr).unwrap();
+    assert!(!text.contains("override-canary"));
+    assert!(!text.contains(policy.to_str().unwrap()));
+    assert_eq!(
+        serde_json::from_str::<Value>(&text).unwrap()["error"],
+        "mcp_classification_invalid"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn refuses_symlink_configuration() {

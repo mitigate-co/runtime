@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "fingerprint_profile": "mitigate-local-jcs-sha256-v1",
+  "server_facts": "1f3b53fc3c9b28f3952f688a04c275a90917a453faa71c0d032222792038ac9e",
+  "tools": [
+    {
+      "identity": "93445fa8dd5537c5e375794982fd5c445ad5fda31f64410f499945160a7bc823",
+      "input_schema": "cbacf048d8a350f09d84e3346e6cd62abb3e8708df3e003bd1faa0f90d7fee80",
+      "output_schema": null,
+      "description": "64160f38a95bcf9593a86a854a27332d45884d8a2f9537208ac10dce9a3db428",
+      "classes": ["read_data"]
+    }
+  ]
+}
