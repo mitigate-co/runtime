@@ -600,6 +600,35 @@ fn serve_requires_explicit_mode_and_refuses_invalid_profile_before_launch() {
 }
 
 #[test]
+fn governed_mode_requires_review_and_cannot_mix_audit_or_inventory_configuration() {
+    for extra in [
+        vec![],
+        vec!["--launch-review", "unused", "--inventory-only"],
+        vec!["--launch-review", "unused", "--audit-db", "unused"],
+        vec!["--launch-review", "unused", "--json"],
+    ] {
+        let mut args = vec![
+            "mcp",
+            "serve",
+            "--allow-exec",
+            "--launch-config",
+            "unused",
+            "--enforce",
+            "unused",
+        ];
+        args.extend(extra);
+        let output = cli(&args);
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty());
+        assert!(
+            String::from_utf8(output.stderr)
+                .unwrap()
+                .contains("cli_invalid_arguments")
+        );
+    }
+}
+
+#[test]
 fn scan_findings_exit_is_opt_in_and_keeps_complete_json() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/scanner-project");
     let result = cli(&[

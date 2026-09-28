@@ -101,7 +101,7 @@ pub(crate) enum McpCommand {
         #[command(subcommand)]
         command: AuditCommand,
     },
-    /// Serve a reviewed server's inventory over stdio; tool calls stay disabled.
+    /// Serve inventory or explicitly governed tool calls over local stdio.
     Serve {
         /// Reviewed local process launch configuration.
         #[arg(long)]
@@ -109,9 +109,12 @@ pub(crate) enum McpCommand {
         /// Required: execute the configured server with your OS privileges.
         #[arg(long, required = true)]
         allow_exec: bool,
-        /// Required until policy/grants are configured: deny every tool call.
-        #[arg(long, required = true, conflicts_with = "json")]
+        /// Deny every tool call; mutually exclusive with enforcement.
+        #[arg(long, required_unless_present = "enforce", conflicts_with_all = ["json", "enforce"])]
         inventory_only: bool,
+        /// Explicit local governance configuration for approved tool execution.
+        #[arg(long, requires = "launch_review", conflicts_with_all = ["json", "audit_db"])]
+        enforce: Option<PathBuf>,
         /// Explicit local caller mapping; omitted attribution remains unknown.
         #[arg(long)]
         profile: Option<PathBuf>,

@@ -2,6 +2,7 @@
 use crate::{args::ApprovalsCommand, output};
 use mitigate_fingerprint::Fingerprint;
 use mitigate_policy::{
+    SystemClock,
     approvals::{ApprovalStore, Binding, Choice, Error, Record, State},
     read_document,
 };
@@ -9,7 +10,6 @@ use serde::Serialize;
 use std::{
     io::{self, Write},
     process::ExitCode,
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 #[derive(Serialize)]
@@ -27,14 +27,6 @@ enum Report {
 }
 fn reference(value: &str) -> Result<Fingerprint, Error> {
     serde_json::from_value(serde_json::Value::String(value.into())).map_err(|_| Error::Input)
-}
-fn now() -> Result<u64, Error> {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|_| Error::Clock)?
-        .as_millis()
-        .try_into()
-        .map_err(|_| Error::Clock)
 }
 fn execute(command: ApprovalsCommand) -> Result<Report, Error> {
     match command {
@@ -55,7 +47,7 @@ fn execute(command: ApprovalsCommand) -> Result<Report, Error> {
             let mut store = ApprovalStore::open(&db)?;
             Ok(Report::Record(Box::new(store.request(
                 binding,
-                now()?,
+                SystemClock,
                 u64::from(expires_in_seconds) * 1000,
             )?)))
         }
@@ -63,13 +55,13 @@ fn execute(command: ApprovalsCommand) -> Result<Report, Error> {
             let mut store = ApprovalStore::open(&db)?;
             Ok(Report::List {
                 schema_version: 1,
-                records: store.list(now()?)?,
+                records: store.list(SystemClock)?,
             })
         }
         ApprovalsCommand::Show { db, reference: id } => {
             let id = reference(&id)?;
             let mut store = ApprovalStore::open(&db)?;
-            Ok(Report::Record(Box::new(store.get(&id, now()?)?)))
+            Ok(Report::Record(Box::new(store.get(&id, SystemClock)?)))
         }
         ApprovalsCommand::Approve {
             db,
@@ -83,7 +75,7 @@ fn execute(command: ApprovalsCommand) -> Result<Report, Error> {
                 &id,
                 Choice::Approve,
                 operator,
-                now()?,
+                SystemClock,
             )?)))
         }
         ApprovalsCommand::Deny {
@@ -98,7 +90,7 @@ fn execute(command: ApprovalsCommand) -> Result<Report, Error> {
                 &id,
                 Choice::Deny,
                 operator,
-                now()?,
+                SystemClock,
             )?)))
         }
     }

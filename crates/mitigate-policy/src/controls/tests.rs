@@ -60,6 +60,42 @@ fn retry(result: Result<Admission, Error>) -> u64 {
 }
 
 #[test]
+fn clock_is_observed_after_locking_without_weakening_rollback_or_quota_checks() {
+    use crate::clock::LockedClock;
+    let dir = Directory::new();
+    let db = dir.db();
+    let mut store = ControlStore::create(&db).unwrap();
+    store
+        .apply(
+            Change::SetLimit {
+                target: Target::Global {},
+                rate: rate(1, 1, 1000),
+            },
+            reference(99),
+            LockedClock(&db, Some(1000)),
+        )
+        .unwrap();
+    assert!(allowed(
+        store.preview(&context(), LockedClock(&db, Some(1000)))
+    ));
+    assert!(matches!(
+        store.admit(&context(), LockedClock(&db, None)),
+        Err(Error::Clock)
+    ));
+    assert!(allowed(
+        store.admit(&context(), LockedClock(&db, Some(1000)))
+    ));
+    assert!(matches!(
+        store.admit(&context(), LockedClock(&db, Some(999))),
+        Err(Error::Clock)
+    ));
+    assert_eq!(
+        retry(store.admit(&context(), LockedClock(&db, Some(1000)))),
+        1000
+    );
+}
+
+#[test]
 fn exact_disables_unknown_identity_and_emergency_precedence() {
     let dir = Directory::new();
     let mut store = ControlStore::create(&dir.db()).unwrap();

@@ -1,4 +1,6 @@
 //! Client-facing protocol, identity and cancellation tests over real async pipes.
+#[path = "listener/progress.rs"]
+mod progress;
 use mitigate_gateway::{
     CallerIdentity, Error, Fault, IdentityConfidence, IdentitySource, ToolRequest, ToolService,
     serve,
@@ -13,6 +15,8 @@ struct Service {
     pending: bool,
     delayed: bool,
     no_tools: bool,
+    progress: bool,
+    budget: Option<std::time::Duration>,
     dropped: Rc<Cell<bool>>,
 }
 struct Cleanup(Rc<Cell<bool>>);
@@ -22,6 +26,9 @@ impl Drop for Cleanup {
     }
 }
 impl ToolService for Service {
+    fn request_timeout(&self) -> std::time::Duration {
+        self.budget.unwrap_or(std::time::Duration::from_secs(30))
+    }
     fn tools_supported(&self) -> bool {
         !self.no_tools
     }
@@ -29,6 +36,7 @@ impl ToolService for Service {
         &mut self,
         caller: &CallerIdentity,
         request: ToolRequest,
+        mut progress: Option<mitigate_gateway::ProgressSink>,
     ) -> Result<Value, Fault> {
         let _cleanup = Cleanup(self.dropped.clone());
         self.calls.push((
@@ -40,6 +48,14 @@ impl ToolService for Service {
         }
         if self.delayed {
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
+        if self.progress {
+            if let Some(sink) = &mut progress {
+                sink.report(1.0, Some(2.0));
+                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                sink.report(2.0, Some(2.0));
+            }
+            return Ok(json!({"content":[]}));
         }
         match request {
             ToolRequest::List { cursor } => {
@@ -246,6 +262,24 @@ async fn lifecycle_methods_and_bad_parameters_never_reach_service() {
                 ),
                 (6, "tools/list", json!({"cursor":42}), -32602),
                 (7, "ping", json!({"secret":"canary"}), -32602),
+                (
+                    9,
+                    "tools/call",
+                    json!({"name":"read_status","_meta":{"progressToken":null}}),
+                    -32602,
+                ),
+                (
+                    10,
+                    "tools/call",
+                    json!({"name":"read_status","_meta":{"progressToken":1.5}}),
+                    -32602,
+                ),
+                (
+                    11,
+                    "tools/call",
+                    json!({"name":"read_status","_meta":{"progressToken":"x".repeat(129)}}),
+                    -32602,
+                ),
             ] {
                 send(&mut client, request(json!(id), method, params)).await;
                 assert_eq!(receive(&mut client).await["error"]["code"], expected);

@@ -88,9 +88,16 @@ does not revoke a provider token already copied elsewhere.
 This is not a sandbox or protection against malicious code with the same OS-user
 privileges. Only launch trusted programs. Tool arguments/results remain local MCP
 content; a server could return a credential in that content. Normal CLI inspection
-reports omit schemas/descriptions and values; the inventory-only gateway necessarily
+reports omit schemas/descriptions and values; the gateway necessarily
 relays raw definitions to its local MCP client. No secret value is permitted in
 operational diagnostics or Platform telemetry.
+
+Governed calls do not change startup injection: MCP initialization can require a
+credential before tool enumeration and authorization. Explicit launch intent and
+launch review authorize that selected process to receive its configured bindings.
+Per-call policy cannot withdraw a value already copied into its environment. A
+stop prevents later call admission; it does not revoke provider credentials or
+sandbox the process. Use narrow provider scopes and terminate/revoke as needed.
 
 ## Verification
 

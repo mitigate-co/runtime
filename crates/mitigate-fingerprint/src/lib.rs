@@ -19,7 +19,7 @@ pub enum Domain {
     ServerIdentity,
     /// Version/protocol/capability facts reported by the server.
     ServerFacts,
-    /// Tool name scoped to declared server identity.
+    /// Tool name scoped to its selected server identity (declared or reviewed).
     ToolIdentity,
     /// Complete local input schema.
     InputSchema,
@@ -29,6 +29,8 @@ pub enum Domain {
     Description,
     /// Salted exact local launch facts; never a telemetry configuration summary.
     LaunchConfiguration,
+    /// All reviewed tool-definition fingerprints scoped to a launch identity.
+    GovernedToolDefinition,
 }
 impl Domain {
     fn label(self) -> &'static [u8] {
@@ -41,6 +43,7 @@ impl Domain {
             Self::OutputSchema => b"output-schema",
             Self::Description => b"description",
             Self::LaunchConfiguration => b"launch-configuration",
+            Self::GovernedToolDefinition => b"governed-tool-definition",
         }
     }
 }
@@ -196,5 +199,24 @@ mod tests {
         }
         assert!(canonicalize(&json!("x".repeat(65_537))).is_err());
         assert!(serde_json::from_value::<Fingerprint>(json!("0".repeat(64))).is_ok());
+    }
+    #[test]
+    fn authority_domains_do_not_alias_existing_definition_domains() {
+        let domains = [
+            Domain::ConfigurationSummary,
+            Domain::ServerIdentity,
+            Domain::ServerFacts,
+            Domain::ToolIdentity,
+            Domain::InputSchema,
+            Domain::OutputSchema,
+            Domain::Description,
+            Domain::LaunchConfiguration,
+            Domain::GovernedToolDefinition,
+        ];
+        let hashes: std::collections::BTreeSet<_> = domains
+            .into_iter()
+            .map(|domain| fingerprint(domain, &json!({"same":"facts"})).unwrap())
+            .collect();
+        assert_eq!(hashes.len(), domains.len());
     }
 }

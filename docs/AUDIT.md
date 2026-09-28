@@ -31,8 +31,9 @@ cargo run --locked -p mitigate-mcp-fixture -- audit-contract target/debug/mitiga
 ```
 
 Use `target/debug/mitigate.exe` on Windows. The fixture writes only temporary
-synthetic metadata and makes no real MCP invocation. The ordinary `serve` CLI
-still runs in inventory-only mode until governance composition is complete.
+synthetic metadata and makes no real MCP invocation. The separate
+[governance fixture](ENFORCEMENT.md#executable-verification) exercises actual
+authorized calls against our synthetic server and required lifecycle audit.
 
 MCP-010 provides durable local metadata storage and opt-in recording for the
 inventory-only gateway. No Platform account or network service is involved.
@@ -58,12 +59,12 @@ client to launch it, or use the contract harness below.
 
 Completed tool-list requests and denied tool calls are recorded before returning
 their response. Audit failures return fixed MCP error `-32007`; no success is
-returned without a committed record. All calls remain disabled (`-32006`) even
+returned without a committed record. Inventory-only calls remain disabled (`-32006`) even
 when auditing is healthy. A blocked upstream request, malformed protocol message,
 startup failure or cancelled in-flight request may have no completion record.
 This inventory-only integration is not a complete enforcement activity trail.
-The later enforcing call path must commit a decision before invocation and bind
-completion/cancellation to it. Those gates are still open.
+The [governed call path](ENFORCEMENT.md) commits dispatch authorization before
+invocation and correlates completion or uncertainty using version-two records.
 
 When `serve --launch-review FILE` is supplied, `server_ref` is the verified local
 launch reference and tool references are scoped to it. Without a review the
@@ -106,7 +107,8 @@ Local record v1 has `sequence`, `previous_hash`, `hash` and `event`. The event h
 Decisions are `inventory_only`, `allow`, `deny`, `require_approval` or `error`.
 Results are `pending`, `success`, `error`, `cancelled` or `not_invoked`. The current
 inventory endpoint never records an allowed tool invocation. Policy/approval
-fields remain null until those systems are implemented and actually evaluated.
+fields remain null for inventory-only requests; governed version-two records
+include the actual evaluated policy and any referenced approval.
 Tool fingerprints describe the last observed inventory, not executable provenance.
 
 Explicit profile references are hashed with distinct client/principal/agent

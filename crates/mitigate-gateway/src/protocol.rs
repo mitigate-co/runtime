@@ -180,6 +180,10 @@ impl Session {
                             .all(|b| b.is_ascii_alphanumeric() || b"_.-".contains(&b))
                     })
                     || params.get("arguments").is_some_and(|v| !v.is_object())
+                    || params
+                        .get("_meta")
+                        .and_then(|m| m.get("progressToken"))
+                        .is_some_and(|token| Id::parse(token).is_none())
                 {
                     return Ok(invalid());
                 }

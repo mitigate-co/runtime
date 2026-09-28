@@ -5,6 +5,7 @@ use crate::{
 };
 use mitigate_fingerprint::Fingerprint;
 use mitigate_policy::{
+    SystemClock,
     controls::{Admission, Change, Context, ControlStore, Error, HistoryEntry, Snapshot, Target},
     read_document,
 };
@@ -12,7 +13,6 @@ use serde::Serialize;
 use std::{
     io::{self, Write},
     process::ExitCode,
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 #[derive(Serialize)]
@@ -29,20 +29,16 @@ enum Report {
         result: Admission,
     },
 }
-fn now() -> Result<u64, Error> {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|_| Error::Clock)?
-        .as_millis()
-        .try_into()
-        .map_err(|_| Error::Clock)
-}
 fn apply(admin: ControlAdmin, change: Change) -> Result<Report, Error> {
     let operator: Fingerprint =
         serde_json::from_value(serde_json::Value::String(admin.operator_ref))
             .map_err(|_| Error::Input)?;
     let mut store = ControlStore::open(&admin.db)?;
-    Ok(Report::Snapshot(store.apply(change, operator, now()?)?))
+    Ok(Report::Snapshot(store.apply(
+        change,
+        operator,
+        SystemClock,
+    )?))
 }
 fn execute(command: ControlsCommand) -> Result<Report, Error> {
     match command {
@@ -65,7 +61,7 @@ fn execute(command: ControlsCommand) -> Result<Report, Error> {
             Ok(Report::Preview {
                 schema_version: 1,
                 mode: "preview",
-                result: store.preview(&context, now()?)?,
+                result: store.preview(&context, SystemClock)?,
             })
         }
     }
