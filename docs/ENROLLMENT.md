@@ -1,9 +1,10 @@
 # Optional Runtime enrollment protocol
 
-`mitigate-enrollment` implements a bounded possession proof and receipt validator
-for MCP-018. It performs no network, native-store write, local-state transition or
-telemetry admission. An enrollment does not enable synchronization. Local MCP
-scanning, policy and gateway operation remain independent of Platform.
+`mitigate-enrollment` implements a bounded possession proof, receipt validator
+and explicit [native lifecycle](ENROLLMENT_STORAGE.md) for MCP-018. Core protocol
+types perform no I/O; the storage module owns local persistence and recovery.
+Neither performs network requests or telemetry admission. Enrollment does not
+enable synchronization. Local MCP operation remains independent of Platform.
 
 ## Bootstrap boundary
 
@@ -70,8 +71,9 @@ categories and recovery instructions, never raw input or provider diagnostics.
 Secure orchestration must persist pending material through the OS-native broker
 **before** sending and retry an uncertain outcome with the identical identity and
 proof. Receipt validation alone does not mark any state durable or enable a sender.
-Native lifecycle, command UI, HTTPS delivery and signed telemetry are subsequent
-implementation slices. No claim is made that this library alone completes MCP-018.
+The native lifecycle now implements that ordering and exact recovery; command UI,
+HTTPS delivery and signed telemetry remain subsequent slices. This library alone
+does not complete MCP-018.
 
 Zeroization does not protect against same-user/root memory access, crash dumps,
 swap, an explicitly copied value or a caller's diagnostic hook. Possession proof

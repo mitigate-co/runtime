@@ -21,7 +21,7 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-015 — Offline behavior | Local authority and safe queue merged | PR #22 at `def9772` and PR #24 at `e952779` passed final Windows/macOS/Linux and security CI. Cached policy and unavailable approvals remain local; the durable queue validates before persistence. Enrolled delivery remains MCP-018 work. |
 | MCP-016 — Privacy boundary | Local boundary and CLI merged | PR #23 at `22244f5`, PR #24 at `e952779` and PR #25 at `2ef62f0` passed final Windows/macOS/Linux and security CI. The 147-candidate privacy self-test and read-only scoped inspector work with real storage. Enrolled integrity remains MCP-018 work. |
 | MCP-017 — Registry v0 | Runtime contract/client merged | PR #26, main `768a4e0`; final cross-platform/security CI passed. Closed source-attributed catalogs and offline CLI lookup preserve conflicts and stale/unknown status. Hosted integration remains a separate gate. |
-| MCP-018 — Optional Platform sync | Enrollment proof in verification | Pure bounded Ed25519 claim and exact receipt validation. Native enrollment lifecycle, HTTPS delivery, signed event ingest and fleet composition remain open. |
+| MCP-018 — Optional Platform sync | Enrollment proof merged; native lifecycle in verification | PR #27 at `77e8133` passed all five gates in both three-OS/security CI runs. Native pending/confirmed recovery now has explicit locked ownership and failure tests. HTTPS delivery, signed event ingest and fleet composition remain open. |
 | MCP-019 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
@@ -127,4 +127,15 @@ fixture comparison, advisory audit and license/source/bans checks. The reviewed
 base64 codec adds no runtime transitive dependencies and only its `alloc` feature
 is enabled. The actual Platform verifier accepted the Rust synthetic output and
 rejected a changed audience and all six individually mutated fields. Three-OS/
-native-store/executable CI remains required for merge.
+native-store/executable CI passed before PR #27 merged at `77e8133`.
+
+The native lifecycle slice stores pending credentials and confirmed receipts in
+the existing OS broker, with only an immutable origin/reference anchor on disk.
+Failed writes, lost responses, malformed records, wrong-origin access, concurrent
+operations and deletion are checked without regenerating identity. An inherited-
+descriptor regression explicitly verifies lock release at operation end; a Windows
+test was corrected to inspect the anchor after its mandatory lock is released.
+Eighteen Windows/Linux tests plus two compile-fail checks passed, with one helper
+executed in a child process. The actual Windows native fixture passed pending/
+confirmed restart, identical proof and precise idempotent deletion. No network
+operation or automatic sender is added. See [native lifecycle](ENROLLMENT_STORAGE.md).

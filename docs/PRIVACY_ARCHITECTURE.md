@@ -173,4 +173,8 @@ the Zero-Content event parser. No workload/config fingerprints or machine/human
 identifiers are added. The private seed never enters the claim. Secret owners
 zeroize their allocations and expose no generic diagnostic/serialization trait.
 Enrollment neither implies consent to telemetry nor activates a sender. The pure
-component currently performs no network or persistence.
+protocol performs no I/O. Explicit [native lifecycle](ENROLLMENT_STORAGE.md)
+persists the bounded seed/code/receipt record only in the native broker; its
+immutable plaintext anchor holds only a canonical Platform origin and random
+credential reference. Confirming a matching receipt removes the bootstrap code.
+Neither component performs network requests or enables synchronization.
