@@ -51,6 +51,10 @@ action has an explicit allowance or denial. These local diagnostics invoke no to
 decisions and revocation before consumption. Approval does not invoke a tool or
 bypass grants/policy; the enforcing gateway remains a separate launch gate.
 
+[Local controls](docs/CONTROLS.md) provide emergency stops, exact target disables
+and persistent admission quotas. Configure and review them using `mcp controls`;
+its diagnostic preview neither charges quota nor invokes tools.
+
 ```sh
 cargo run --locked -- mcp grants check --rules examples/grants/read-development.json
 cargo run --locked -- mcp grants test --rules examples/grants/read-development.json --input examples/grants/read-context.json --json

@@ -2,6 +2,7 @@
 mod approvals;
 mod args;
 mod audit;
+mod controls;
 mod gateway;
 mod grants;
 mod output;
@@ -46,6 +47,9 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command: McpCommand::Controls { command },
+        } => return controls::run(command, cli.json),
         Command::Mcp {
             command: McpCommand::Approvals { command },
         } => return approvals::run(command, cli.json),
@@ -252,6 +256,13 @@ fn required_options_hint(arguments: &[std::ffi::OsString]) -> &'static str {
             }
             Some("approvals") if words.next().is_some_and(|a| a == "approve" || a == "deny") => {
                 return "Approval decisions require --db, --reference, --operator-ref and --confirm. Run this command with --help.";
+            }
+            Some("controls")
+                if words
+                    .next()
+                    .is_some_and(|a| a == "stop" || a == "resume" || a == "apply") =>
+            {
+                return "Control changes require --db, --operator-ref and --confirm; apply also requires --change. Run this command with --help.";
             }
             _ => (),
         }

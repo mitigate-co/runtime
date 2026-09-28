@@ -96,6 +96,11 @@ The [grant reference](GRANTS.md) documents `mcp grants check --rules FILE` and
 synthetic/administrator-selected metadata without starting a server. Exit 0 also
 covers denied/no-match resolutions; exit 2 means invalid or unavailable input.
 
+The [control reference](CONTROLS.md) documents `mcp controls init`, `status`,
+`history`, `stop`, `resume`, `apply` and `test`. Changes require an operator
+reference and `--confirm`. Test is a read-only preview, never an invocation or
+quota reservation. State, counters and bounded operator history remain local.
+
 The [policy reference](POLICY.md) documents `mcp policy check`, `test`, `keygen`,
 `sign`, `init`, `activate`, `status` and `evaluate`. Source tests do not invoke
 tools. Stored evaluation requires a separately pinned authority and verified
@@ -121,5 +126,9 @@ bundle. Source, raw metadata values and private keys are omitted from reports.
 - `approval_store_unavailable`: preserve corrupt state; check storage and permissions before retrying.
 - `approval_clock_invalid`: correct the system clock; do not reset approval state to bypass the check.
 - `approval_capacity_reached`: resolve active requests; active approvals are never evicted to admit new ones.
+- `control_store_unavailable`: keep admission closed; inspect access, disk space and integrity without resetting the database.
+- `control_clock_rejected`: restore trustworthy time; do not reset counters to bypass rollback detection.
+- `control_input_invalid`: correct the exact target/action or rate bounds; unknown fields are rejected.
+- `control_capacity_reached`: review existing configured targets before adding another.
 
 The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory pagination and shutdown. Enforcing grant/policy composition, approvals and Platform synchronization remain later packages.

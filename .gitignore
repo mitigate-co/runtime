@@ -14,4 +14,6 @@
 /policy.db-*
 /approvals.db
 /approvals.db-*
+/controls.db
+/controls.db-*
 /policy-v*.json

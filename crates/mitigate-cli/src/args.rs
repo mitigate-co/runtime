@@ -71,6 +71,11 @@ pub(crate) enum SecretsCommand {
 
 #[derive(Subcommand)]
 pub(crate) enum McpCommand {
+    /// Manage local emergency stops, disabled targets and rate limits.
+    Controls {
+        #[command(subcommand)]
+        command: ControlsCommand,
+    },
     /// Review and decide bounded local approval requests.
     Approvals {
         #[command(subcommand)]
@@ -156,6 +161,56 @@ pub(crate) enum McpCommand {
         /// Return exit code 3 when at least one configuration risk is present.
         #[arg(long)]
         fail_on_risk: bool,
+    },
+}
+
+#[derive(clap::Args)]
+pub(crate) struct ControlAdmin {
+    /// Existing local control database.
+    #[arg(long)]
+    pub db: PathBuf,
+    /// Declared operator reference: 64 lowercase hexadecimal characters.
+    #[arg(long)]
+    pub operator_ref: String,
+    /// Required explicit intent to change local enforcement configuration.
+    #[arg(long, required = true)]
+    pub confirm: bool,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum ControlsCommand {
+    /// Create a new private local control store; no tool calls are enabled.
+    Init {
+        #[arg(long)]
+        db: PathBuf,
+    },
+    /// Show current emergency, disable and rate-limit configuration.
+    Status {
+        #[arg(long)]
+        db: PathBuf,
+    },
+    /// Show the last 256 configuration changes and declared operators.
+    History {
+        #[arg(long)]
+        db: PathBuf,
+    },
+    /// Block every new admission. Already-dispatched effects cannot be undone.
+    Stop(ControlAdmin),
+    /// Clear emergency stop; individual disables and quotas remain in effect.
+    Resume(ControlAdmin),
+    /// Apply one reviewed JSON change: disable, enable, set_limit or remove_limit.
+    Apply {
+        #[command(flatten)]
+        admin: ControlAdmin,
+        #[arg(long)]
+        change: PathBuf,
+    },
+    /// Preview action metadata without consuming quota or invoking a tool.
+    Test {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        context: PathBuf,
     },
 }
 
