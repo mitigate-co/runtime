@@ -1,6 +1,7 @@
 //! Real CLI governance against our own synthetic child and isolated local stores.
 mod cases;
 mod changes;
+mod context;
 use mitigate_audit::{AuditStore, Retention};
 use mitigate_fingerprint::Fingerprint;
 use mitigate_mcp::{LaunchConfig, LaunchReview, Snapshot, StdioServer};

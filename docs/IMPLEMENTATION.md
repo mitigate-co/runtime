@@ -69,4 +69,12 @@ passed locally after the correction, together with strict workspace lint and the
 CLI/fixture build. WSL could not launch the final executable check after host disk
 exhaustion recurred. Final executable/CI validation is pending.
 
+`mcp context` supplies exact reviewed caller/server/tool references for grants and
+control targets. It requires explicit process execution, compares the selected
+snapshot and overrides, confirms cleanup and emits no schemas or raw caller
+labels. The executable fixture uses its output for an exact grant and compares
+the resulting call audit. Full Linux workspace tests and strict lint passed;
+final executable validation is awaiting CI because local WSL cannot start during
+host disk exhaustion. This setup slice is not yet merged.
+
 Known launch gates include gateway semantics, grants, Regorus conformance, approvals, secrets, audit, optional sync, registry/fleet, hostile/privacy corpus and signed platform releases. Private vulnerability reporting is enabled. No public binary release or hosted deployment has occurred.
