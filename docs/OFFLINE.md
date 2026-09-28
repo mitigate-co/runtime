@@ -65,3 +65,8 @@ Invocation markers, audit policy versions and content canaries check the outcome
 The existing `governance-contract` additionally covers approval expiry/revocation,
 live control/grant changes, exact schema/code boundaries, quota exhaustion, audit
 failures and cancellation. All three OS CI jobs execute both contracts.
+
+The executable fixture observes its synthetic approval mailbox with a bounded
+read-only query. It does not repeatedly acquire the production expiry/clock writer
+lock merely to wait for a request. Actual decisions and consumption still use the
+production store APIs; busy/unavailable production authority remains fail-closed.

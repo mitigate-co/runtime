@@ -128,16 +128,41 @@ impl Project {
             .unwrap();
     }
     async fn pending(&self) -> Record {
+        // Observe the fixture mailbox without competing for its writer lock.
+        // list(SystemClock) intentionally persists expiry/clock state; opening
+        // and invoking it every 20 ms can starve the gateway on Windows. This
+        // read is only a fixture synchronization signal, never authorization.
+        // The production decide/consume APIs still validate the exact request.
+        let observer = rusqlite::Connection::open_with_flags(
+            self.path("approvals.sqlite"),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        observer.busy_timeout(Duration::from_millis(250)).unwrap();
         timeout(Duration::from_secs(15), async {
             loop {
-                let records = ApprovalStore::open(&self.path("approvals.sqlite"))
-                    .unwrap()
-                    .list(SystemClock)
-                    .unwrap();
-                if let Some(record) = records.into_iter().find(|r| r.state == State::Requested) {
-                    return record;
+                let observed = (|| -> rusqlite::Result<Vec<Vec<u8>>> {
+                    let mut query = observer.prepare("SELECT record FROM approvals LIMIT 257")?;
+                    query.query_map([], |row| row.get(0))?.collect()
+                })();
+                match observed {
+                    Ok(records) => {
+                        assert!(records.len() <= 256);
+                        for bytes in records {
+                            let record: Record = serde_json::from_slice(&bytes).unwrap();
+                            if record.state == State::Requested {
+                                return record;
+                            }
+                        }
+                    }
+                    Err(rusqlite::Error::SqliteFailure(error, _))
+                        if matches!(
+                            error.code,
+                            rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked
+                        ) => {}
+                    Err(error) => panic!("fixture approval observation failed: {error}"),
                 }
-                tokio::time::sleep(Duration::from_millis(20)).await;
+                tokio::time::sleep(Duration::from_millis(100)).await;
             }
         })
         .await
