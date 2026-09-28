@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — CLI usability
+
+- Add compact scan/inspection tables and `--details` with full labels and review guidance.
+- Add opt-in findings exits: `--fail-on-risk` and `--fail-on-change` return 3 while retaining complete JSON reports.
+- Make parser failures content-free and versioned in JSON mode; add terminal-control escaping and a real-binary cross-platform contract harness.
+
 ## Unreleased — capability classification
 
 - Inspection JSON advances to schema 2 with a closed capability taxonomy, confidence, evidence sources and risk flags.

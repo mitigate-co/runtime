@@ -1,5 +1,7 @@
 //! Synthetic local server; no real credentials, network connections or tool calls.
 
+mod cli_contract;
+
 use serde_json::{Value, json};
 use std::{
     io::{self, BufRead, Write},
@@ -20,6 +22,12 @@ fn tool(name: &str) -> Value {
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     let mode = args.get(1).map_or("ok", String::as_str);
+    if mode == "cli-contract" {
+        cli_contract::verify(std::path::Path::new(
+            args.get(2).expect("explicit CLI binary path"),
+        ));
+        return;
+    }
     if mode == "launch-config" {
         println!(
             "{}",

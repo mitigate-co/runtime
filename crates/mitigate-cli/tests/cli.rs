@@ -360,3 +360,131 @@ fn refuses_symlink_configuration() {
         "config_not_regular_file"
     );
 }
+
+#[test]
+fn parser_errors_are_content_free_json_and_help_stays_usable() {
+    for args in [
+        vec!["version", "--accidental-secret=argument-canary", "--json"],
+        vec!["--json", "mcp", "argument-canary"],
+        vec!["mcp", "scan", "--details", "--json"],
+        vec![
+            "mcp",
+            "inspect",
+            "--launch-config",
+            "argument-canary",
+            "--json",
+        ],
+    ] {
+        let result = cli(&args);
+        assert_eq!(result.status.code(), Some(2));
+        assert!(result.stdout.is_empty());
+        let text = String::from_utf8(result.stderr).unwrap();
+        assert!(!text.contains("argument-canary"));
+        let error: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(error["schema_version"], 1);
+        assert_eq!(error["error"], "cli_invalid_arguments");
+        assert_eq!(error.as_object().unwrap().len(), 3);
+    }
+    for args in [
+        vec!["--help"],
+        vec!["mcp", "inspect", "--help"],
+        vec!["--json", "mcp", "scan", "--help"],
+        vec!["--version"],
+    ] {
+        let result = cli(&args);
+        assert!(result.status.success());
+        assert!(result.stderr.is_empty());
+        assert!(!result.stdout.is_empty());
+    }
+    let human = cli(&["version", "--accidental-secret=argument-canary"]);
+    assert_eq!(human.status.code(), Some(2));
+    assert!(
+        !String::from_utf8(human.stderr)
+            .unwrap()
+            .contains("argument-canary")
+    );
+}
+
+#[test]
+fn scan_findings_exit_is_opt_in_and_keeps_complete_json() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/scanner-project");
+    let result = cli(&[
+        "mcp",
+        "scan",
+        "--root",
+        root.to_str().unwrap(),
+        "--fail-on-risk",
+        "--json",
+    ]);
+    assert_eq!(result.status.code(), Some(3));
+    assert!(result.stderr.is_empty());
+    let report: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(report["servers"].as_array().unwrap().len(), 3);
+    let empty = Fixture::new();
+    let result = cli(&[
+        "mcp",
+        "scan",
+        "--root",
+        empty.0.to_str().unwrap(),
+        "--fail-on-risk",
+        "--json",
+    ]);
+    assert_eq!(result.status.code(), Some(0));
+    let result = cli(&["mcp", "scan", "--root", root.to_str().unwrap(), "--details"]);
+    let text = String::from_utf8(result.stdout).unwrap();
+    assert!(text.contains("Review the shell wrapper before execution."));
+    assert!(!text.contains("this-command-is-never-executed"));
+    assert!(!text.contains("EXAMPLE_TOKEN"));
+}
+
+#[test]
+fn snapshot_change_exit_is_opt_in_and_invalid_input_wins_over_findings() {
+    let fixture = Fixture::new();
+    let before = fixture.0.join("before.json");
+    let after = fixture.0.join("after.json");
+    let mut inventory = mitigate_mcp::Inventory {
+        protocol_version: "2025-11-25".into(),
+        server_name: "fixture".into(),
+        server_version: "1.0.0".into(),
+        tools_supported: true,
+        tools: vec![],
+    };
+    mitigate_mcp::Snapshot::from_inventory(&inventory)
+        .unwrap()
+        .write_new(&before)
+        .unwrap();
+    inventory.server_version = "2.0.0".into();
+    mitigate_mcp::Snapshot::from_inventory(&inventory)
+        .unwrap()
+        .write_new(&after)
+        .unwrap();
+    for (after_path, expected) in [(&after, 3), (&before, 0)] {
+        let result = cli(&[
+            "mcp",
+            "diff",
+            "--before",
+            before.to_str().unwrap(),
+            "--after",
+            after_path.to_str().unwrap(),
+            "--fail-on-change",
+            "--json",
+        ]);
+        assert_eq!(result.status.code(), Some(expected));
+        assert!(result.stderr.is_empty());
+        let report: Value = serde_json::from_slice(&result.stdout).unwrap();
+        assert_eq!(report["server_facts_changed"], expected == 3);
+    }
+    fs::write(&after, br#"{"secret":"diff-canary"}"#).unwrap();
+    let result = cli(&[
+        "mcp",
+        "diff",
+        "--before",
+        before.to_str().unwrap(),
+        "--after",
+        after.to_str().unwrap(),
+        "--fail-on-change",
+        "--json",
+    ]);
+    assert_eq!(result.status.code(), Some(2));
+    assert!(result.stdout.is_empty());
+}

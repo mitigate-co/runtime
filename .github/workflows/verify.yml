@@ -23,6 +23,12 @@ jobs:
       - run: cargo run --locked -- mcp inspect --launch-config target/fixture-launch.json --allow-exec --snapshot target/fixture-snapshot.json --json
       - run: cargo run --locked -- mcp diff --before target/fixture-snapshot.json --after target/fixture-snapshot.json --json
       - run: cargo run --locked -- mcp inspect --launch-config target/fixture-launch.json --allow-exec --classification-overrides examples/classification-overrides.json --json
+      - name: Verify actual CLI contracts
+        shell: bash
+        run: |
+          cli=target/debug/mitigate
+          if [ "$RUNNER_OS" = Windows ]; then cli="$cli.exe"; fi
+          cargo run --locked -p mitigate-mcp-fixture -- cli-contract "$cli"
   dependencies:
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -1,90 +1,16 @@
-//! CLI composition: content-free operational errors and explicit local actions.
+//! CLI composition: explicit local actions with content-free operational errors.
+mod args;
+mod output;
 
-use clap::{Parser, Subcommand};
-use mitigate_config::{CONFIG_SCHEMA_VERSION, ConfigError, RuntimeConfig};
+use args::{Cli, Command, ConfigCommand, McpCommand};
+use clap::{Parser, error::ErrorKind};
+use mitigate_config::{CONFIG_SCHEMA_VERSION, RuntimeConfig};
+use mitigate_mcp::{Snapshot, classification::ClassificationOverrides};
 use serde::Serialize;
 use std::{
     io::{self, Write},
-    path::PathBuf,
     process::ExitCode,
 };
-
-#[derive(Parser)]
-#[command(
-    name = "mitigate",
-    version,
-    about = "Local-first MCP security for Mitigate"
-)]
-struct Cli {
-    /// Emit the versioned JSON contract instead of human output.
-    #[arg(long, global = true)]
-    json: bool,
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// Show the installed Runtime version and configuration schema.
-    Version,
-    /// Validate local Runtime configuration without starting servers.
-    Config {
-        #[command(subcommand)]
-        command: ConfigCommand,
-    },
-    /// Discover servers, inspect trusted tools and compare local snapshots.
-    Mcp {
-        #[command(subcommand)]
-        command: McpCommand,
-    },
-}
-
-#[derive(Subcommand)]
-enum McpCommand {
-    /// Compare two local fingerprint snapshots without starting a server.
-    Diff {
-        /// Earlier snapshot.
-        #[arg(long)]
-        before: PathBuf,
-        /// Later snapshot.
-        #[arg(long)]
-        after: PathBuf,
-    },
-    /// Start an explicitly trusted local server and enumerate tools without calls.
-    Inspect {
-        /// Reviewed Runtime launch configuration, separate from discovery files.
-        #[arg(long)]
-        launch_config: PathBuf,
-        /// Required: this executes the configured program with your OS privileges.
-        #[arg(long, required = true)]
-        allow_exec: bool,
-        /// Save fingerprints to a new local file; never overwrites an existing file.
-        #[arg(long)]
-        snapshot: Option<PathBuf>,
-        /// Explicit local admin classifications bound to current fingerprints.
-        #[arg(long)]
-        classification_overrides: Option<PathBuf>,
-    },
-    /// Read Claude Code and Cursor project configurations locally.
-    Scan {
-        /// Project directory; only documented configuration paths are inspected.
-        #[arg(long, default_value = ".")]
-        root: PathBuf,
-        /// Optional Runtime configuration for scanner resource limits.
-        #[arg(long)]
-        runtime_config: Option<PathBuf>,
-    },
-}
-
-#[derive(Subcommand)]
-enum ConfigCommand {
-    /// Check a regular JSON file. No credentials, network or server execution.
-    Check {
-        /// Local Runtime JSON configuration file.
-        #[arg(long)]
-        config: PathBuf,
-    },
-}
 
 #[derive(Serialize)]
 struct VersionReport {
@@ -93,7 +19,6 @@ struct VersionReport {
     version: &'static str,
     config_schema_version: u32,
 }
-
 #[derive(Serialize)]
 struct ConfigReport {
     schema_version: u32,
@@ -101,94 +26,40 @@ struct ConfigReport {
     config: RuntimeConfig,
 }
 
-#[derive(Serialize)]
-struct ErrorReport {
-    schema_version: u32,
-    error: &'static str,
-    message: String,
-}
-
-fn write_json(value: &impl Serialize, output: impl Write) -> io::Result<()> {
-    let mut output = output;
-    serde_json::to_writer(&mut output, value).map_err(io::Error::other)?;
-    writeln!(output)
-}
-
-fn config_error(error: ConfigError, json: bool) -> io::Result<()> {
-    let mut stderr = io::stderr().lock();
-    if json {
-        write_json(
-            &ErrorReport {
-                schema_version: 1,
-                error: error.code(),
-                message: error.to_string(),
-            },
-            stderr,
-        )
-    } else {
-        writeln!(stderr, "{}: {error}", error.code())
-    }
-}
-
-fn mcp_error(error: mitigate_mcp::Error, json: bool) -> io::Result<ExitCode> {
-    if json {
-        write_json(
-            &ErrorReport {
-                schema_version: 1,
-                error: error.code(),
-                message: error.to_string(),
-            },
-            io::stderr().lock(),
-        )?;
-    } else {
-        writeln!(io::stderr().lock(), "{}: {error}", error.code())?;
-    }
+fn mcp_error(error: mitigate_mcp::Error, machine: bool) -> io::Result<ExitCode> {
+    output::error(error.code(), &error.to_string(), machine)?;
     Ok(ExitCode::from(2))
+}
+fn findings_exit(found: bool, fail: bool) -> ExitCode {
+    if found && fail {
+        ExitCode::from(3)
+    } else {
+        ExitCode::SUCCESS
+    }
 }
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
         Command::Mcp {
-            command: McpCommand::Diff { before, after },
+            command:
+                McpCommand::Diff {
+                    before,
+                    after,
+                    fail_on_change,
+                },
         } => {
-            let result = mitigate_mcp::Snapshot::from_file(&before)
-                .and_then(|before| before.diff(&mitigate_mcp::Snapshot::from_file(&after)?));
-            match result {
+            let diff = match Snapshot::from_file(&before)
+                .and_then(|before| before.diff(&Snapshot::from_file(&after)?))
+            {
+                Ok(diff) => diff,
                 Err(error) => return mcp_error(error, cli.json),
-                Ok(diff) if cli.json => write_json(&diff, io::stdout().lock())?,
-                Ok(diff) => {
-                    let mut output = io::stdout().lock();
-                    if diff.is_empty() {
-                        writeln!(output, "No changes.")?;
-                    }
-                    if diff.server_identity_changed {
-                        writeln!(output, "Server identity changed.")?;
-                    }
-                    if diff.server_facts_changed {
-                        writeln!(output, "Server facts changed.")?;
-                    }
-                    if diff.tools_supported_changed {
-                        writeln!(output, "Tools capability changed.")?;
-                    }
-                    for tool in diff.tools {
-                        let fields = [
-                            (tool.identity_changed, "identity"),
-                            (tool.input_schema_changed, "input schema"),
-                            (tool.output_schema_changed, "output schema"),
-                            (tool.description_changed, "description"),
-                        ]
-                        .into_iter()
-                        .filter_map(|(changed, name)| changed.then_some(name))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                        if fields.is_empty() {
-                            writeln!(output, "{:?} {}", tool.kind, tool.name)?;
-                        } else {
-                            writeln!(output, "{:?} {} ({fields})", tool.kind, tool.name)?;
-                        }
-                    }
-                }
+            };
+            if cli.json {
+                output::json(&diff, io::stdout().lock())?;
+            } else {
+                output::diff(&diff, io::stdout().lock())?;
             }
+            return Ok(findings_exit(!diff.is_empty(), fail_on_change));
         }
         Command::Mcp {
             command:
@@ -197,16 +68,16 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                     allow_exec: _,
                     snapshot,
                     classification_overrides,
+                    details,
+                    fail_on_risk,
                 },
         } => {
             let overrides = match classification_overrides {
-                Some(path) => {
-                    match mitigate_mcp::classification::ClassificationOverrides::from_file(&path) {
-                        Ok(overrides) => overrides,
-                        Err(error) => return mcp_error(error, cli.json),
-                    }
-                }
-                None => mitigate_mcp::classification::ClassificationOverrides::default(),
+                Some(path) => match ClassificationOverrides::from_file(&path) {
+                    Ok(overrides) => overrides,
+                    Err(error) => return mcp_error(error, cli.json),
+                },
+                None => ClassificationOverrides::default(),
             };
             let result = mitigate_mcp::LaunchConfig::from_file(&launch_config).and_then(|config| {
                 let runtime = tokio::runtime::Builder::new_current_thread()
@@ -217,56 +88,40 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                     let _ = tokio::signal::ctrl_c().await;
                 }))
             });
-            match result {
-                Ok(inventory) => {
-                    let report = match inventory.classify(&overrides) {
-                        Ok(report) => report,
-                        Err(error) => return mcp_error(error, cli.json),
-                    };
-                    if let Some(path) = snapshot
-                        && let Err(error) = mitigate_mcp::Snapshot::from_inventory(&inventory)
-                            .and_then(|s| s.write_new(&path))
-                    {
-                        return mcp_error(error, cli.json);
-                    }
-                    if cli.json {
-                        write_json(&report, io::stdout().lock())?;
-                    } else {
-                        let mut output = io::stdout().lock();
-                        writeln!(
-                            output,
-                            "{} tool(s). MCP {}. No tools called.",
-                            inventory.tools.len(),
-                            inventory.protocol_version
-                        )?;
-                        if !inventory.tools_supported {
-                            writeln!(output, "Server does not advertise tools.")?;
-                        }
-                        writeln!(
-                            output,
-                            "Capability hints require review; they do not grant access."
-                        )?;
-                        for tool in &report.tools {
-                            writeln!(output, "{}  {:?}", tool.name, tool.classification.classes)?;
-                            writeln!(
-                                output,
-                                "  {:?} confidence; {:?}",
-                                tool.classification.confidence, tool.classification.sources
-                            )?;
-                            if !tool.classification.flags.is_empty() {
-                                writeln!(output, "  Review: {:?}", tool.classification.flags)?;
-                            }
-                        }
-                    }
-                }
+            let inventory = match result {
+                Ok(inventory) => inventory,
                 Err(error) => return mcp_error(error, cli.json),
+            };
+            let report = match inventory.classify(&overrides) {
+                Ok(report) => report,
+                Err(error) => return mcp_error(error, cli.json),
+            };
+            if let Some(path) = snapshot
+                && let Err(error) =
+                    Snapshot::from_inventory(&inventory).and_then(|s| s.write_new(&path))
+            {
+                return mcp_error(error, cli.json);
             }
+            if cli.json {
+                output::json(&report, io::stdout().lock())?;
+            } else {
+                output::inspect(&report, details, io::stdout().lock())?;
+            }
+            return Ok(findings_exit(
+                report
+                    .tools
+                    .iter()
+                    .any(|t| !t.classification.flags.is_empty()),
+                fail_on_risk,
+            ));
         }
         Command::Mcp {
             command:
                 McpCommand::Scan {
                     root,
                     runtime_config,
+                    details,
+                    fail_on_risk,
                 },
         } => {
             let config = match runtime_config {
@@ -274,7 +129,7 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                 Some(path) => match RuntimeConfig::from_file(&path) {
                     Ok(config) => config,
                     Err(error) => {
-                        config_error(error, cli.json)?;
+                        output::error(error.code(), &error.to_string(), cli.json)?;
                         return Ok(ExitCode::from(2));
                     }
                 },
@@ -282,59 +137,19 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
             let report = match mitigate_mcp_scan::scan_project(&root, &config.scan) {
                 Ok(report) => report,
                 Err(error) => {
-                    if cli.json {
-                        write_json(
-                            &ErrorReport {
-                                schema_version: 1,
-                                error: error.code(),
-                                message: error.to_string(),
-                            },
-                            io::stderr().lock(),
-                        )?;
-                    } else {
-                        writeln!(io::stderr().lock(), "{}: {error}", error.code())?;
-                    }
+                    output::error(error.code(), &error.to_string(), cli.json)?;
                     return Ok(ExitCode::from(2));
                 }
             };
             if cli.json {
-                write_json(&report, io::stdout().lock())?;
+                output::json(&report, io::stdout().lock())?;
             } else {
-                let mut output = io::stdout().lock();
-                writeln!(
-                    output,
-                    "{} MCP server declaration(s). No servers started or contacted.",
-                    report.servers.len()
-                )?;
-                for server in &report.servers {
-                    let name: String = server
-                        .server_name
-                        .chars()
-                        .flat_map(char::escape_default)
-                        .collect();
-                    let destination: String = server
-                        .command_or_url
-                        .as_deref()
-                        .unwrap_or("unresolved")
-                        .chars()
-                        .flat_map(char::escape_default)
-                        .collect();
-                    writeln!(
-                        output,
-                        "{}  {name}  {:?}  {destination}",
-                        server.source_path, server.transport
-                    )?;
-                    if !server.risks.is_empty() {
-                        writeln!(output, "  Review: {:?}", server.risks)?;
-                    }
-                }
-                if report.servers.is_empty() {
-                    writeln!(
-                        output,
-                        "Checked .mcp.json and .cursor/mcp.json. Use --root to choose another project."
-                    )?;
-                }
+                output::scan(&report, details, io::stdout().lock())?;
             }
+            return Ok(findings_exit(
+                report.servers.iter().any(|s| !s.risks.is_empty()),
+                fail_on_risk,
+            ));
         }
         Command::Version => {
             let report = VersionReport {
@@ -344,7 +159,7 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                 config_schema_version: CONFIG_SCHEMA_VERSION,
             };
             if cli.json {
-                write_json(&report, io::stdout().lock())?;
+                output::json(&report, io::stdout().lock())?;
             } else {
                 writeln!(
                     io::stdout().lock(),
@@ -360,12 +175,12 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
             let config = match RuntimeConfig::from_file(&config) {
                 Ok(config) => config,
                 Err(error) => {
-                    config_error(error, cli.json)?;
+                    output::error(error.code(), &error.to_string(), cli.json)?;
                     return Ok(ExitCode::from(2));
                 }
             };
             if cli.json {
-                write_json(
+                output::json(
                     &ConfigReport {
                         schema_version: 1,
                         valid: true,
@@ -385,17 +200,56 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn main() -> ExitCode {
-    match execute(Cli::parse()) {
+fn parse_error(error: clap::Error, machine: bool) -> io::Result<ExitCode> {
+    // Clap's detailed errors echo user-supplied values. Keep those out of logs,
+    // including malformed options that accidentally contain credentials.
+    let message = match error.kind() {
+        ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => {
+            error.print()?;
+            return Ok(ExitCode::SUCCESS);
+        }
+        ErrorKind::MissingRequiredArgument => {
+            "Missing required options. Inspection requires --launch-config and --allow-exec. Run the command with --help."
+        }
+        ErrorKind::ArgumentConflict => {
+            "Conflicting options. Use --details for human output or --json for machine output; check the command's --help."
+        }
+        ErrorKind::InvalidSubcommand => "Unknown command. Run mitigate --help to list commands.",
+        _ => {
+            "Invalid command arguments. Run the command with --help to check available options and required values."
+        }
+    };
+    output::error("cli_invalid_arguments", message, machine)?;
+    Ok(ExitCode::from(2))
+}
+
+fn finish(result: io::Result<ExitCode>, machine: bool) -> ExitCode {
+    match result {
         Ok(code) => code,
         // A downstream consumer closing its pipe is normal CLI behavior.
         Err(error) if error.kind() == io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
         Err(_) => {
-            let _ = writeln!(
-                io::stderr(),
-                "output_unavailable: Cannot write output. Check the destination and retry."
+            let _ = output::error(
+                "output_unavailable",
+                "Cannot write output. Check the destination and retry.",
+                machine,
             );
             ExitCode::from(1)
         }
     }
+}
+
+fn main() -> ExitCode {
+    let arguments: Vec<_> = std::env::args_os().collect();
+    // Examine only the global switch; never format or log argument values.
+    let machine = arguments
+        .iter()
+        .skip(1)
+        .take_while(|a| *a != "--")
+        .any(|a| a == "--json");
+    let result = match Cli::try_parse_from(arguments) {
+        Ok(cli) => execute(cli),
+        Err(error) => parse_error(error, machine),
+    };
+    finish(result, machine)
 }
