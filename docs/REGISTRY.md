@@ -1,6 +1,6 @@
 # Public registry facts and offline lookup
 
-`mitigate mcp registry lookup` reads an explicit public catalog and shows all
+`mitigate registry lookup` reads an explicit public catalog and shows all
 matching source-attributed claims. It needs no account and makes no network
 requests. It does not install a server, launch code, refresh a catalog, change
 capability classifications or modify grants/policy. The lookup output is local
@@ -15,9 +15,9 @@ acceptance work. There is no live public registry endpoint in this implementatio
 From a Runtime checkout:
 
 ```sh
-cargo run --locked -- mcp registry lookup --catalog examples/registry/catalog.json --subject io.example/synthetic-server
-cargo run --locked -- mcp registry lookup --catalog examples/registry/catalog.json --subject io.example/synthetic-server --json
-cargo run --locked -- mcp registry lookup --catalog examples/registry/catalog.json --subject io.example/unknown-server --json
+cargo run --locked -- registry lookup --catalog examples/registry/catalog.json --subject io.example/synthetic-server
+cargo run --locked -- registry lookup --catalog examples/registry/catalog.json --subject io.example/synthetic-server --json
+cargo run --locked -- registry lookup --catalog examples/registry/catalog.json --subject io.example/unknown-server --json
 ```
 
 The checked-in catalog uses reserved example domains and synthetic package names.

@@ -29,7 +29,7 @@ impl Drop for Fixture {
 fn cli(path: &std::path::Path, subject: &str, machine: bool) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_mitigate"));
     command
-        .args(["mcp", "registry", "lookup", "--catalog"])
+        .args(["registry", "lookup", "--catalog"])
         .arg(path)
         .args(["--subject", subject]);
     if machine {
@@ -174,7 +174,6 @@ fn invalid_public_catalogs_and_private_paths_never_leak_in_error_output() {
 fn catalog_selection_is_required_and_help_is_actionable() {
     let result = Command::new(env!("CARGO_BIN_EXE_mitigate"))
         .args([
-            "mcp",
             "registry",
             "lookup",
             "--subject",
@@ -186,7 +185,7 @@ fn catalog_selection_is_required_and_help_is_actionable() {
     assert_eq!(result.status.code(), Some(2));
     assert!(result.stdout.is_empty());
     let result = Command::new(env!("CARGO_BIN_EXE_mitigate"))
-        .args(["mcp", "registry", "lookup", "--help"])
+        .args(["registry", "lookup", "--help"])
         .output()
         .unwrap();
     assert!(result.status.success());

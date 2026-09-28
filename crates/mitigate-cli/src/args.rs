@@ -18,6 +18,11 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
+    /// Look up attributed public facts; never install servers or change grants.
+    Registry {
+        #[command(subcommand)]
+        command: RegistryCommand,
+    },
     /// Test the local privacy boundary using synthetic data; never send telemetry.
     Privacy {
         #[command(subcommand)]
@@ -107,11 +112,6 @@ pub(crate) enum SecretsCommand {
 
 #[derive(Subcommand)]
 pub(crate) enum McpCommand {
-    /// Look up attributed public facts; never install servers or change grants.
-    Registry {
-        #[command(subcommand)]
-        command: RegistryCommand,
-    },
     /// Show verified local references for exact grants and control targets; never call tools.
     Context {
         /// Explicit process configuration, separate from discovery files.

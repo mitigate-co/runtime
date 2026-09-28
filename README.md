@@ -91,7 +91,7 @@ Use `--details` for full human reports, or `--json` for the versioned machine co
 Look up [source-attributed public registry facts](docs/REGISTRY.md) offline:
 
 ```sh
-cargo run --locked -- mcp registry lookup --catalog examples/registry/catalog.json --subject io.example/synthetic-server --json
+cargo run --locked -- registry lookup --catalog examples/registry/catalog.json --subject io.example/synthetic-server --json
 ```
 
 The supplied example is synthetic. Lookups preserve source disagreement and

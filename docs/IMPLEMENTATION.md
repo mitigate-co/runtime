@@ -104,7 +104,7 @@ license/source checks and Gitleaks passed. Full CLI checking is blocked locally
 by the missing MSVC Spectre libraries; both initial full Windows/macOS/Linux and security CI runs passed, including actual subprocess commands. Final main-based CI remains required after the queue contention correction.
 
 The Runtime registry slice adds a closed bounded public import contract and
-`mcp registry lookup --catalog FILE --subject NAMESPACE/SERVER`. Eight local
+`registry lookup --catalog FILE --subject NAMESPACE/SERVER`. Eight local
 Windows hostile/provenance/resource tests, strict crate lint and the standalone
 synthetic lookup demonstration passed. Full CLI verification remains required
 in CI while the local Spectre dependency is unavailable. No new external
