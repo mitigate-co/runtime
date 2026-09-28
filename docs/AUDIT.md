@@ -1,5 +1,39 @@
 # Local audit
 
+## Governed-call records
+
+Version-two events add a closed `call` context with session/call references,
+phase, complete-definition and exact signed-policy-bundle references, and optional
+operator attribution. References remain local; no raw arguments/results, argument
+hashes, comments or arbitrary metadata are stored. Existing version-one events
+retain their exact encoding and hashes, with no `call` field added.
+
+The phases are `decision` (refused before invocation), `approval_pending`,
+`dispatch` (authorization recorded before an attempt) and `completion` (observed
+outcome). Dispatch requires known caller/resolved tool/policy facts and, when
+approval is referenced, the approving operator. Operator attribution is
+`declared_local`, not authenticated identity. `allow_and_log`, `rate_limit`,
+`disable_tool` and the `uncertain` outcome are version-two vocabulary.
+
+`AuditStore::append_call` commits these records through the existing atomic
+append/retention path. It does not authorize or execute a call. A dispatch without
+completion means the outcome is unknown; never assume a retry is safe. Earlier
+phases can also be absent due to retention. The gateway owns lifecycle consistency.
+
+Mixed-version chains need no table migration or rewrite. Older binaries refuse
+version-two records; preserve the database during rollback. Never remove records
+to make an older reader accept it. See [ADR 0020](decisions/0020-versioned-local-call-audit.md).
+
+Synthetic CLI demonstration after building `mitigate`:
+
+```sh
+cargo run --locked -p mitigate-mcp-fixture -- audit-contract target/debug/mitigate
+```
+
+Use `target/debug/mitigate.exe` on Windows. The fixture writes only temporary
+synthetic metadata and makes no real MCP invocation. The ordinary `serve` CLI
+still runs in inventory-only mode until governance composition is complete.
+
 MCP-010 provides durable local metadata storage and opt-in recording for the
 inventory-only gateway. No Platform account or network service is involved.
 Raw arguments, results, descriptions, schemas, credentials, MCP metadata and

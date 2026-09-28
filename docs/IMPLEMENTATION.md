@@ -28,14 +28,20 @@ credential references. Optional reviewed inventory connections detect code drift
 and record the launch reference locally. Launch metadata, symlink/code-drift,
 actual CLI/privacy/audit contracts and Windows/macOS/Linux/security CI passed.
 
-Tool schema validation is in verification: the explicit bounded local Draft
+Tool schema validation merged in PR #17, main `8aa9aa4`: the explicit bounded local Draft
 2020-12 profile compiles input/output schemas before invocation, rejects invalid
 arguments and withholds invalid results. No remote/file retrieval or coercion is
 allowed; unsupported constraints fail closed. Schema/real-process tests, full
 Linux workspace tests, actual executable demonstration, strict lint and dependency/
 license/secret checks passed locally. CLI panic privacy is covered by a subprocess
-regression. Cross-OS CI/merge is pending. Governed invocation, approval waiting
-and complete call audit remain open gates.
+regression. Windows/macOS/Linux suites and dependency/secret CI gates passed.
+
+Versioned call audit is in verification: closed correlation/phase/operator facts
+preserve legacy event bytes and support mixed-version chains without migration.
+Local workspace tests and actual CLI verification passed, including a saved older
+binary refusing new records without modifying history. Cross-OS CI/merge remains
+pending. Governed invocation, approval waiting and audit lifecycle composition
+remain open gates.
 
 Final dispatch boundary is in verification: the upstream adapter invokes an
 owner gate after schema/inventory/selected-code checks, before sending a tool call.
