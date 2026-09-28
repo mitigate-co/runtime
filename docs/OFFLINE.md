@@ -42,11 +42,12 @@ local audit commits remain required during an outage.
 
 ## Optional synchronization
 
-There is no sync queue or sender in this implementation yet. Local audit exports
-are not Platform telemetry and must not be uploaded directly. MCP-015's bounded
-safe queue and MCP-016's closed event/egress boundary remain open acceptance work;
-this document does not claim those gates have passed. Future queue failure must
-not block local policy enforcement or cause a raw-content fallback.
+The [optional outbox](OUTBOX.md) durably retains only closed validated events with
+bounded capacity, expiry, retry leases and content-free rejection diagnostics.
+It has no sender or automatic gateway integration yet. Local audit exports are
+not Platform telemetry and must not be uploaded directly. Queue failure is
+separate from local authority and must never cause a raw-content fallback.
+MCP-016 CLI inspection/self-test and MCP-018 enrollment/delivery remain open gates.
 
 ## Verify with synthetic processes
 
