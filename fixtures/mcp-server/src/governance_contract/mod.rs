@@ -1,6 +1,7 @@
 //! Real CLI governance against our own synthetic child and isolated local stores.
 mod cases;
 mod changes;
+mod offline;
 use mitigate_audit::{AuditStore, Retention};
 use mitigate_fingerprint::Fingerprint;
 use mitigate_mcp::{LaunchConfig, LaunchReview, Snapshot, StdioServer};
@@ -283,6 +284,21 @@ pub(super) fn verify(binary: &Path) {
     runtime.block_on(cases::run(binary, &root.0));
     println!(
         "Governance verified: reviewed CLI calls, policy/grants, one-call approvals, controls, progress, failure cleanup and private audit."
+    );
+}
+
+pub(super) fn verify_offline(binary: &Path) {
+    let root = Project(
+        std::env::temp_dir().join(format!("mitigate-offline-contract-{}", std::process::id())),
+    );
+    fs::create_dir(&root.0).unwrap();
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(offline::run(binary, &root.0));
+    println!(
+        "Offline authority verified: cached decisions, rejected refreshes, restart and local approval failure/recovery."
     );
 }
 

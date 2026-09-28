@@ -18,7 +18,8 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-012 — Grants | Merged | PR #13, main `cc13a10`. Explicit scopes, deny precedence, whole-action allowance and independent policy constraint. Policy/grant unit tests, actual CLI/privacy fixtures and complete Windows/macOS/Linux/security CI passed. |
 | MCP-013 — Approvals | Merged | PR #14, main `60fc055`. One-call binding, local decisions, atomic consumption, expiry/revocation/cancellation and bounded storage. Approval, CLI/privacy, full Windows/macOS/Linux and dependency/secret gates passed. Live enforcing-call composition remains a launch gate. |
 | MCP-014 — Kill switch and limits | Control component merged | PR #15, main `77877aa`. Persistent stops, exact target disables, deterministic atomic quotas, bounded operator history and management CLI. Windows/macOS/Linux suites, actual CLI/privacy fixtures and dependency/secret gates passed. Enforcing gateway composition remains required within this package. |
-| MCP-015 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
+| MCP-015 — Offline behavior | In verification; safe queue still open | Executable cached-policy/approval outage corpus and recovery documentation added. Final CI is pending. |
+| MCP-016 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
 
