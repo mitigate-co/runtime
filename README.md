@@ -34,6 +34,8 @@ cargo run --locked -- mcp diff --before target/before.json --after target/after.
 
 See [fingerprints and snapshots](docs/FINGERPRINTS.md) for the complete tested example, privacy boundary and numeric compatibility limits.
 
+Use `--details` for full human reports, or `--json` for the versioned machine contract. Add `--fail-on-risk` to scan/inspect or `--fail-on-change` to diff for opt-in exit 3 on findings. The [CLI reference](docs/CLI.md) includes exit codes, examples and recovery steps.
+
 ## Verify
 
 ```sh

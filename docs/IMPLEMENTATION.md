@@ -1,6 +1,6 @@
 # MCP implementation status
 
-Updated 2026-09-27. Follow the canonical ordered work packages. This file reports implementation evidence, not production readiness.
+Updated 2026-09-28. Follow the canonical ordered work packages. This file reports implementation evidence, not production readiness.
 
 | Package | State | Evidence or next acceptance |
 | --- | --- | --- |
@@ -8,8 +8,9 @@ Updated 2026-09-27. Follow the canonical ordered work packages. This file report
 | MCP-002 — Scanner sources | Merged | PR #2, main `9222188`. Claude Code/Cursor project adapters, normalized declarations, bounded parser and hostile/privacy fixtures. All three OS test runs and security gates passed. |
 | MCP-003 — Tool enumeration | Merged | PR #3, main `f3e85ff`. Explicit stdio launch, protocol negotiation, bounded pagination, environment isolation and job/group cleanup. 24 Windows tests; all three OS CI runs and security gates passed. |
 | MCP-004 — Fingerprints and diff | Merged | PR #4, main `45cd2ab`. Separate input/output/description/identity/server facts, explicit snapshots and offline diff. 34 Windows tests; all three OS CI runs and security gates passed. |
-| MCP-005 — Capability classification | In verification | Deterministic taxonomy, source/confidence, conservative risk flags and explicit fingerprint-bound admin overrides. Hostile-description and stale-override fixtures; remote CI/merge pending. |
-| MCP-006 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
+| MCP-005 — Capability classification | Merged | PR #5, main `27e7375`. Deterministic taxonomy, source/confidence, conservative risk flags and fingerprint-bound admin overrides. Windows job-completion regression fixed and documented. 44 Windows tests; all three OS CI runs and security gates passed. |
+| MCP-006 — CLI UX | In verification | Human tables/details, stable JSON/errors, opt-in findings exits, actual-binary contract harness and reference. 49 Windows tests plus CLI harness pass locally; remote CI/merge pending. |
+| MCP-007 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
 
