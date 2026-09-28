@@ -18,6 +18,16 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
+    /// Test the local privacy boundary using synthetic data; never send telemetry.
+    Privacy {
+        #[command(subcommand)]
+        command: PrivacyCommand,
+    },
+    /// Inspect supported egress fields and optional retained queue diagnostics.
+    Egress {
+        #[command(subcommand)]
+        command: EgressCommand,
+    },
     /// Store local credentials without putting their values in configuration.
     Secrets {
         #[command(subcommand)]
@@ -34,6 +44,32 @@ pub(crate) enum Command {
     Mcp {
         #[command(subcommand)]
         command: McpCommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum PrivacyCommand {
+    /// Inject synthetic secrets/content into a temporary queue and verify rejection.
+    SelfTest {
+        /// Existing writable parent for private temporary fixtures; defaults to OS temp.
+        #[arg(long)]
+        work_dir: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum EgressCommand {
+    /// Show exact fields and safe counts; never dump bodies, mutate stores or send.
+    Inspect {
+        /// Existing optional queue; omit all three scope options to inspect this build's schema.
+        #[arg(long, requires_all = ["runtime_ref", "enrollment_ref"])]
+        db: Option<PathBuf>,
+        /// Independently configured opaque runtime reference; not a local audit fingerprint.
+        #[arg(long, requires_all = ["db", "enrollment_ref"])]
+        runtime_ref: Option<String>,
+        /// Independently configured opaque enrollment reference; not an authentication secret.
+        #[arg(long, requires_all = ["db", "runtime_ref"])]
+        enrollment_ref: Option<String>,
     },
 }
 

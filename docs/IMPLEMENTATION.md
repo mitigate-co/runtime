@@ -18,8 +18,8 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-012 — Grants | Merged | PR #13, main `cc13a10`. Explicit scopes, deny precedence, whole-action allowance and independent policy constraint. Policy/grant unit tests, actual CLI/privacy fixtures and complete Windows/macOS/Linux/security CI passed. |
 | MCP-013 — Approvals | Merged | PR #14, main `60fc055`. One-call binding, local decisions, atomic consumption, expiry/revocation/cancellation and bounded storage. Approval, CLI/privacy, full Windows/macOS/Linux and dependency/secret gates passed. Live enforcing-call composition remains a launch gate. |
 | MCP-014 — Kill switch and limits | Merged | Controls PR #15, governance PR #20 and exact-reference setup PR #21, main `72e68fe`. Governed calls enforce stops/targets/quotas alongside policy/grants/approvals and required audit. Both final CI runs passed all three operating systems and security gates. |
-| MCP-015 — Offline behavior | In verification | PR #22 merged at `def9772`, verifying cached allow/deny and unavailable approvals with actual processes on Windows/macOS/Linux. The durable outbox validates candidates before persistence and isolates optional delivery state from local authority; final cross-OS gates remain required. |
-| MCP-016 — Privacy boundary | Closed event and queue components in verification | PR #23 merged at `22244f5` with all three OS and security gates passing. Queue admission now records fixed rejection reasons without source content. `privacy self-test` and `egress inspect` CLI integration remain open. |
+| MCP-015 — Offline behavior | Local authority and safe queue merged | PR #22 merged at `def9772`, verifying cached allow/deny and unavailable approvals with actual processes on Windows/macOS/Linux. PR #24 merged at `e952779` after both final Windows/macOS/Linux and security runs passed. The durable outbox validates candidates before persistence and isolates optional delivery state from local authority; enrolled delivery remains MCP-018 work. |
+| MCP-016 — Privacy boundary | CLI and boundary in verification | PR #23 merged at `22244f5` with all OS/security gates passing; PR #24 adds the durable admission journal. `privacy self-test` rejects 147 synthetic candidates through real admission; `egress inspect` uses read-only scoped inspection. Full actual-CLI cross-OS verification and later enrolled integrity remain required. |
 | MCP-017 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
@@ -94,4 +94,10 @@ retry/purge demonstration. Coverage includes full capacity, actual SQLite-full
 and failed commits, concurrent leases, stale acknowledgements, bounded retry/
 retention, corrupt state and rejection-canary exclusion. It has no sender or
 automatic gateway producer. See [outbox contract](OUTBOX.md); cross-OS/security
-CI passed on the stacked branch; final main-based verification remains required.
+CI passed on the stacked branch. A later Windows run exposed a contention assumption in the concurrent-worker test; fixed Busy diagnostics and exact-lease assertions passed both final main-based Windows/macOS/Linux and security runs. Merged in PR #24 at `e952779`.
+
+The privacy CLI slice adds a 147-candidate probe through actual outbox admission
+and a read-only scoped inspector. Twenty-seven local Windows egress/storage/probe
+tests, the compile-fail check, strict crate lint, executable probe, advisory audit,
+license/source checks and Gitleaks passed. Full CLI checking is blocked locally
+by the missing MSVC Spectre libraries; both initial full Windows/macOS/Linux and security CI runs passed, including actual subprocess commands. Final main-based CI remains required after the queue contention correction.

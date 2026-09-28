@@ -1091,6 +1091,7 @@ dependencies = [
  "getrandom 0.4.3",
  "mitigate-audit",
  "mitigate-config",
+ "mitigate-egress",
  "mitigate-fingerprint",
  "mitigate-gateway",
  "mitigate-json",
