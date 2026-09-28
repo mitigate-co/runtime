@@ -12,4 +12,6 @@
 /trust.json
 /policy.db
 /policy.db-*
+/approvals.db
+/approvals.db-*
 /policy-v*.json

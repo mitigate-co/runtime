@@ -35,6 +35,7 @@ jobs:
           cargo run --locked -p mitigate-mcp-fixture -- gateway-contract "$cli"
           python scripts/verify-policy.py "$cli"
           python scripts/verify-grants.py "$cli"
+          python scripts/verify-approvals.py "$cli"
       - name: Compare policy decisions with OPA reference
         if: runner.os == 'Linux'
         shell: bash

@@ -46,6 +46,12 @@ impl Domain {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(transparent)]
 pub struct Fingerprint(String);
+impl Fingerprint {
+    /// Borrow the validated lowercase hexadecimal reference explicitly.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 impl<'de> Deserialize<'de> for Fingerprint {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = String::deserialize(deserializer)?;

@@ -47,6 +47,10 @@ Policy evaluation works offline. It does not yet enable gateway tool calls.
 Use [local grants](docs/GRANTS.md) to validate exact scopes and test whether an
 action has an explicit allowance or denial. These local diagnostics invoke no tools.
 
+[Local approvals](docs/APPROVALS.md) support metadata review, bounded one-call
+decisions and revocation before consumption. Approval does not invoke a tool or
+bypass grants/policy; the enforcing gateway remains a separate launch gate.
+
 ```sh
 cargo run --locked -- mcp grants check --rules examples/grants/read-development.json
 cargo run --locked -- mcp grants test --rules examples/grants/read-development.json --input examples/grants/read-context.json --json

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — local one-call approvals
+
+- Add metadata-only approval requests, local review/approve/deny commands, bounded expiry and declared operator records.
+- Bind approval to caller/session/call, server/tool definitions and exact policy; cancel on changed facts and consume atomically once.
+- Retain revocation history, reject clock rollback and fail closed on unavailable, corrupt, full or contended storage.
+- Cover races, replay, failed commits, capacity and actual CLI privacy behavior. Enforcing gateway calls remain disabled until the remaining safeguards are composed.
+
 ## Unreleased — explicit local grants
 
 - Add exact principal/agent/client/server/tool scopes, capability coverage, environment constraints and half-open time windows.

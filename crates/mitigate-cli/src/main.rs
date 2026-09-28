@@ -1,4 +1,5 @@
 //! CLI composition: explicit local actions with content-free operational errors.
+mod approvals;
 mod args;
 mod audit;
 mod gateway;
@@ -45,6 +46,9 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command: McpCommand::Approvals { command },
+        } => return approvals::run(command, cli.json),
         Command::Mcp {
             command: McpCommand::Grants { command },
         } => return grants::run(command, cli.json),
@@ -230,7 +234,36 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn parse_error(error: clap::Error, machine: bool) -> io::Result<ExitCode> {
+fn required_options_hint(arguments: &[std::ffi::OsString]) -> &'static str {
+    // Inspect only a whitelisted command prefix. Clap's rendered error context
+    // may contain customer paths/values and must never supply our diagnostics.
+    let mut words = arguments
+        .iter()
+        .skip(1)
+        .take_while(|a| *a != "--")
+        .filter(|a| *a != "--json");
+    if words.next().is_some_and(|a| a == "mcp") {
+        match words.next().and_then(|a| a.to_str()) {
+            Some("inspect") => {
+                return "Inspection requires --launch-config and --allow-exec. Run mitigate mcp inspect --help.";
+            }
+            Some("serve") => {
+                return "Serve requires --launch-config, --allow-exec and --inventory-only. Run mitigate mcp serve --help.";
+            }
+            Some("approvals") if words.next().is_some_and(|a| a == "approve" || a == "deny") => {
+                return "Approval decisions require --db, --reference, --operator-ref and --confirm. Run this command with --help.";
+            }
+            _ => (),
+        }
+    }
+    "Missing required options. Run this command with --help to see its required values and confirmation flags."
+}
+
+fn parse_error(
+    error: clap::Error,
+    machine: bool,
+    required_hint: &'static str,
+) -> io::Result<ExitCode> {
     // Clap's detailed errors echo user-supplied values. Keep those out of logs,
     // including malformed options that accidentally contain credentials.
     let message = match error.kind() {
@@ -238,9 +271,7 @@ fn parse_error(error: clap::Error, machine: bool) -> io::Result<ExitCode> {
             error.print()?;
             return Ok(ExitCode::SUCCESS);
         }
-        ErrorKind::MissingRequiredArgument => {
-            "Missing required options. Inspection/serve require --launch-config and --allow-exec; serve also requires --inventory-only. Run the command with --help."
-        }
+        ErrorKind::MissingRequiredArgument => required_hint,
         ErrorKind::ArgumentConflict => {
             "Conflicting options. Use --details for human output or --json for reports; serve uses MCP on stdout and cannot use --json. Check the command's --help."
         }
@@ -277,9 +308,10 @@ fn main() -> ExitCode {
         .skip(1)
         .take_while(|a| *a != "--")
         .any(|a| a == "--json");
+    let required_hint = required_options_hint(&arguments);
     let result = match Cli::try_parse_from(arguments) {
         Ok(cli) => execute(cli),
-        Err(error) => parse_error(error, machine),
+        Err(error) => parse_error(error, machine, required_hint),
     };
     finish(result, machine)
 }

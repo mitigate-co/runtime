@@ -11,6 +11,30 @@ use std::{
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
 #[test]
+fn approval_confirmation_guidance_is_specific_and_content_free() {
+    for decision in ["approve", "deny"] {
+        let result = cli(&[
+            "--json",
+            "mcp",
+            "approvals",
+            decision,
+            "--db",
+            "private-path-canary",
+            "--reference",
+            &"a".repeat(64),
+            "--operator-ref",
+            &"b".repeat(64),
+        ]);
+        assert_eq!(result.status.code(), Some(2));
+        assert!(result.stdout.is_empty());
+        let error = String::from_utf8(result.stderr).unwrap();
+        assert!(error.contains("--confirm"));
+        assert!(!error.contains("--allow-exec"));
+        assert!(!error.contains("private-path-canary"));
+    }
+}
+
+#[test]
 fn audit_commands_validate_bounds_preserve_files_and_require_prune_intent() {
     let fixture = Fixture::new();
     let path = fixture.0.join("audit.sqlite");
