@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/mitigate-cli", "crates/mitigate-config", "crates/mitigate-mcp-scan", "crates/mitigate-json", "crates/mitigate-mcp", "crates/mitigate-fingerprint", "crates/mitigate-gateway", "crates/mitigate-secrets", "crates/mitigate-audit", "crates/mitigate-policy", "fixtures/mcp-server"]
+members = ["crates/mitigate-cli", "crates/mitigate-config", "crates/mitigate-mcp-scan", "crates/mitigate-json", "crates/mitigate-mcp", "crates/mitigate-fingerprint", "crates/mitigate-gateway", "crates/mitigate-secrets", "crates/mitigate-audit", "crates/mitigate-policy", "crates/mitigate-egress", "fixtures/mcp-server"]
 default-members = ["crates/mitigate-cli"]
 exclude = ["vendor/process-wrap", "vendor/libsqlite3-sys"]
 

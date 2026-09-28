@@ -56,6 +56,12 @@ Platform
 
 No module bypasses the egress guard for Mitigate telemetry.
 
+The first implemented [closed event candidate contract](SYNC_EVENTS.md) uses only
+fixed enum strings and enrollment-scoped random reference shapes. It excludes
+free-form identifiers and local content-derived fingerprints. This is a validation
+component, not a complete egress path: queue/journal, enrollment integrity and
+delivery gates remain open. Rejected input is never logged or persisted by it.
+
 ## Provider/tool traffic is different
 
 If the customer tells Mitigate Gateway to call an upstream MCP server, payloads necessarily travel to that customer-approved server. That is customer workload traffic, not Mitigate Platform telemetry.

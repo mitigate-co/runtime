@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "event_type": "mcp_tool_decision",
+  "event_id": "ref_11111111111111111111111111111111",
+  "occurred_at_ms": 1800000000000,
+  "runtime_ref": "ref_22222222222222222222222222222222",
+  "facts": {
+    "call_ref": "ref_33333333333333333333333333333333",
+    "client_ref": "ref_44444444444444444444444444444444",
+    "principal_ref": null,
+    "agent_ref": null,
+    "attribution": "declared_profile",
+    "server_ref": "ref_55555555555555555555555555555555",
+    "tool_ref": "ref_66666666666666666666666666666666",
+    "schema_ref": "ref_77777777777777777777777777777777",
+    "capabilities": ["read_data"],
+    "policy_ref": "ref_88888888888888888888888888888888",
+    "policy_version": 1,
+    "approval_ref": null,
+    "phase": "dispatch",
+    "decision": "allow_and_log",
+    "outcome": "pending",
+    "duration_ms": 2
+  }
+}

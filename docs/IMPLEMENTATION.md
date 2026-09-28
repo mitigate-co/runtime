@@ -77,3 +77,10 @@ final executable validation is awaiting CI because local WSL cannot start during
 host disk exhaustion. This setup slice is not yet merged.
 
 Known launch gates include gateway semantics, grants, Regorus conformance, approvals, secrets, audit, optional sync, registry/fleet, hostile/privacy corpus and signed platform releases. Private vulnerability reporting is enabled. No public binary release or hosted deployment has occurred.
+
+Safe-queue prerequisite: `mitigate-egress` defines the closed version-one tool
+decision candidate, opaque enrollment-scoped references, string allowlist and
+strict bounds/fact checks. This is not a sender or completed MCP-015/016 gate.
+Nine Windows privacy/contract tests, the compile-fail export check, strict crate
+lint, documented fixture acceptance/rejection and secret scanning passed locally.
+Full cross-OS CI remains required. See [candidate contract](SYNC_EVENTS.md).
