@@ -22,7 +22,7 @@ fn replace(project: &Project, version: u64, bytes: &[u8]) {
     assert_eq!(
         conn.execute(
             "UPDATE policy SET version=?1,bundle=?2 WHERE id=1",
-            rusqlite::params![version, bytes],
+            rusqlite::params![i64::try_from(version).unwrap(), bytes],
         )
         .unwrap(),
         1
