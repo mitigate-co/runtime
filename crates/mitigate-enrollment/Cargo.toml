@@ -7,6 +7,9 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+https = ["dep:ureq", "dep:log"]
+
 [dependencies]
 mitigate-egress = { path = "../mitigate-egress", version = "0.1.0" }
 mitigate-json = { path = "../mitigate-json", version = "0.1.0" }
@@ -20,6 +23,12 @@ sha2.workspace = true
 url.workspace = true
 zeroize.workspace = true
 tokio.workspace = true
+ureq = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+
+[dev-dependencies]
+rcgen = { version = "=0.14.10", default-features = false, features = ["ring", "zeroize"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
 
 [lints]
 workspace = true

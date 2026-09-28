@@ -182,5 +182,11 @@ private-file operation lock; failed writes require reopen/reconciliation. No
 plaintext secret fallback or identity regeneration is allowed. Explicit lock
 release accounts for briefly inherited file descriptions. Parent ACLs, local
 filesystem locks and same-user trust remain assumptions; copying/rolling back
-an anchor or native store is not resisted. HTTPS delivery remains a separate gate.
+an anchor or native store is not resisted. Optional HTTPS delivery verifies the
+certificate chain/hostname/expiry with bundled roots and refuses redirection,
+ambient proxies, cookies and response expansion. All transport diagnostics are
+fixed; dependency logging is compiled out. Authenticated endpoints can still
+refuse service, and HTTP/TLS buffers do not defend against a local memory reader.
+No generic client or insecure override is exposed. Delivery does not establish
+durable confirmation or sync consent. See [transport limits](ENROLLMENT_HTTPS.md).
 See [enrollment boundaries](ENROLLMENT.md) and ADR 0027.
