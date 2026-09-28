@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — managed stdio upstream
+
+- Retain initialized upstream connections with fresh inventory comparison before calls and correlated progress counters.
+- Reject schema drift, invalid results and mismatched responses; terminate and invalidate connections after failure or cancellation.
+- Add real-process hostile/cancellation fixtures. Authorization remains the gateway owner's responsibility; no unchecked CLI call path is added.
+
 ## Unreleased — gateway listener
 
 - Add a bounded stdio-compatible protocol listener and immutable explicit caller profiles; unconfigured attribution stays unknown.

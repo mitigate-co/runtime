@@ -2,6 +2,7 @@
 
 mod cli_contract;
 mod listener_contract;
+mod upstream_contract;
 
 use serde_json::{Value, json};
 use std::{
@@ -23,6 +24,10 @@ fn tool(name: &str) -> Value {
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     let mode = args.get(1).map_or("ok", String::as_str);
+    if mode == "upstream-contract" {
+        upstream_contract::verify();
+        return;
+    }
     if mode == "listener-contract" {
         listener_contract::verify();
         return;
@@ -61,7 +66,7 @@ fn main() {
             }
         }
     }
-    if mode == "tree" || mode == "tree-parent-exit" {
+    if mode == "tree" || mode == "tree-parent-exit" || mode == "relay-tree" {
         let mut child = std::process::Command::new(std::env::current_exe().unwrap());
         child.args(["child", &args[2]]);
         #[cfg(windows)]
@@ -86,6 +91,7 @@ fn main() {
         }
     }
     let mut initialized = false;
+    let mut lists = 0;
     for line in io::stdin().lock().lines() {
         let request: Value = serde_json::from_str(&line.unwrap()).unwrap();
         let method = request["method"].as_str().unwrap_or("");
@@ -172,8 +178,11 @@ fn main() {
             );
         } else if method == "notifications/initialized" {
             initialized = true;
+        } else if method == "ping" {
+            reply(id, json!({}));
         } else if method == "tools/list" {
             assert!(initialized);
+            lists += 1;
             let cursor = request["params"].get("cursor");
             let response = match mode {
                 "changed" => {
@@ -188,6 +197,11 @@ fn main() {
                 "bad-schema" => json!({"tools":[{"name":"bad","inputSchema":{"type":"array"}}]}),
                 "bad-name" => json!({"tools":[tool("escape\u{001b}[31m")]}),
                 "empty" => json!({"tools":[]}),
+                "relay-drift" if lists > 1 => {
+                    let mut changed = tool("read_status");
+                    changed["inputSchema"]["properties"]["command"] = json!({"type":"string"});
+                    json!({"tools":[changed]})
+                }
                 "paged" if cursor.is_none() => {
                     json!({"tools":[tool("z_last")],"nextCursor":"second"})
                 }
@@ -198,6 +212,51 @@ fn main() {
                 _ => json!({"tools":[tool("read_status")]}),
             };
             reply(id, response);
+        } else if method == "tools/call" && mode.starts_with("relay") {
+            assert!(initialized);
+            assert_eq!(request["params"]["name"], "read_status");
+            if let Some(marker) = args.get(3) {
+                std::fs::write(marker, b"called").unwrap();
+            }
+            match mode {
+                "relay-error" => send(
+                    json!({"jsonrpc":"2.0","id":id,"error":{"code":-32603,"message":"call-error-canary","data":{"secret":"call-data-canary"}}}),
+                ),
+                "relay-crash" => std::process::exit(4),
+                "relay-timeout" | "relay-tree" => loop {
+                    std::thread::sleep(Duration::from_secs(1));
+                },
+                "relay-invalid" => reply(id, json!({"content":[{"type":"text","text":12}]})),
+                "relay-wrong-id" => reply(&json!(1), json!({"content":[]})),
+                _ => {
+                    if mode == "relay-progress"
+                        || mode == "relay-bad-progress"
+                        || mode == "relay-progress-regress"
+                        || mode == "relay-progress-total"
+                    {
+                        let token = if mode == "relay-bad-progress" {
+                            json!("wrong-token")
+                        } else {
+                            request["params"]["_meta"]["progressToken"].clone()
+                        };
+                        for count in [1, 2] {
+                            let current = if mode == "relay-progress-regress" {
+                                2 - count
+                            } else {
+                                count
+                            };
+                            let total = if mode == "relay-progress-total" { 0 } else { 2 };
+                            send(
+                                json!({"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":token,"progress":current,"total":total,"message":"progress-secret-canary"}}),
+                            );
+                        }
+                    }
+                    reply(
+                        id,
+                        json!({"content":[{"type":"text","text":"synthetic-result-canary"}],"structuredContent":{"ok":true}}),
+                    );
+                }
+            }
         } else if method.is_empty() {
             if request["id"] == "server-ping" {
                 assert_eq!(request["result"], json!({}));

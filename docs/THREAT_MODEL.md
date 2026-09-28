@@ -79,6 +79,8 @@ Windows cleanup additionally checks actual job membership, rather than treating 
 
 ## Known limitations
 
+The managed stdio adapter retains an initial fingerprint baseline and re-enumerates before each authorized transport call. Drift prevents invocation; malformed responses and errors invalidate and terminate the connection. Cancellation poisons the connection before releasing its borrow, preventing a later call from consuming a stale response. Tests verify descendant cleanup and absence of invocation on drift. These are transport controls, not proof of server behavior or a substitute for policy, schema validation, grants and approval. See [upstream boundaries](UPSTREAM.md).
+
 The MCP-007 listener additionally rejects ambiguous envelopes, reused IDs and out-of-order initialization, bounds local streams, and prevents clientInfo or request metadata from changing caller identity. Profile identity is explicitly declared, never authenticated by implication. Cancellation and disconnect drop in-flight service work; the upstream owner must confirm cleanup. No permissive service or network listener is included. See [gateway boundaries](GATEWAY.md) and ADR 0010. This protocol library alone is not an enforcing gateway.
 
 - A local admin/root user can usually tamper with local security software.

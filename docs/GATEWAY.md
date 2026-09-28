@@ -2,6 +2,8 @@
 
 The `mitigate-gateway` library implements the client-facing newline protocol and caller context. It opens no TCP socket and has no account dependency. It is intended for a client-owned stdio process. The `ToolService` boundary separates protocol handling from authorization and upstream execution. MCP-008 connects this listener to managed upstream adapters and the `mcp serve` CLI; that command is not shipped by this library slice alone.
 
+The [managed stdio adapter](UPSTREAM.md) is implemented separately and retains upstream lifecycle/protocol state. The executable integration remains the next slice; neither library supplies an unrestricted gateway service.
+
 ## Identity
 
 The caller is unknown by default: client, principal and agent references are absent; source and confidence are `unknown`. An explicitly selected local profile can declare a mapping:

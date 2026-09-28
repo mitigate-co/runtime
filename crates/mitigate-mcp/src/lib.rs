@@ -1,4 +1,5 @@
-//! Explicit, bounded MCP enumeration. Discovery never invokes these APIs.
+//! Explicit, bounded MCP enumeration and upstream transport. Discovery never
+//! invokes these APIs. Gateway owners must authorize calls before relaying them.
 //!
 //! Launching requires a caller-reviewed executable and configuration. Process
 //! groups/jobs manage lifecycle; they do not sandbox the server's OS privileges.
@@ -9,12 +10,14 @@ mod model;
 mod protocol;
 mod snapshot;
 mod stdio;
+mod upstream;
 
 pub use launch::LaunchConfig;
 pub use model::{Inventory, InventoryReport, Tool, ToolSummary};
 pub use snapshot::{ChangeKind, Snapshot, SnapshotDiff, ToolChange};
 use std::fmt;
 pub use stdio::{enumerate, enumerate_with_shutdown};
+pub use upstream::{Progress, StdioServer};
 
 /// Fixed operational errors; never carries upstream messages, arguments or paths.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -33,7 +36,7 @@ pub enum Error {
     Protocol,
     /// Response, count, pagination or complexity budget exceeded.
     Limit,
-    /// Whole enumeration deadline elapsed.
+    /// Whole enumeration or upstream transaction deadline elapsed.
     Timeout,
     /// Caller requested shutdown; process cleanup still runs before returning.
     Cancelled,
@@ -83,10 +86,10 @@ impl fmt::Display for Error {
             Self::Executable => "Select an absolute trusted executable and working directory; Windows requires an .exe file.",
             Self::Environment => "Check the explicitly allowed environment references and their size limits.",
             Self::Launch => "The server could not start. Check executable permissions and process restrictions.",
-            Self::Disconnected => "The server closed or failed its protocol stream before enumeration completed.",
+            Self::Disconnected => "The server connection is closed, invalidated or failed before the request completed. Reconnect before retrying.",
             Self::Protocol => "The server returned invalid or ambiguous MCP data. Check its protocol compatibility.",
             Self::Limit => "The server exceeded a response or inventory limit. Review its configuration before retrying.",
-            Self::Timeout => "The server did not complete enumeration before the deadline. Check its health or adjust timeout_ms.",
+            Self::Timeout => "The server did not complete the operation before the deadline. Check its health or adjust timeout_ms.",
             Self::Cancelled => "Enumeration was cancelled and the server was stopped.",
             Self::Version => "The server negotiated an unsupported MCP version. Check the compatibility reference.",
             Self::Upstream => "The server rejected an MCP request. Its error body was withheld to protect sensitive content.",
