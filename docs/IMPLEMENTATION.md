@@ -17,9 +17,17 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-011 — Regorus | Merged | PR #12, main `2ff8669`. Restricted Rego profile, closed inputs/decisions, strict Ed25519 trust, native signing CLI and transactional activation. Windows/macOS/Linux suites, actual CLI/native signing contracts, 22 OPA comparison cases and dependency/license/secret gates passed. Local Windows still requires the MSVC Spectre component; isolated WSL supports verification. |
 | MCP-012 — Grants | Merged | PR #13, main `cc13a10`. Explicit scopes, deny precedence, whole-action allowance and independent policy constraint. Policy/grant unit tests, actual CLI/privacy fixtures and complete Windows/macOS/Linux/security CI passed. |
 | MCP-013 — Approvals | Merged | PR #14, main `60fc055`. One-call binding, local decisions, atomic consumption, expiry/revocation/cancellation and bounded storage. Approval, CLI/privacy, full Windows/macOS/Linux and dependency/secret gates passed. Live enforcing-call composition remains a launch gate. |
-| MCP-014 — Kill switch and limits | Control component in verification | Persistent stops, exact target disables, deterministic atomic quotas, bounded operator history and management CLI. Focused control tests, full Linux workspace tests, strict lint and actual control CLI/privacy fixtures passed; cross-OS CI/merge pending. Enforcing gateway composition remains required within this package. |
+| MCP-014 — Kill switch and limits | Control component merged | PR #15, main `77877aa`. Persistent stops, exact target disables, deterministic atomic quotas, bounded operator history and management CLI. Windows/macOS/Linux suites, actual CLI/privacy fixtures and dependency/secret gates passed. Enforcing gateway composition remains required within this package. |
 | MCP-015 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
+
+Enforcing-gateway prerequisite in verification: exact private launch review binds
+executable/selected artifact bytes, argv, cwd, ordinary environment and native
+credential references. Optional reviewed inventory connections detect code drift
+and record the launch reference locally. Launch metadata, symlink/code-drift,
+actual CLI/privacy/audit contracts and Linux workspace checks have passed;
+cross-OS CI/merge remains pending. Full schema validation, governed invocation,
+approval waiting and complete call audit remain open gates.
 
 Known launch gates include gateway semantics, grants, Regorus conformance, approvals, secrets, audit, optional sync, registry/fleet, hostile/privacy corpus and signed platform releases. Private vulnerability reporting is enabled. No public binary release or hosted deployment has occurred.

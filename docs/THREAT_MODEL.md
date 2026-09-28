@@ -120,6 +120,14 @@ The MCP-007 listener additionally rejects ambiguous envelopes, reused IDs and ou
   local state; history is bounded and not remote attestation. Already-dispatched
   effects cannot be undone. See [controls](CONTROLS.md) and ADR 0017; live gateway
   composition remains required before tool calls are enabled.
+- Optional exact launch review binds executable bytes, selected code artifacts,
+  argv, cwd, ordinary environment and native reference destinations. Reviewed
+  connections recheck selected code after inventory refresh and before invoking
+  a tool. Drift invalidates the session; self-reported names cannot substitute
+  for the reviewed launch reference. Reviews neither authenticate publishers
+  nor measure unselected transitive code. Protect local files/directories;
+  privileged replacement races remain out of scope. See [launch review](LAUNCH_REVIEW.md)
+  and ADR 0018. Review is one requirement, never complete call authorization.
 - Local one-call approvals bind exact caller/session/call, tool definitions and
   policy facts, expire, and commit consumed state before returning a permit.
   Races, replay, changed context and storage failure cannot produce a second permit.

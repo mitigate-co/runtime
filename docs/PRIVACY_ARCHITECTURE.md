@@ -126,3 +126,13 @@ generic metadata. Its CLI accepts only closed bounded documents, rejects unknown
 fields and prints fixed errors without input/path/backend echoes. Local control
 reports are not Platform telemetry contracts and must not be forwarded as such.
 See [storage, retention and trust limits](CONTROLS.md).
+
+## Implemented private launch review
+
+Exact launch facts are committed locally using an independent random salt and
+the versioned fingerprint profile. Raw paths, arguments and ordinary environment
+values are not stored in the review/receipt; native credential values are never
+part of the commitment. The salt remains in the private local review document,
+excluded from receipts. Reviews and receipts are not Platform event contracts.
+They do not authorize forwarding content-derived configuration fingerprints.
+See [launch-review privacy and filesystem boundaries](LAUNCH_REVIEW.md).

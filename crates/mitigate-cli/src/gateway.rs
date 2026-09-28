@@ -3,7 +3,7 @@ use crate::output;
 use mitigate_audit::{AuditStore, Decision, EventDetails, Operation, ResultClass};
 use mitigate_fingerprint::{Domain, fingerprint};
 use mitigate_gateway::{CallerIdentity, Fault, ToolRequest, ToolService};
-use mitigate_mcp::{LaunchConfig, StdioServer};
+use mitigate_mcp::{LaunchConfig, LaunchReview, StdioServer};
 use serde_json::{Value, json};
 use std::{
     fs::File,
@@ -62,8 +62,11 @@ impl InventoryService {
         request: &ToolRequest,
     ) -> Result<EventDetails, Fault> {
         let inventory = self.upstream.inventory();
-        let server_ref = fingerprint(Domain::ServerIdentity, &json!(inventory.server_name))
-            .map_err(|_| Fault::AuditUnavailable)?;
+        let server_ref = match self.upstream.launch_receipt() {
+            Some(receipt) => receipt.launch_ref.clone(),
+            None => fingerprint(Domain::ServerIdentity, &json!(inventory.server_name))
+                .map_err(|_| Fault::AuditUnavailable)?,
+        };
         let operation = match request {
             ToolRequest::List { .. } => Operation::Inventory,
             ToolRequest::Call { .. } => Operation::ToolCall,
@@ -109,7 +112,10 @@ impl InventoryService {
                     return Err(Fault::InvalidParams);
                 }
                 self.upstream.check_inventory().await.map_err(|error| {
-                    if error == mitigate_mcp::Error::Changed {
+                    if matches!(
+                        error,
+                        mitigate_mcp::Error::Changed | mitigate_mcp::Error::LaunchChanged
+                    ) {
                         Fault::Changed
                     } else {
                         Fault::Upstream
@@ -178,6 +184,7 @@ pub(crate) fn run(
     launch_path: &Path,
     profile_path: Option<&Path>,
     audit_path: Option<&Path>,
+    review_path: Option<&Path>,
 ) -> io::Result<ExitCode> {
     // Reject profile/config before opening stdin or executing the upstream.
     let caller = match profile(profile_path) {
@@ -189,6 +196,10 @@ pub(crate) fn run(
     };
     let config = match LaunchConfig::from_file(launch_path) {
         Ok(config) => config,
+        Err(error) => return super::mcp_error(error, false),
+    };
+    let review = match review_path.map(LaunchReview::from_file).transpose() {
+        Ok(review) => review,
         Err(error) => return super::mcp_error(error, false),
     };
     let audit = match audit_path.map(AuditStore::open).transpose() {
@@ -218,7 +229,13 @@ pub(crate) fn run(
             let _ = tokio::signal::ctrl_c().await;
         };
         tokio::pin!(shutdown);
-        let upstream = match StdioServer::connect_with_shutdown(&config, &mut shutdown).await {
+        let connection = match &review {
+            Some(review) => {
+                StdioServer::connect_reviewed_with_shutdown(&config, review, &mut shutdown).await
+            }
+            None => StdioServer::connect_with_shutdown(&config, &mut shutdown).await,
+        };
+        let upstream = match connection {
             Ok(server) => server,
             Err(error) => return Err((error.code(), error.to_string())),
         };

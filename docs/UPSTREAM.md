@@ -16,6 +16,14 @@ Raw arguments/results are local content. A result may legitimately contain sensi
 
 This is observed consistency, not a guarantee that a malicious server executes its advertised behavior. The server could alter its implementation after enumeration. Later grant/approval binding must also include exact launch identity and reviewed policy facts; the declaration summary fingerprint is insufficient.
 
+`connect_reviewed` and `connect_reviewed_with_shutdown` accept a private
+[launch review](LAUNCH_REVIEW.md). Their `launch_receipt()` exposes exact local
+launch evidence. Selected executable/artifact bytes and canonical targets are
+checked after inventory refresh and before invocation. Changes poison the
+connection before a tool call; no automatic review/baseline update occurs.
+Unselected transitive code and privileged same-user replacement races are outside
+this fingerprint boundary. This remains a transport API, not authorization.
+
 Request IDs increase monotonically across initialization, refresh and calls. Server-initiated ping is answered, unsupported server requests are rejected, logs are discarded. Both request namespaces reject reuse. Incoming responses must match the outstanding request. A process cannot be reused after a protocol, drift, upstream or transaction-timeout failure.
 
 ## Bounds and cancellation

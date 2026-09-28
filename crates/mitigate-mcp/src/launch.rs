@@ -1,4 +1,5 @@
 //! Launch validation is independent of untrusted client discovery. Never serializes.
+pub(crate) mod review;
 
 use crate::{Error, Result};
 use mitigate_secrets::{NativeStore, Secret, SecretRef, SecretStore};
@@ -15,7 +16,7 @@ use std::{
 ///
 /// Deserialization does not grant execution. Enumeration and managed connection
 /// callers must obtain explicit intent. Debug/Serialize are intentionally absent.
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LaunchConfig {
     schema_version: u32,
@@ -27,10 +28,12 @@ pub struct LaunchConfig {
     allowed_environment_keys: Vec<String>,
     #[serde(default)]
     secret_references: Vec<SecretBinding>,
+    #[serde(default)]
+    artifact_paths: Vec<String>,
     #[serde(default = "default_timeout")]
     pub(crate) timeout_ms: u64,
 }
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SecretBinding {
     environment_key: String,
@@ -81,6 +84,10 @@ impl LaunchConfig {
             || self.argv.iter().any(|a| a.len() > 4096 || a.contains('\0'))
             || self.argv.iter().map(String::len).sum::<usize>() > 32_768
             || self.allowed_environment_keys.len() + self.secret_references.len() > 32
+            || self.artifact_paths.len() > 32
+            || self.artifact_paths.iter().any(|p| {
+                p.len() > 4096 || p.chars().any(char::is_control) || !Path::new(p).is_absolute()
+            })
         {
             return Err(Error::Configuration);
         }

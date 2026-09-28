@@ -35,6 +35,11 @@ Use [native credentials](docs/SECRETS.md) when a reviewed server requires a key.
 opaque launch reference. Values never belong in command arguments or launch files.
 Check, rotate and delete credentials locally without a Platform account.
 
+[Launch review](docs/LAUNCH_REVIEW.md) binds a selected executable, code artifacts
+and exact launch configuration to a private local reference. `mcp launch review`
+and `check` do not execute code. Add `--launch-review FILE` to inventory serve to
+check that binding before launch and invalidate the connection on code drift.
+
 Use [local audit](docs/AUDIT.md) to record inventory requests and denied calls:
 initialize a private database with `mitigate mcp audit init --db FILE`, then add
 `--audit-db FILE` to serve. Verify, page through, or prune its bounded metadata

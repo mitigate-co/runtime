@@ -101,6 +101,12 @@ The [control reference](CONTROLS.md) documents `mcp controls init`, `status`,
 reference and `--confirm`. Test is a read-only preview, never an invocation or
 quota reservation. State, counters and bounded operator history remain local.
 
+The [launch review reference](LAUNCH_REVIEW.md) documents `mcp launch review
+--launch-config FILE --out FILE` and `mcp launch check --launch-config FILE
+--review FILE`. Both read selected code without executing it or retrieving native
+credentials. `serve --launch-review FILE` verifies the exact launch and checks
+code drift on the live inventory connection. Calls remain disabled.
+
 The [policy reference](POLICY.md) documents `mcp policy check`, `test`, `keygen`,
 `sign`, `init`, `activate`, `status` and `evaluate`. Source tests do not invoke
 tools. Stored evaluation requires a separately pinned authority and verified
@@ -112,6 +118,8 @@ bundle. Source, raw metadata values and private keys are omitted from reports.
 - `mcp_classification_invalid`: review overrides against a fresh snapshot; never silently reuse stale classifications.
 - `mcp_snapshot_invalid`: use compatible snapshots or a new filename when saving.
 - `mcp_cleanup_failed`: inspect the selected server process before retrying; termination could not be confirmed.
+- `mcp_launch_review_invalid`: use a valid private review or a new output path; check selected artifact paths and limits.
+- `mcp_launch_changed`: inspect changed executable/code/configuration/environment before creating a fresh review; do not silently reuse old grants.
 - `audit_integrity_failed`: preserve the database; investigate without resetting or overwriting.
 - `audit_unavailable`: check disk space, competing writers and permissions; verify before retrying.
 - `policy_profile_invalid`: check the restricted Rego syntax and resource bounds.

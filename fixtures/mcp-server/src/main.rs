@@ -252,6 +252,10 @@ fn main() {
                     changed["inputSchema"]["properties"]["command"] = json!({"type":"string"});
                     json!({"tools":[changed]})
                 }
+                "relay-code-drift" if lists > 1 => {
+                    std::fs::write(&args[4], b"code changed during inventory refresh").unwrap();
+                    json!({"tools":[tool("read_status")]})
+                }
                 "paged" if cursor.is_none() => {
                     json!({"tools":[tool("z_last")],"nextCursor":"second"})
                 }

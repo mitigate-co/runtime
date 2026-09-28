@@ -957,12 +957,14 @@ dependencies = [
 name = "mitigate-mcp"
 version = "0.1.0"
 dependencies = [
+ "getrandom",
  "mitigate-fingerprint",
  "mitigate-json",
  "mitigate-secrets",
  "process-wrap",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tokio",
 ]
 

@@ -13,6 +13,7 @@ mod stdio;
 mod upstream;
 
 pub use launch::LaunchConfig;
+pub use launch::review::{LaunchReceipt, LaunchReview};
 pub use model::{Inventory, InventoryReport, Tool, ToolSummary};
 pub use snapshot::{ChangeKind, Snapshot, SnapshotDiff, ToolChange};
 use std::fmt;
@@ -56,6 +57,10 @@ pub enum Error {
     Snapshot,
     /// Explicit classification overrides are invalid, stale or unmatched.
     Classification,
+    /// Review document is invalid, unavailable or cannot be created safely.
+    LaunchReview,
+    /// Executable, artifact or exact launch facts differ from local review.
+    LaunchChanged,
 }
 
 impl Error {
@@ -79,6 +84,8 @@ impl Error {
             Self::Fingerprint => "mcp_fingerprint_invalid",
             Self::Snapshot => "mcp_snapshot_invalid",
             Self::Classification => "mcp_classification_invalid",
+            Self::LaunchReview => "mcp_launch_review_invalid",
+            Self::LaunchChanged => "mcp_launch_changed",
         }
     }
 }
@@ -102,6 +109,8 @@ impl fmt::Display for Error {
             Self::Fingerprint => "A definition exceeds the fingerprint profile or contains an unsafe large numeric constraint. Review the fingerprint reference.",
             Self::Snapshot => "Use a valid compatible snapshot for reading or a new writable filename for saving; existing files are never overwritten.",
             Self::Classification => "Review the explicit classification file, its limits and fingerprints against a fresh snapshot; every override must match the current server and tool definition.",
+            Self::LaunchReview => "Use a valid private launch review or a new writable path. Check explicit artifact paths and size limits.",
+            Self::LaunchChanged => "The launch differs from its review. Inspect executable, artifacts, arguments and environment before creating a new review.",
         })
     }
 }

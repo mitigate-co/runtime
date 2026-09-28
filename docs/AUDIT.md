@@ -31,6 +31,12 @@ This inventory-only integration is not a complete enforcement activity trail.
 The later enforcing call path must commit a decision before invocation and bind
 completion/cancellation to it. Those gates are still open.
 
+When `serve --launch-review FILE` is supplied, `server_ref` is the verified local
+launch reference and tool references are scoped to it. Without a review the
+inventory-only path retains its legacy server-declared identity fingerprint.
+Neither is publisher authentication. This opt-in use of the existing opaque
+reference fields does not migrate or rewrite stored event/hash-chain records.
+
 ## Read and verify
 
 ```sh
