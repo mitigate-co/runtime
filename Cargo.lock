@@ -409,6 +409,8 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "mitigate-config",
+ "mitigate-gateway",
+ "mitigate-json",
  "mitigate-mcp",
  "mitigate-mcp-scan",
  "serde",

@@ -6,7 +6,7 @@
 
 `connect` executes the selected program, initializes MCP and retains a complete inventory and fingerprint baseline. This is execution with the caller's OS privileges; the owner must explicitly authorize launch. It does not use discovered configs implicitly.
 
-The `call` API is a low-level transport for an already-authorized invocation. Its owner must evaluate policy, grants, approval and schema-review requirements before using it. No ordinary CLI command exposes unchecked invocation. The fixture harness can invoke only its own synthetic test server. The gateway service and CLI integration are the next MCP-007/008 slice; the transport alone is not an enforcing gateway.
+The `call` API is a low-level transport for an already-authorized invocation. Its owner must evaluate policy, grants, approval and schema-review requirements before using it. No ordinary CLI command exposes unchecked invocation. The fixture harness can invoke only its own synthetic test server. The current [gateway CLI](GATEWAY.md) connects to this adapter for inventory and explicitly disables calls. The transport alone is not an enforcing gateway.
 
 Raw arguments/results are local content. A result may legitimately contain sensitive text or resources and must not enter diagnostics or telemetry. The adapter neither prints nor persists them. Server stderr is discarded. JSON-RPC errors become fixed `mitigate_mcp::Error` categories; their messages/data are never returned. MCP tool results marked `isError` remain tool content destined for the authorized caller, not operational logs.
 
@@ -27,6 +27,8 @@ Request IDs increase monotonically across initialization, refresh and calls. Ser
 - Call results require the MCP `content` array (up to 256 blocks), supported block kinds/required value types, optional boolean `isError` and optional object `structuredContent`/`_meta`. This is bounded structural validation; full argument/output JSON Schema validation remains required before the public gateway enables calls.
 
 Dropping an in-flight operation immediately marks the connection unusable, closes its input and terminates the process group/job. No late response can be reused. Explicit `close()` confirms completion within two seconds and is idempotent. Error returns after a started transaction also confirm cleanup; cleanup failure takes precedence. Construction cancellation and final object drop initiate termination but cannot await reaping, so owners should use explicit cleanup whenever possible. Termination cannot undo side effects a tool already performed, and calls are never automatically retried.
+
+`connect_with_shutdown` confirms cleanup when a shutdown signal arrives during initialization. The executable uses this path for Ctrl+C before switching to the listener's own shutdown handler.
 
 ## Progress
 

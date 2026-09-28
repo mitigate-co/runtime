@@ -34,6 +34,21 @@ pub(crate) enum Command {
 
 #[derive(Subcommand)]
 pub(crate) enum McpCommand {
+    /// Serve a reviewed server's inventory over stdio; tool calls stay disabled.
+    Serve {
+        /// Reviewed local process launch configuration.
+        #[arg(long)]
+        launch_config: PathBuf,
+        /// Required: execute the configured server with your OS privileges.
+        #[arg(long, required = true)]
+        allow_exec: bool,
+        /// Required until policy/grants are configured: deny every tool call.
+        #[arg(long, required = true, conflicts_with = "json")]
+        inventory_only: bool,
+        /// Explicit local caller mapping; omitted attribution remains unknown.
+        #[arg(long)]
+        profile: Option<PathBuf>,
+    },
     /// Compare local snapshots without starting a server.
     Diff {
         /// Earlier snapshot.

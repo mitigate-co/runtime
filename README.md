@@ -38,7 +38,7 @@ Use `--details` for full human reports, or `--json` for the versioned machine co
 
 ## Verify
 
-The [gateway listener reference](docs/GATEWAY.md) documents the local protocol and identity boundary being integrated in MCP-007/008. Exercise the listener with `cargo run --locked -p mitigate-mcp-fixture -- listener-contract`. Full gateway enforcement remains in development.
+The [gateway reference](docs/GATEWAY.md) documents `mcp serve --launch-config FILE --allow-exec --inventory-only`, its local protocol and explicit caller profiles. It lists real upstream definitions while disabling tool calls. Exercise the complete CLI with `cargo run --locked -p mitigate-mcp-fixture -- gateway-contract target/debug/mitigate` (append `.exe` on Windows after building both binaries). Full gateway enforcement remains in development.
 
 ```sh
 cargo fmt --all --check

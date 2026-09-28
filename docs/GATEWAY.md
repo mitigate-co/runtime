@@ -1,8 +1,18 @@
 # Local gateway protocol
 
-The `mitigate-gateway` library implements the client-facing newline protocol and caller context. It opens no TCP socket and has no account dependency. It is intended for a client-owned stdio process. The `ToolService` boundary separates protocol handling from authorization and upstream execution. MCP-008 connects this listener to managed upstream adapters and the `mcp serve` CLI; that command is not shipped by this library slice alone.
+`mitigate mcp serve` connects the local listener to a [managed stdio upstream](UPSTREAM.md). It opens no TCP socket and has no account dependency. The current explicit inventory-only mode lists real upstream definitions and disables all tool invocations. An enforcing call path awaits the later policy, grants, approval, schema validation, secret and audit packages. It is not production enforcement yet.
 
-The [managed stdio adapter](UPSTREAM.md) is implemented separately and retains upstream lifecycle/protocol state. The executable integration remains the next slice; neither library supplies an unrestricted gateway service.
+## Start an inventory endpoint
+
+Build with `cargo build --workspace --locked`, generate the synthetic launch file as described in [enumeration](ENUMERATION.md), then configure an MCP client to launch:
+
+```sh
+mitigate mcp serve --launch-config target/fixture-launch.json --allow-exec --inventory-only
+```
+
+This command reads MCP messages from stdin and writes only MCP messages to stdout. It is a client-launched stdio service, not an interactive terminal prompt. Startup/session diagnostics use fixed content-free stderr messages and exit 2. Normal EOF and explicit shutdown exit 0 after upstream cleanup. `--json` conflicts with serve because stdout is already the MCP transport. Launch intent and `--inventory-only` are required; there is no hidden allow-call switch. Use `--profile examples/gateway-profile.json` only after reviewing its declared mapping. Invalid profiles fail before process launch.
+
+Tool listing refreshes the upstream baseline before returning definitions. Pages contain at most 16 tools and are reduced to stay below 512 KiB and the strict parser complexity limits. Versioned local cursors do not accept an offset outside the retained inventory. Tool calls return fixed error `-32006` and never reach the upstream. No file or client configuration is modified automatically.
 
 ## Identity
 
@@ -55,5 +65,13 @@ cargo test --locked -p mitigate-gateway
 ```
 
 The first command drives initialization, listing and policy denial over a local asynchronous byte stream, using the synthetic fixture and an explicit profile. It prints only the verification outcome. It neither starts a customer server nor executes a tool. The test corpus also covers hostile messages, spoofed identities, duplicate IDs, bounded memory, cancellation, shutdown, backpressure and partial-frame races. CI runs both on Windows, macOS and Linux.
+
+After building both binaries, exercise the actual executable end to end:
+
+```sh
+cargo run --locked -p mitigate-mcp-fixture -- gateway-contract target/debug/mitigate
+```
+
+Append `.exe` on Windows. This starts the real CLI and synthetic upstream, lists tools, verifies denial without invocation, pages through ordinary and large-schema inventories, closes stdin, and tests both a full/unread stdout pipe and partial-frame timeout while stdin remains open. Tokio's standard-input worker can block in an OS read; the CLI confirms upstream cleanup and then bounds runtime shutdown before exiting. It never waits indefinitely for an extra stdin byte. See ADR 0011.
 
 Protocol references: [MCP lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle), [stdio transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports), [cancellation](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation), [tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools).

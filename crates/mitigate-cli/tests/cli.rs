@@ -406,6 +406,55 @@ fn parser_errors_are_content_free_json_and_help_stays_usable() {
 }
 
 #[test]
+fn serve_requires_explicit_mode_and_refuses_invalid_profile_before_launch() {
+    for args in [
+        vec!["mcp", "serve", "--launch-config", "unused", "--allow-exec"],
+        vec![
+            "mcp",
+            "serve",
+            "--launch-config",
+            "unused",
+            "--inventory-only",
+        ],
+        vec![
+            "mcp",
+            "serve",
+            "--launch-config",
+            "unused",
+            "--allow-exec",
+            "--inventory-only",
+            "--json",
+        ],
+    ] {
+        let output = cli(&args);
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty());
+    }
+    let fixture = Fixture::new();
+    let profile = fixture.0.join("profile.json");
+    fs::write(
+        &profile,
+        br#"{"schema_version":1,"client_ref":"client","secret":"profile-canary"}"#,
+    )
+    .unwrap();
+    let output = cli(&[
+        "mcp",
+        "serve",
+        "--launch-config",
+        "no-such-launch-file",
+        "--allow-exec",
+        "--inventory-only",
+        "--profile",
+        profile.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("gateway_profile_invalid"));
+    assert!(!stderr.contains("canary"));
+}
+
+#[test]
 fn scan_findings_exit_is_opt_in_and_keeps_complete_json() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/scanner-project");
     let result = cli(&[
