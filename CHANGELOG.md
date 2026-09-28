@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — inventory gateway CLI
+
+- Add explicit `mcp serve --inventory-only` with reviewed launch intent, optional caller profile and MCP-only stdout.
+- List real upstream definitions with bounded pagination; reject all calls until later policy/grant integration.
+- Confirm cleanup during startup cancellation and bound executable shutdown when stdin remains open. Add actual CLI/upstream/pagination/deadline verification.
+
 ## Unreleased — managed stdio upstream
 
 - Retain initialized upstream connections with fresh inventory comparison before calls and correlated progress counters.

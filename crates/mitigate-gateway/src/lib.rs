@@ -45,6 +45,8 @@ impl std::error::Error for Error {}
 /// Fixed JSON-RPC faults; raw upstream error bodies must not cross this type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Fault {
+    /// Explicit inventory-only endpoint; invocation is intentionally unavailable.
+    Disabled,
     /// Invalid method parameters.
     InvalidParams,
     /// Service authorization refused the action.
@@ -57,6 +59,7 @@ pub enum Fault {
 impl Fault {
     pub(crate) const fn parts(self) -> (i32, &'static str) {
         match self {
+            Self::Disabled => (-32006, "Tool calls disabled in inventory-only mode"),
             Self::InvalidParams => (-32602, "Invalid method parameters"),
             Self::Denied => (-32001, "Tool call denied by local policy"),
             Self::Upstream => (-32003, "Upstream request failed; check local server health"),

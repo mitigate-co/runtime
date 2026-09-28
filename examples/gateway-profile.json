@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "client_ref": "cli_example",
+  "agent_ref": "agt_example"
+}

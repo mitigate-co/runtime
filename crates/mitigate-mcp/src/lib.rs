@@ -90,7 +90,7 @@ impl fmt::Display for Error {
             Self::Protocol => "The server returned invalid or ambiguous MCP data. Check its protocol compatibility.",
             Self::Limit => "The server exceeded a response or inventory limit. Review its configuration before retrying.",
             Self::Timeout => "The server did not complete the operation before the deadline. Check its health or adjust timeout_ms.",
-            Self::Cancelled => "Enumeration was cancelled and the server was stopped.",
+            Self::Cancelled => "The operation was cancelled and the server was stopped.",
             Self::Version => "The server negotiated an unsupported MCP version. Check the compatibility reference.",
             Self::Upstream => "The server rejected an MCP request. Its error body was withheld to protect sensitive content.",
             Self::Changed => "The tool list changed during enumeration. Retry to obtain a consistent inventory.",

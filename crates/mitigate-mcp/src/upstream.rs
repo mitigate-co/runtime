@@ -49,20 +49,29 @@ impl StdioServer {
     /// Start, initialize and fully enumerate an explicitly authorized executable.
     /// Failure confirms cleanup; dropping construction kills its job/group.
     pub async fn connect(config: &LaunchConfig) -> Result<Self> {
+        Self::connect_with_shutdown(config, std::future::pending()).await
+    }
+
+    /// Connect with explicit shutdown and confirmed cleanup on cancellation.
+    pub async fn connect_with_shutdown(
+        config: &LaunchConfig,
+        shutdown: impl std::future::Future<Output = ()>,
+    ) -> Result<Self> {
         let mut process = Session::start(config)?;
         let mut client = Client::new();
         let deadline = Duration::from_millis(config.timeout_ms);
-        let result = tokio::time::timeout(deadline, async {
+        let initialization = tokio::time::timeout(deadline, async {
             let mut inventory = protocol::initialize(&mut client, &mut process).await?;
             if inventory.tools_supported {
                 inventory.tools = protocol::list_tools(&mut client, &mut process).await?;
             }
             let baseline = Snapshot::from_inventory(&inventory)?;
             Ok((inventory, baseline))
-        })
-        .await
-        .map_err(|_| Error::Timeout)
-        .and_then(|r| r);
+        });
+        let result = tokio::select! {
+            result = initialization => result.map_err(|_| Error::Timeout).and_then(|r|r),
+            _ = shutdown => Err(Error::Cancelled),
+        };
         match result {
             Ok((inventory, baseline)) => Ok(Self {
                 process,

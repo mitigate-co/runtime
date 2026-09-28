@@ -1,5 +1,6 @@
 //! CLI composition: explicit local actions with content-free operational errors.
 mod args;
+mod gateway;
 mod output;
 
 use args::{Cli, Command, ConfigCommand, McpCommand};
@@ -40,6 +41,17 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command:
+                McpCommand::Serve {
+                    launch_config,
+                    allow_exec: _,
+                    inventory_only: _,
+                    profile,
+                },
+        } => {
+            return gateway::run(&launch_config, profile.as_deref());
+        }
         Command::Mcp {
             command:
                 McpCommand::Diff {
@@ -209,10 +221,10 @@ fn parse_error(error: clap::Error, machine: bool) -> io::Result<ExitCode> {
             return Ok(ExitCode::SUCCESS);
         }
         ErrorKind::MissingRequiredArgument => {
-            "Missing required options. Inspection requires --launch-config and --allow-exec. Run the command with --help."
+            "Missing required options. Inspection/serve require --launch-config and --allow-exec; serve also requires --inventory-only. Run the command with --help."
         }
         ErrorKind::ArgumentConflict => {
-            "Conflicting options. Use --details for human output or --json for machine output; check the command's --help."
+            "Conflicting options. Use --details for human output or --json for reports; serve uses MCP on stdout and cannot use --json. Check the command's --help."
         }
         ErrorKind::InvalidSubcommand => "Unknown command. Run mitigate --help to list commands.",
         _ => {

@@ -204,3 +204,43 @@ async fn dropping_call_kills_descendants_and_forbids_reusing_the_session() {
         );
     }
 }
+
+#[tokio::test]
+async fn startup_shutdown_confirms_cleanup_before_returning() {
+    let project = Project::new();
+    let marker = project.0.join("child-address");
+    let config = project.config("tree", 30_000);
+    let shutdown = async {
+        loop {
+            if fs::read_to_string(&marker)
+                .ok()
+                .and_then(|s| s.parse::<std::net::SocketAddr>().ok())
+                .is_some()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    };
+    let result = tokio::time::timeout(
+        Duration::from_secs(7),
+        StdioServer::connect_with_shutdown(&config, shutdown),
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.err(), Some(Error::Cancelled));
+    let address = fs::read_to_string(marker).unwrap().parse().unwrap();
+    if let Ok(mut socket) =
+        std::net::TcpStream::connect_timeout(&address, Duration::from_millis(200))
+    {
+        use std::io::Read;
+        socket
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .unwrap();
+        let mut banner = [0; b"mitigate-fixture-alive\n".len()];
+        assert!(
+            socket.read_exact(&mut banner).is_err(),
+            "descendant responded after startup cancellation"
+        );
+    }
+}

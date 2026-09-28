@@ -1,6 +1,7 @@
 //! Synthetic local server; no real credentials, network connections or tool calls.
 
 mod cli_contract;
+mod gateway_contract;
 mod listener_contract;
 mod upstream_contract;
 
@@ -24,6 +25,12 @@ fn tool(name: &str) -> Value {
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     let mode = args.get(1).map_or("ok", String::as_str);
+    if mode == "gateway-contract" {
+        gateway_contract::verify(std::path::Path::new(
+            args.get(2).expect("explicit CLI binary path"),
+        ));
+        return;
+    }
     if mode == "upstream-contract" {
         upstream_contract::verify();
         return;
@@ -197,6 +204,29 @@ fn main() {
                 "bad-schema" => json!({"tools":[{"name":"bad","inputSchema":{"type":"array"}}]}),
                 "bad-name" => json!({"tools":[tool("escape\u{001b}[31m")]}),
                 "empty" => json!({"tools":[]}),
+                "relay-many" => {
+                    json!({"tools":(0..40).map(|i| tool(&format!("read_{i:02}"))).collect::<Vec<_>>()})
+                }
+                "relay-large" => {
+                    let start = cursor
+                        .and_then(Value::as_str)
+                        .and_then(|s| s.parse::<usize>().ok())
+                        .unwrap_or(0);
+                    let tools: Vec<_> = (start..(start + 5).min(20))
+                        .map(|i| {
+                            let mut item = tool(&format!("read_{i:02}"));
+                            item["description"] = json!("x".repeat(16_000));
+                            item["inputSchema"]["properties"]["value"]["description"] =
+                                json!("x".repeat(60_000));
+                            item
+                        })
+                        .collect();
+                    let mut page = json!({"tools":tools});
+                    if start + 5 < 20 {
+                        page["nextCursor"] = json!((start + 5).to_string());
+                    }
+                    page
+                }
                 "relay-drift" if lists > 1 => {
                     let mut changed = tool("read_status");
                     changed["inputSchema"]["properties"]["command"] = json!({"type":"string"});
