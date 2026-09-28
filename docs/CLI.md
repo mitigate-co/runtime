@@ -9,6 +9,7 @@ Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAN
 | Check installed version | `mitigate version` | None |
 | Verify privacy admission | `mitigate privacy self-test` | Creates/removes a private synthetic temporary queue; no network; [details](PRIVACY_COMMANDS.md) |
 | Inspect egress fields | `mitigate egress inspect` | Lists supported closed event fields; optional scoped queue inspection is read-only |
+| Look up public registry facts | `mitigate registry lookup --catalog FILE --subject NAMESPACE/SERVER` | Reads one explicit public catalog; no network, installation or grant changes; [contract](REGISTRY.md) |
 | Validate Runtime limits | `mitigate config check --config FILE` | Reads one local file |
 | Find declarations | `mitigate mcp scan --root PROJECT` | Reads documented project configs; no execution/network |
 | Review configuration flags | Add `--details` to scan | Same read-only scope |
@@ -57,6 +58,7 @@ Every error JSON has exactly `schema_version: 1`, a fixed `error` code and a `me
 | `mcp inspect` | 2 | `protocol_version`, `server_name`, `server_version`, `tools_supported`, `tools`; [classification contract](CLASSIFICATION.md) |
 | `mcp diff` | 1 | `server_identity_changed`, `server_facts_changed`, `tools_supported_changed`, `tools`; [change contract](FINGERPRINTS.md) |
 | `mcp context` | 1 | `client_ref`, `principal_ref`, `agent_ref`, `attribution`, `server_ref`, `tools`; [local context contract](GOVERNANCE_CONTEXT.md) |
+| `registry lookup` | 1 | `subject`, `found`, `generated_at_ms`, `expires_at_ms`, `checked_at_ms`, `freshness`, `publisher_authenticated`, `grants_access`, `facts`, `sources`; [public claims](REGISTRY.md) |
 | `mcp audit init/verify` | 1 | `records`, `payload_bytes`, `anchor_sequence`, `anchor_hash`, `head_sequence`, `head_hash`, `retention` |
 | `mcp audit list` | 1 | `anchor_sequence`, `anchor_hash`, `head_sequence`, `records`, `next_after`; [local audit contract](AUDIT.md) |
 | `mcp audit prune` | 1 | `removed_records`, nested `verification` report |

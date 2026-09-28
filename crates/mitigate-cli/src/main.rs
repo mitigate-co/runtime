@@ -10,6 +10,7 @@ mod launch;
 mod output;
 mod panic_report;
 mod policy;
+mod registry;
 mod secrets;
 
 use args::{Cli, Command, ConfigCommand, McpCommand};
@@ -52,6 +53,7 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
         Command::Privacy { command } => return egress::privacy(command, cli.json),
         Command::Egress { command } => return egress::inspect(command, cli.json),
+        Command::Registry { command } => return registry::run(command, cli.json),
         Command::Mcp {
             command:
                 McpCommand::Context {
