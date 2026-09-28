@@ -254,6 +254,30 @@ fn package_versions_are_declarations_not_resolved_tags() {
     }
 }
 
+#[test]
+fn configuration_summary_fingerprint_excludes_secrets_and_tracks_visible_facts() {
+    let project = Project::new();
+    let mut config =
+        json!({"mcpServers":{"tool":{"command":"npx","env":{"KEY":"first-secret-canary"}}}});
+    project.json(SourceKind::ClaudeProject, config.clone());
+    let before = scan_project(&project.0, &ScanLimits::default()).unwrap();
+    assert_eq!(before.schema_version, 2);
+    config["mcpServers"]["tool"]["env"]["KEY"] = json!("rotated-secret-canary");
+    project.json(SourceKind::ClaudeProject, config.clone());
+    let rotated = scan_project(&project.0, &ScanLimits::default()).unwrap();
+    assert_eq!(
+        before.servers[0].config_fingerprint,
+        rotated.servers[0].config_fingerprint
+    );
+    config["mcpServers"]["tool"]["command"] = json!("cmd.exe");
+    project.json(SourceKind::ClaudeProject, config);
+    let changed = scan_project(&project.0, &ScanLimits::default()).unwrap();
+    assert_ne!(
+        before.servers[0].config_fingerprint,
+        changed.servers[0].config_fingerprint
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn source_and_parent_symlinks_are_refused_without_following_them() {

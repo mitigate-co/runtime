@@ -32,7 +32,7 @@ enum Command {
         #[command(subcommand)]
         command: ConfigCommand,
     },
-    /// Discover MCP declarations without running servers or connecting to them.
+    /// Discover servers, inspect trusted tools and compare local snapshots.
     Mcp {
         #[command(subcommand)]
         command: McpCommand,
@@ -41,6 +41,15 @@ enum Command {
 
 #[derive(Subcommand)]
 enum McpCommand {
+    /// Compare two local fingerprint snapshots without starting a server.
+    Diff {
+        /// Earlier snapshot.
+        #[arg(long)]
+        before: PathBuf,
+        /// Later snapshot.
+        #[arg(long)]
+        after: PathBuf,
+    },
     /// Start an explicitly trusted local server and enumerate tools without calls.
     Inspect {
         /// Reviewed Runtime launch configuration, separate from discovery files.
@@ -49,6 +58,9 @@ enum McpCommand {
         /// Required: this executes the configured program with your OS privileges.
         #[arg(long, required = true)]
         allow_exec: bool,
+        /// Save fingerprints to a new local file; never overwrites an existing file.
+        #[arg(long)]
+        snapshot: Option<PathBuf>,
     },
     /// Read Claude Code and Cursor project configurations locally.
     Scan {
@@ -115,24 +127,90 @@ fn config_error(error: ConfigError, json: bool) -> io::Result<()> {
     }
 }
 
+fn mcp_error(error: mitigate_mcp::Error, json: bool) -> io::Result<ExitCode> {
+    if json {
+        write_json(
+            &ErrorReport {
+                schema_version: 1,
+                error: error.code(),
+                message: error.to_string(),
+            },
+            io::stderr().lock(),
+        )?;
+    } else {
+        writeln!(io::stderr().lock(), "{}: {error}", error.code())?;
+    }
+    Ok(ExitCode::from(2))
+}
+
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command: McpCommand::Diff { before, after },
+        } => {
+            let result = mitigate_mcp::Snapshot::from_file(&before)
+                .and_then(|before| before.diff(&mitigate_mcp::Snapshot::from_file(&after)?));
+            match result {
+                Err(error) => return mcp_error(error, cli.json),
+                Ok(diff) if cli.json => write_json(&diff, io::stdout().lock())?,
+                Ok(diff) => {
+                    let mut output = io::stdout().lock();
+                    if diff.is_empty() {
+                        writeln!(output, "No changes.")?;
+                    }
+                    if diff.server_identity_changed {
+                        writeln!(output, "Server identity changed.")?;
+                    }
+                    if diff.server_facts_changed {
+                        writeln!(output, "Server facts changed.")?;
+                    }
+                    if diff.tools_supported_changed {
+                        writeln!(output, "Tools capability changed.")?;
+                    }
+                    for tool in diff.tools {
+                        let fields = [
+                            (tool.identity_changed, "identity"),
+                            (tool.input_schema_changed, "input schema"),
+                            (tool.output_schema_changed, "output schema"),
+                            (tool.description_changed, "description"),
+                        ]
+                        .into_iter()
+                        .filter_map(|(changed, name)| changed.then_some(name))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                        if fields.is_empty() {
+                            writeln!(output, "{:?} {}", tool.kind, tool.name)?;
+                        } else {
+                            writeln!(output, "{:?} {} ({fields})", tool.kind, tool.name)?;
+                        }
+                    }
+                }
+            }
+        }
         Command::Mcp {
             command:
                 McpCommand::Inspect {
                     launch_config,
                     allow_exec: _,
+                    snapshot,
                 },
         } => {
-            let result = mitigate_mcp::LaunchConfig::from_file(&launch_config).and_then(|config| {
-                let runtime = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .map_err(|_| mitigate_mcp::Error::Launch)?;
-                runtime.block_on(mitigate_mcp::enumerate_with_shutdown(&config, async {
-                    let _ = tokio::signal::ctrl_c().await;
-                }))
-            });
+            let result = mitigate_mcp::LaunchConfig::from_file(&launch_config)
+                .and_then(|config| {
+                    let runtime = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .map_err(|_| mitigate_mcp::Error::Launch)?;
+                    runtime.block_on(mitigate_mcp::enumerate_with_shutdown(&config, async {
+                        let _ = tokio::signal::ctrl_c().await;
+                    }))
+                })
+                .and_then(|inventory| {
+                    if let Some(path) = snapshot {
+                        mitigate_mcp::Snapshot::from_inventory(&inventory)?.write_new(&path)?;
+                    }
+                    Ok(inventory)
+                });
             match result {
                 Ok(inventory) => {
                     if cli.json {
@@ -153,21 +231,7 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                         }
                     }
                 }
-                Err(error) => {
-                    if cli.json {
-                        write_json(
-                            &ErrorReport {
-                                schema_version: 1,
-                                error: error.code(),
-                                message: error.to_string(),
-                            },
-                            io::stderr().lock(),
-                        )?;
-                    } else {
-                        writeln!(io::stderr().lock(), "{}: {error}", error.code())?;
-                    }
-                    return Ok(ExitCode::from(2));
-                }
+                Err(error) => return mcp_error(error, cli.json),
             }
         }
         Command::Mcp {

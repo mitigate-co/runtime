@@ -1,0 +1,17 @@
+[package]
+name = "mitigate-fingerprint"
+description = "Domain-separated fingerprints of bounded local MCP definitions"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+serde_json_canonicalizer.workspace = true
+
+[lints]
+workspace = true

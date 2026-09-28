@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+mitigate-fingerprint = { path = "../mitigate-fingerprint", version = "0.1.0" }
 mitigate-json = { path = "../mitigate-json", version = "0.1.0" }
 mitigate-config = { version = "0.1.0", path = "../mitigate-config" }
 serde.workspace = true

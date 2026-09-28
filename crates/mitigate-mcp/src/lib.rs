@@ -6,10 +6,12 @@
 mod launch;
 mod model;
 mod protocol;
+mod snapshot;
 mod stdio;
 
 pub use launch::LaunchConfig;
 pub use model::{Inventory, InventoryReport, Tool, ToolSummary};
+pub use snapshot::{ChangeKind, Snapshot, SnapshotDiff, ToolChange};
 use std::fmt;
 pub use stdio::{enumerate, enumerate_with_shutdown};
 
@@ -42,6 +44,10 @@ pub enum Error {
     Changed,
     /// Process lifecycle completion could not be confirmed.
     Cleanup,
+    /// Definition cannot be represented by the fingerprint profile without loss.
+    Fingerprint,
+    /// Snapshot is unavailable, invalid, incompatible or already exists on write.
+    Snapshot,
 }
 
 impl Error {
@@ -61,6 +67,8 @@ impl Error {
             Self::Upstream => "mcp_upstream_error",
             Self::Changed => "mcp_inventory_changed",
             Self::Cleanup => "mcp_cleanup_failed",
+            Self::Fingerprint => "mcp_fingerprint_invalid",
+            Self::Snapshot => "mcp_snapshot_invalid",
         }
     }
 }
@@ -80,6 +88,8 @@ impl fmt::Display for Error {
             Self::Upstream => "The server rejected an MCP request. Its error body was withheld to protect sensitive content.",
             Self::Changed => "The tool list changed during enumeration. Retry to obtain a consistent inventory.",
             Self::Cleanup => "Process cleanup could not be confirmed. Check the server process before retrying.",
+            Self::Fingerprint => "A definition exceeds the fingerprint profile or contains an unsafe large numeric constraint. Review the fingerprint reference.",
+            Self::Snapshot => "Use a valid compatible snapshot for reading or a new writable filename for saving; existing files are never overwritten.",
         })
     }
 }

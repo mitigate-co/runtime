@@ -161,7 +161,7 @@ pub fn scan_project(root: &Path, limits: &ScanLimits) -> Result<ScanReport, Scan
         });
     }
     let mut report = ScanReport {
-        schema_version: 1,
+        schema_version: 2,
         sources: Vec::new(),
         servers: Vec::new(),
     };
