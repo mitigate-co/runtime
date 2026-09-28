@@ -20,6 +20,11 @@ Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAN
 | Check a local credential | `mitigate secrets check --reference REF` | Reports availability without printing its value |
 | Rotate a local credential | `mitigate secrets replace --reference REF --stdin` | Replaces one existing reference using a pipe |
 | Delete a local credential | `mitigate secrets delete --reference REF --confirm` | Deletes one reference; already running servers retain their environment |
+| Initialize local audit | `mitigate mcp audit init --db NEW_FILE` | Creates a private bounded SQLite database; never overwrites |
+| Record gateway decisions | Add `--audit-db FILE` to serve | Requires initialized storage; records completed inventory requests and denied calls |
+| Verify audit integrity | `mitigate mcp audit verify --db FILE` | Verifies schema and complete retained chain |
+| Read audit records | `mitigate mcp audit list --db FILE --limit 50` | Verifies, then exports bounded local metadata |
+| Prune expired records | `mitigate mcp audit prune --db FILE --confirm` | Permanently applies stored retention limits |
 
 `--help` works at each command level. Human tables give a compact overview; `--details` shows full labels and review guidance. Long table cells end with `...`. Terminal controls, bidirectional/invisible text and non-ASCII characters are escaped in human labels. JSON retains exact validated labels. Do not parse human tables as an API. Absence of flags does not establish server safety.
 
@@ -47,6 +52,9 @@ Every error JSON has exactly `schema_version: 1`, a fixed `error` code and a `me
 | `mcp scan` | 2 | `sources`, `servers`; [declaration contract](SCANNER.md) |
 | `mcp inspect` | 2 | `protocol_version`, `server_name`, `server_version`, `tools_supported`, `tools`; [classification contract](CLASSIFICATION.md) |
 | `mcp diff` | 1 | `server_identity_changed`, `server_facts_changed`, `tools_supported_changed`, `tools`; [change contract](FINGERPRINTS.md) |
+| `mcp audit init/verify` | 1 | `records`, `payload_bytes`, `anchor_sequence`, `anchor_hash`, `head_sequence`, `head_hash`, `retention` |
+| `mcp audit list` | 1 | `anchor_sequence`, `anchor_hash`, `head_sequence`, `records`, `next_after`; [local audit contract](AUDIT.md) |
+| `mcp audit prune` | 1 | `removed_records`, nested `verification` report |
 
 Ordering is deterministic. Absence, empty lists and unknown capability remain distinct. Labels and hashes are local metadata, not a Platform telemetry contract. Source code, raw arguments/results, schemas/descriptions and credentials are excluded from normal reports.
 
@@ -84,5 +92,7 @@ On Windows append `.exe` to the binary path. This checks actual JSON/human repor
 - `mcp_classification_invalid`: review overrides against a fresh snapshot; never silently reuse stale classifications.
 - `mcp_snapshot_invalid`: use compatible snapshots or a new filename when saving.
 - `mcp_cleanup_failed`: inspect the selected server process before retrying; termination could not be confirmed.
+- `audit_integrity_failed`: preserve the database; investigate without resetting or overwriting.
+- `audit_unavailable`: check disk space, competing writers and permissions; verify before retrying.
 
 The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory pagination and shutdown. Gateway enforcement, grants, approvals and Platform synchronization remain later packages.

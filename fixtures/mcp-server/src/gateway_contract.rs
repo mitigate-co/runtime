@@ -25,10 +25,18 @@ struct Client {
 }
 impl Client {
     fn start(binary: &Path, launch: &Path) -> Self {
-        let mut child = tokio::process::Command::new(binary)
+        Self::start_audited(binary, launch, None)
+    }
+    fn start_audited(binary: &Path, launch: &Path, audit: Option<&Path>) -> Self {
+        let mut command = tokio::process::Command::new(binary);
+        command
             .args(["mcp", "serve", "--launch-config"])
             .arg(launch)
-            .args(["--allow-exec", "--inventory-only"])
+            .args(["--allow-exec", "--inventory-only"]);
+        if let Some(db) = audit {
+            command.arg("--audit-db").arg(db);
+        }
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -123,6 +131,8 @@ pub(super) fn verify(binary: &Path) {
         client.input.take();
         client.finish(0).await;
 
+        verify_audit(binary,&launch,&project.0,&marker).await;
+
         for (mode, count) in [("relay-many",40), ("relay-large",20)] {
             fs::write(&launch, serde_json::to_vec(&json!({"schema_version":1,"executable_path":std::env::current_exe().unwrap(),"working_directory":project.0,"argv":[mode],"timeout_ms":5000})).unwrap()).unwrap();
             let mut client = Client::start(binary, &launch);
@@ -156,6 +166,116 @@ pub(super) fn verify(binary: &Path) {
         client.finish(2).await;
     });
     println!(
-        "Gateway CLI verified: real upstream inventory, disabled calls, clean EOF and bounded shutdown with stdin held open."
+        "Gateway CLI verified: inventory, denied calls, native audit, fail-closed audit errors, EOF and bounded shutdown."
     );
+}
+
+async fn audit_command(binary: &Path, args: &[&str]) -> std::process::Output {
+    let output = timeout(
+        Duration::from_secs(10),
+        tokio::process::Command::new(binary)
+            .args(["mcp", "audit"])
+            .args(args)
+            .arg("--json")
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    for bytes in [&output.stdout, &output.stderr] {
+        assert!(!String::from_utf8_lossy(bytes).contains("canary"));
+    }
+    output
+}
+async fn verify_audit(binary: &Path, launch: &Path, root: &Path, marker: &Path) {
+    let db = root.join("audit.sqlite");
+    let db_arg = db.to_str().unwrap();
+    assert!(
+        audit_command(binary, &["init", "--db", db_arg])
+            .await
+            .status
+            .success()
+    );
+    let mut client = Client::start_audited(binary, launch, Some(&db));
+    client.initialize().await;
+    client
+        .send(json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}))
+        .await;
+    assert!(client.read().await["result"]["tools"].is_array());
+    client.send(json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_status","arguments":{"value":"audit-argument-canary"},"_meta":{"canary":"audit-metadata-canary"}}})).await;
+    assert_eq!(client.read().await["error"]["code"], -32006);
+    // A competing writer must prevent a success response without a committed
+    // event. No tool invocation occurs in this inventory-only endpoint.
+    let blocker = rusqlite::Connection::open(&db).unwrap();
+    blocker.execute_batch("BEGIN IMMEDIATE").unwrap();
+    client
+        .send(json!({"jsonrpc":"2.0","id":4,"method":"tools/list"}))
+        .await;
+    assert_eq!(client.read().await["error"]["code"], -32007);
+    blocker.execute_batch("ROLLBACK").unwrap();
+    drop(blocker);
+    client.input.take();
+    client.finish(0).await;
+    assert!(!marker.exists());
+    let output = audit_command(binary, &["list", "--db", db_arg, "--limit", "1"]).await;
+    assert!(output.status.success());
+    let first: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(first["next_after"], 1);
+    assert_eq!(
+        first["records"][0]["event"]["detail"]["operation"],
+        "inventory"
+    );
+    let output = audit_command(binary, &["list", "--db", db_arg, "--after", "1"]).await;
+    let second: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let detail = &second["records"][0]["event"]["detail"];
+    assert_eq!(second["records"].as_array().unwrap().len(), 1);
+    assert_eq!(detail["decision"], "deny");
+    assert_eq!(detail["result_class"], "not_invoked");
+    assert_eq!(detail["attribution"], "unknown");
+    assert!(detail["client_ref"].is_null());
+    assert!(detail["schema_fingerprint"].is_string());
+    assert!(
+        detail["capability_classes"]
+            .as_array()
+            .is_some_and(|v| !v.is_empty())
+    );
+    let bytes = fs::read(&db).unwrap();
+    assert!(!bytes.windows(b"canary".len()).any(|w| w == b"canary"));
+    assert!(
+        audit_command(binary, &["verify", "--db", db_arg])
+            .await
+            .status
+            .success()
+    );
+    assert_eq!(
+        audit_command(binary, &["prune", "--db", db_arg])
+            .await
+            .status
+            .code(),
+        Some(2)
+    );
+    assert!(
+        audit_command(binary, &["prune", "--db", db_arg, "--confirm"])
+            .await
+            .status
+            .success()
+    );
+    rusqlite::Connection::open(&db)
+        .unwrap()
+        .execute("DELETE FROM records WHERE sequence=2", [])
+        .unwrap();
+    let failed = audit_command(binary, &["verify", "--db", db_arg]).await;
+    assert_eq!(failed.status.code(), Some(2));
+    assert!(failed.stdout.is_empty());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&failed.stderr).unwrap()["error"],
+        "audit_integrity_failed"
+    );
+    // A corrupt database must reject startup before executing the configured child.
+    let blocked_launch = root.join("audit-blocked-launch.json");
+    fs::write(&blocked_launch,serde_json::to_vec(&json!({"schema_version":1,"executable_path":std::env::current_exe().unwrap(),"working_directory":root,"argv":["credential",marker],"timeout_ms":5000})).unwrap()).unwrap();
+    let mut blocked = Client::start_audited(binary, &blocked_launch, Some(&db));
+    blocked.finish(2).await;
+    assert!(!marker.exists());
 }

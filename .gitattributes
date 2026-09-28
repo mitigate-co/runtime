@@ -1,3 +1,8 @@
 * text=auto eol=lf
 *.png binary
 *.wasm binary
+vendor/libsqlite3-sys/** linguist-vendored
+# Preserve byte-for-byte upstream source, including original trailing whitespace.
+vendor/libsqlite3-sys/sqlite3/** -whitespace
+vendor/libsqlite3-sys/bindgen-bindings/** -whitespace
+vendor/libsqlite3-sys/wrapper_ext.h -whitespace

@@ -1,5 +1,7 @@
 //! Executable stdio composition. No permissive or unreviewed invocation mode.
 use crate::output;
+use mitigate_audit::{AuditStore, Decision, EventDetails, Operation, ResultClass};
+use mitigate_fingerprint::{Domain, fingerprint};
 use mitigate_gateway::{CallerIdentity, Fault, ToolRequest, ToolService};
 use mitigate_mcp::{LaunchConfig, StdioServer};
 use serde_json::{Value, json};
@@ -8,11 +10,13 @@ use std::{
     io::{self, Read},
     path::Path,
     process::ExitCode,
-    time::Duration,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
 };
 
 struct InventoryService {
     upstream: StdioServer,
+    audit: Option<Arc<Mutex<AuditStore>>>,
 }
 impl ToolService for InventoryService {
     fn tools_supported(&self) -> bool {
@@ -20,9 +24,76 @@ impl ToolService for InventoryService {
     }
     async fn request(
         &mut self,
-        _caller: &CallerIdentity,
+        caller: &CallerIdentity,
         request: ToolRequest,
     ) -> Result<Value, Fault> {
+        let started = Instant::now();
+        let detail = if self.audit.is_some() {
+            Some(self.audit_details(caller, &request)?)
+        } else {
+            None
+        };
+        let result = self.execute(request).await;
+        if let (Some(audit), Some(mut detail)) = (&self.audit, detail) {
+            detail.duration_ms = started.elapsed().as_millis().min(86_400_000) as u64;
+            (detail.decision, detail.result_class) = match &result {
+                Ok(_) => (Decision::InventoryOnly, ResultClass::Success),
+                Err(Fault::Disabled) => (Decision::Deny, ResultClass::NotInvoked),
+                Err(_) => (Decision::Error, ResultClass::Error),
+            };
+            let audit = Arc::clone(audit);
+            tokio::task::spawn_blocking(move || {
+                audit
+                    .lock()
+                    .map_err(|_| mitigate_audit::Error::Unavailable)?
+                    .append(detail)
+            })
+            .await
+            .map_err(|_| Fault::AuditUnavailable)?
+            .map_err(|_| Fault::AuditUnavailable)?;
+        }
+        result
+    }
+}
+impl InventoryService {
+    fn audit_details(
+        &self,
+        caller: &CallerIdentity,
+        request: &ToolRequest,
+    ) -> Result<EventDetails, Fault> {
+        let inventory = self.upstream.inventory();
+        let server_ref = fingerprint(Domain::ServerIdentity, &json!(inventory.server_name))
+            .map_err(|_| Fault::AuditUnavailable)?;
+        let operation = match request {
+            ToolRequest::List { .. } => Operation::Inventory,
+            ToolRequest::Call { .. } => Operation::ToolCall,
+        };
+        let mut detail = EventDetails::new(caller, server_ref, operation);
+        if let ToolRequest::Call { name, .. } = request
+            && let Some(tool) = inventory.tools.iter().find(|t| &t.name == name)
+        {
+            detail.tool_ref = Some(
+                fingerprint(Domain::ToolIdentity, &json!([detail.server_ref, tool.name]))
+                    .map_err(|_| Fault::AuditUnavailable)?,
+            );
+            detail.schema_fingerprint = Some(
+                fingerprint(Domain::InputSchema, &tool.input_schema)
+                    .map_err(|_| Fault::AuditUnavailable)?,
+            );
+            let report = inventory
+                .classify(&Default::default())
+                .map_err(|_| Fault::AuditUnavailable)?;
+            detail.capability_classes = report
+                .tools
+                .into_iter()
+                .find(|t| t.name == name)
+                .ok_or(Fault::AuditUnavailable)?
+                .classification
+                .classes;
+        }
+        Ok(detail)
+    }
+    async fn execute(&mut self, request: ToolRequest) -> Result<Value, Fault> {
         match request {
             ToolRequest::Call { .. } => Err(Fault::Disabled),
             ToolRequest::List { cursor } => {
@@ -103,7 +174,11 @@ fn profile(path: Option<&Path>) -> Result<CallerIdentity, mitigate_gateway::Erro
     CallerIdentity::from_profile(&read().map_err(|_| mitigate_gateway::Error::Profile)?)
 }
 
-pub(crate) fn run(launch_path: &Path, profile_path: Option<&Path>) -> io::Result<ExitCode> {
+pub(crate) fn run(
+    launch_path: &Path,
+    profile_path: Option<&Path>,
+    audit_path: Option<&Path>,
+) -> io::Result<ExitCode> {
     // Reject profile/config before opening stdin or executing the upstream.
     let caller = match profile(profile_path) {
         Ok(caller) => caller,
@@ -115,6 +190,13 @@ pub(crate) fn run(launch_path: &Path, profile_path: Option<&Path>) -> io::Result
     let config = match LaunchConfig::from_file(launch_path) {
         Ok(config) => config,
         Err(error) => return super::mcp_error(error, false),
+    };
+    let audit = match audit_path.map(AuditStore::open).transpose() {
+        Ok(audit) => audit.map(|store| Arc::new(Mutex::new(store))),
+        Err(error) => {
+            output::error(error.code(), &error.to_string(), false)?;
+            return Ok(ExitCode::from(2));
+        }
     };
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -140,7 +222,7 @@ pub(crate) fn run(launch_path: &Path, profile_path: Option<&Path>) -> io::Result
             Ok(server) => server,
             Err(error) => return Err((error.code(), error.to_string())),
         };
-        let mut service = InventoryService { upstream };
+        let mut service = InventoryService { upstream, audit };
         let result = mitigate_gateway::serve(
             tokio::io::BufReader::new(tokio::io::stdin()),
             tokio::io::stdout(),
@@ -156,9 +238,10 @@ pub(crate) fn run(launch_path: &Path, profile_path: Option<&Path>) -> io::Result
             .map_err(|e| (e.code(), e.to_string()))?;
         result.map_err(|error| ("gateway_session_failed", error.to_string()))
     });
-    // Tokio stdio uses blocking OS I/O that cannot be cancelled. Only these pipe
-    // workers may remain; upstream cleanup was awaited above. This single-command
-    // CLI exits immediately after reporting the outcome, ending those workers.
+    // OS stdio and an already-started SQLite commit cannot be cancelled by dropping
+    // their tasks. Upstream cleanup was awaited above. This single-command CLI
+    // exits after reporting the outcome; SQLite recovers interrupted transactions
+    // on reopen. A cancelled request never receives an audited success response.
     runtime.shutdown_timeout(Duration::from_millis(50));
     match outcome {
         Ok(()) => Ok(ExitCode::SUCCESS),

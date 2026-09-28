@@ -5,3 +5,11 @@ useDefault = true
 [[allowlists]]
 description = "Ignored local build and Git internals; source and complete history are scanned separately"
 paths = ['''(^|[/\\])(target|\.git|\.data)([/\\]|$)''']
+
+[[allowlists]]
+description = "Exact upstream SQLite C identifiers, verified by pinned file digests; never skip vendor paths wholesale"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|[/\\])vendor[/\\]libsqlite3-sys[/\\]sqlite3[/\\]sqlite3(\.c|ext\.h)$''']
+regexTarget = "match"
+regexes = ['''^sqlite3_api->(column_bytes16|soft_heap_limit64|hard_heap_limit64)$''', '''^iKey==FTS5_AVERAGES_ROWID[ \t]*$''']
