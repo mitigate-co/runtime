@@ -16,12 +16,13 @@ Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAN
 | Apply reviewed classification | Add `--classification-overrides FILE` to inspect | Reads bound administrator decisions; never grants access |
 | Compare fingerprints | `mitigate mcp diff --before FILE --after FILE` | Reads two snapshots; no execution/network |
 | Expose an inventory endpoint | `mitigate mcp serve --launch-config FILE --allow-exec --inventory-only` | Executes the reviewed server; serves MCP on stdin/stdout; all tool calls disabled |
+| Govern local calls | `mitigate mcp serve --launch-config FILE --launch-review FILE --profile FILE --enforce FILE --allow-exec` | Explicit execution after local policy, grants, approvals, controls and required audit; [configuration](ENFORCEMENT.md) |
 | Store a local credential | `mitigate secrets import --stdin` | Reads a pipe into the OS store; returns only a reference |
 | Check a local credential | `mitigate secrets check --reference REF` | Reports availability without printing its value |
 | Rotate a local credential | `mitigate secrets replace --reference REF --stdin` | Replaces one existing reference using a pipe |
 | Delete a local credential | `mitigate secrets delete --reference REF --confirm` | Deletes one reference; already running servers retain their environment |
 | Initialize local audit | `mitigate mcp audit init --db NEW_FILE` | Creates a private bounded SQLite database; never overwrites |
-| Record gateway decisions | Add `--audit-db FILE` to serve | Requires initialized storage; records completed inventory requests and denied calls |
+| Record inventory decisions | Add `--audit-db FILE` to inventory-only serve | Requires initialized storage; records completed inventory requests and denied calls |
 | Verify audit integrity | `mitigate mcp audit verify --db FILE` | Verifies schema and complete retained chain |
 | Read audit records | `mitigate mcp audit list --db FILE --limit 50` | Verifies, then exports bounded local metadata |
 | Prune expired records | `mitigate mcp audit prune --db FILE --confirm` | Permanently applies stored retention limits |
@@ -105,7 +106,8 @@ The [launch review reference](LAUNCH_REVIEW.md) documents `mcp launch review
 --launch-config FILE --out FILE` and `mcp launch check --launch-config FILE
 --review FILE`. Both read selected code without executing it or retrieving native
 credentials. `serve --launch-review FILE` verifies the exact launch and checks
-code drift on the live inventory connection. Calls remain disabled.
+code drift on the live connection. Inventory mode keeps calls disabled; governed
+mode additionally requires its complete local authority configuration.
 
 The [policy reference](POLICY.md) documents `mcp policy check`, `test`, `keygen`,
 `sign`, `init`, `activate`, `status` and `evaluate`. Source tests do not invoke
@@ -138,5 +140,8 @@ bundle. Source, raw metadata values and private keys are omitted from reports.
 - `control_clock_rejected`: restore trustworthy time; do not reset counters to bypass rollback detection.
 - `control_input_invalid`: correct the exact target/action or rate bounds; unknown fields are rejected.
 - `control_capacity_reached`: review existing configured targets before adding another.
+- `gateway_governance_invalid`: check the explicit governance document, pinned authority, grants, reviewed snapshot and initialized databases.
+- `gateway_review_changed`: inspect observed definitions and overrides before starting a newly reviewed connection.
+- `gateway_cleanup_unavailable`: inspect approvals and audit after failed cleanup; do not assume the prior call can be replayed.
 
-The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory pagination and shutdown. Enforcing grant/policy composition, approvals and Platform synchronization remain later packages.
+The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory pagination and shutdown. [Governed calls](ENFORCEMENT.md) document live authority and failure semantics. Platform synchronization remains a later package.

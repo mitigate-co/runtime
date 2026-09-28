@@ -1,9 +1,9 @@
 # Local MCP grants
 
 `mcp grants` validates administrator-owned grant rules and tests action metadata.
-It does not start servers or authorize execution. `mcp serve` still requires
-`--inventory-only`; enforcing composition with policy, exact launch binding,
-schema checks, approval and limits remains a launch gate.
+It does not start servers or authorize execution. The [governed gateway](ENFORCEMENT.md)
+loads these rules alongside policy, exact launch binding, schema checks, approval,
+controls and mandatory audit.
 
 ```sh
 mitigate mcp grants check --rules examples/grants/read-development.json
@@ -77,7 +77,7 @@ Test input has exactly `schema_version: 1`, `client`, `principal`, `agent`,
 unknown. Capabilities must be nonempty and unique. The example is the complete
 wire format.
 
-The eventual gateway must construct these facts from its reviewed local profile,
+The governed gateway constructs these facts from its reviewed local profile,
 resolved server/tool and trusted clock. MCP messages and `clientInfo` cannot
 choose their own grant context. Declared profile identity remains declared,
 not cryptographically authenticated. Server-name/discovery-summary fingerprints

@@ -3,6 +3,7 @@
 mod audit_contract;
 mod cli_contract;
 mod gateway_contract;
+mod governance_contract;
 mod listener_contract;
 mod schema_contract;
 mod secret_contract;
@@ -28,6 +29,12 @@ fn tool(name: &str) -> Value {
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     let mode = args.get(1).map_or("ok", String::as_str);
+    if mode == "governance-contract" {
+        governance_contract::verify(std::path::Path::new(
+            args.get(2).expect("explicit CLI path"),
+        ));
+        return;
+    }
     if mode == "schema-contract" {
         schema_contract::verify();
         return;
@@ -57,6 +64,9 @@ fn main() {
         assert!(std::env::var_os("PATH").is_none());
         assert!(!args.iter().any(|v| v.contains("broker-secret-canary")));
         eprintln!("broker-secret-canary-v2");
+    }
+    if mode.starts_with("relay-governance") {
+        std::fs::write(&args[2], b"started").unwrap();
     }
     if mode == "gateway-contract" {
         gateway_contract::verify(std::path::Path::new(
@@ -271,6 +281,13 @@ fn main() {
                 }
                 "relay-gate" if lists > 1 => {
                     std::fs::write(&args[4], b"stopped during refresh").unwrap();
+                    json!({"tools":[tool("read_status")]})
+                }
+                "relay-governance-revoke" | "relay-governance-stop" if lists > 1 => {
+                    governance_contract::change_during_refresh(
+                        mode,
+                        std::path::Path::new(&args[3]).parent().unwrap(),
+                    );
                     json!({"tools":[tool("read_status")]})
                 }
                 mode if mode.starts_with("relay-schema") => {

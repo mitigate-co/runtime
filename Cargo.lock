@@ -1161,8 +1161,10 @@ name = "mitigate-mcp-fixture"
 version = "0.1.0"
 dependencies = [
  "mitigate-audit",
+ "mitigate-fingerprint",
  "mitigate-gateway",
  "mitigate-mcp",
+ "mitigate-policy",
  "mitigate-secrets",
  "process-wrap",
  "rusqlite",

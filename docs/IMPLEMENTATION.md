@@ -36,18 +36,29 @@ Linux workspace tests, actual executable demonstration, strict lint and dependen
 license/secret checks passed locally. CLI panic privacy is covered by a subprocess
 regression. Windows/macOS/Linux suites and dependency/secret CI gates passed.
 
-Versioned call audit is in verification: closed correlation/phase/operator facts
+Versioned call audit merged in PR #18, main `f723855`: closed correlation/phase/operator facts
 preserve legacy event bytes and support mixed-version chains without migration.
 Local workspace tests and actual CLI verification passed, including a saved older
-binary refusing new records without modifying history. Cross-OS CI/merge remains
-pending. Governed invocation, approval waiting and audit lifecycle composition
-remain open gates.
+binary refusing new records without modifying history. Windows/macOS/Linux and
+dependency/license/secret CI gates passed.
 
-Final dispatch boundary is in verification: the upstream adapter invokes an
+Final dispatch boundary merged in PR #19, main `47fb540`: the upstream adapter invokes an
 owner gate after schema/inventory/selected-code checks, before sending a tool call.
 Five gate regressions and all 19 real-process upstream tests, strict workspace
 lint and the executable relay demonstration passed locally. Timeout/cancellation
 cannot dispatch a late gate result; explicit refusal preserves healthy reuse.
-The governing service must still supply policy/approval/control/audit enforcement.
+Windows/macOS/Linux and dependency/license/secret CI gates passed.
+
+Local governance composition is in verification. Explicit `serve --enforce` joins
+reviewed launch and definitions with verified policy, current grants, bounded
+one-call approvals, final controls and required versioned call audit. The actual
+CLI fixture passed allowed/denied calls, unknown identity, approval consumption,
+expiry/cancellation, live authority changes, drift, invalid output, audit failure,
+bounded progress and cancellation after dispatch. Final-refresh revocation and
+startup-failure coverage is added. Strict workspace lint and the initial live
+fixture passed locally. The subsequent full Linux suite was interrupted by host
+disk exhaustion/WSL I/O failures in three process tests; its partial result is not
+a passing gate. Cross-OS CI must verify the complete final change.
+Operator setup/reference ergonomics remain open within MCP-014.
 
 Known launch gates include gateway semantics, grants, Regorus conformance, approvals, secrets, audit, optional sync, registry/fleet, hostile/privacy corpus and signed platform releases. Private vulnerability reporting is enabled. No public binary release or hosted deployment has occurred.

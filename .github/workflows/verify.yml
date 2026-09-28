@@ -35,6 +35,7 @@ jobs:
           cargo run --locked -p mitigate-mcp-fixture -- cli-contract "$cli"
           cargo run --locked -p mitigate-mcp-fixture -- gateway-contract "$cli"
           cargo run --locked -p mitigate-mcp-fixture -- audit-contract "$cli"
+          cargo run --locked -p mitigate-mcp-fixture -- governance-contract "$cli"
           python scripts/verify-policy.py "$cli"
           python scripts/verify-grants.py "$cli"
           python scripts/verify-approvals.py "$cli"

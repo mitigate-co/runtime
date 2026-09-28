@@ -1,8 +1,8 @@
 # Mitigate Runtime
 
 Tool calls through the library validate arguments and structured results using
-the [bounded local JSON Schema profile](docs/SCHEMA_VALIDATION.md). The CLI remains
-inventory-only while the enforcing gateway is being composed.
+the [bounded local JSON Schema profile](docs/SCHEMA_VALIDATION.md). The CLI offers
+explicit inventory-only and [governed-call modes](docs/ENFORCEMENT.md).
 
 The Apache-2.0 customer-side MCP scanner and gateway for Mitigate. Local operation must work without a Platform account. Credentials and tool payloads stay on the customer side.
 
@@ -32,7 +32,7 @@ cargo run --locked -p mitigate-mcp-fixture -- launch-config > target/fixture-lau
 cargo run --locked -- mcp inspect --launch-config target/fixture-launch.json --allow-exec --json
 ```
 
-`inspect` starts the selected program with your OS privileges. It never calls tools. Its [capability report](docs/CLASSIFICATION.md) shows evidence and review flags; explicit local overrides remain bound to current tool definitions. The inventory-only gateway works; full call enforcement remains in development.
+`inspect` starts the selected program with your OS privileges. It never calls tools. Its [capability report](docs/CLASSIFICATION.md) shows evidence and review flags; explicit local overrides remain bound to current tool definitions. Use the inventory-only gateway to list tools, or explicitly configure governed calls with reviewed local authority.
 
 Use [native credentials](docs/SECRETS.md) when a reviewed server requires a key.
 `mitigate secrets import --stdin` reads a pipe into your OS store and returns an
@@ -41,8 +41,8 @@ Check, rotate and delete credentials locally without a Platform account.
 
 [Launch review](docs/LAUNCH_REVIEW.md) binds a selected executable, code artifacts
 and exact launch configuration to a private local reference. `mcp launch review`
-and `check` do not execute code. Add `--launch-review FILE` to inventory serve to
-check that binding before launch and invalidate the connection on code drift.
+and `check` do not execute code. `--launch-review FILE` checks the binding before
+launch and invalidates the connection on code drift. It is required for governed calls.
 
 Use [local audit](docs/AUDIT.md) to record inventory requests and denied calls:
 initialize a private database with `mitigate mcp audit init --db FILE`, then add
@@ -51,14 +51,15 @@ history locally. No arguments, results or credentials are audit fields.
 
 Use [local policies](docs/POLICY.md) to validate and test the restricted Rego
 profile, generate native-store signing keys, and activate verified bundles.
-Policy evaluation works offline. It does not yet enable gateway tool calls.
+Policy evaluation works offline; governed calls also require explicit grants and
+the approval, control, launch-review and audit checks.
 
 Use [local grants](docs/GRANTS.md) to validate exact scopes and test whether an
 action has an explicit allowance or denial. These local diagnostics invoke no tools.
 
 [Local approvals](docs/APPROVALS.md) support metadata review, bounded one-call
 decisions and revocation before consumption. Approval does not invoke a tool or
-bypass grants/policy; the enforcing gateway remains a separate launch gate.
+bypass grants/policy; the governed gateway consumes it at final admission.
 
 [Local controls](docs/CONTROLS.md) provide emergency stops, exact target disables
 and persistent admission quotas. Configure and review them using `mcp controls`;

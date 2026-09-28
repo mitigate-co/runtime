@@ -1,4 +1,9 @@
 //! Executable stdio composition. No permissive or unreviewed invocation mode.
+mod authority;
+mod configuration;
+mod enforcement;
+mod facts;
+
 use crate::output;
 use mitigate_audit::{AuditStore, Decision, EventDetails, Operation, ResultClass};
 use mitigate_fingerprint::{Domain, fingerprint};
@@ -14,11 +19,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-struct InventoryService {
+struct GatewayService {
     upstream: StdioServer,
     audit: Option<Arc<Mutex<AuditStore>>>,
+    enforcement: Option<enforcement::Enforcement>,
 }
-impl ToolService for InventoryService {
+impl ToolService for GatewayService {
+    fn request_timeout(&self) -> Duration {
+        self.enforcement
+            .as_ref()
+            .map_or(Duration::from_secs(30), |e| e.request_timeout())
+    }
     fn tools_supported(&self) -> bool {
         self.upstream.inventory().tools_supported
     }
@@ -26,7 +37,21 @@ impl ToolService for InventoryService {
         &mut self,
         caller: &CallerIdentity,
         request: ToolRequest,
+        progress: Option<mitigate_gateway::ProgressSink>,
     ) -> Result<Value, Fault> {
+        let request = match request {
+            ToolRequest::Call {
+                name, arguments, ..
+            } if self.enforcement.is_some() => {
+                return self
+                    .enforcement
+                    .as_ref()
+                    .ok_or(Fault::GovernanceUnavailable)?
+                    .call(caller, &mut self.upstream, name, arguments, progress)
+                    .await;
+            }
+            request => request,
+        };
         let started = Instant::now();
         let detail = if self.audit.is_some() {
             Some(self.audit_details(caller, &request)?)
@@ -55,7 +80,7 @@ impl ToolService for InventoryService {
         result
     }
 }
-impl InventoryService {
+impl GatewayService {
     fn audit_details(
         &self,
         caller: &CallerIdentity,
@@ -185,6 +210,7 @@ pub(crate) fn run(
     profile_path: Option<&Path>,
     audit_path: Option<&Path>,
     review_path: Option<&Path>,
+    enforcement_path: Option<&Path>,
 ) -> io::Result<ExitCode> {
     // Reject profile/config before opening stdin or executing the upstream.
     let caller = match profile(profile_path) {
@@ -202,6 +228,28 @@ pub(crate) fn run(
         Ok(review) => review,
         Err(error) => return super::mcp_error(error, false),
     };
+    let mut enforcement = match enforcement_path
+        .map(enforcement::Enforcement::open)
+        .transpose()
+    {
+        Ok(enforcement) => enforcement,
+        Err(_) => {
+            output::error(
+                "gateway_governance_invalid",
+                "Cannot open local governance. Check the explicit configuration, reviewed snapshot, trust, grants and initialized stores.",
+                false,
+            )?;
+            return Ok(ExitCode::from(2));
+        }
+    };
+    if enforcement.is_some() && review.is_none() {
+        output::error(
+            "gateway_review_required",
+            "Enforcement requires an explicit launch review.",
+            false,
+        )?;
+        return Ok(ExitCode::from(2));
+    }
     let audit = match audit_path.map(AuditStore::open).transpose() {
         Ok(audit) => audit.map(|store| Arc::new(Mutex::new(store))),
         Err(error) => {
@@ -235,11 +283,18 @@ pub(crate) fn run(
             }
             None => StdioServer::connect_with_shutdown(&config, &mut shutdown).await,
         };
-        let upstream = match connection {
+        let mut upstream = match connection {
             Ok(server) => server,
             Err(error) => return Err((error.code(), error.to_string())),
         };
-        let mut service = InventoryService { upstream, audit };
+        if let Some(enforcement) = &mut enforcement
+            && enforcement.bind(&upstream).is_err()
+        {
+            upstream.close().await.map_err(|e| (e.code(), e.to_string()))?;
+            return Err(("gateway_review_changed", "Observed definitions differ from the reviewed snapshot. Inspect and review before enforcement.".into()));
+        }
+        let audit = enforcement.as_ref().map(|e| Arc::clone(&e.audit)).or(audit);
+        let mut service = GatewayService { upstream, audit, enforcement };
         let result = mitigate_gateway::serve(
             tokio::io::BufReader::new(tokio::io::stdin()),
             tokio::io::stdout(),
@@ -248,11 +303,13 @@ pub(crate) fn run(
             &mut shutdown,
         )
         .await;
-        service
-            .upstream
-            .close()
-            .await
-            .map_err(|e| (e.code(), e.to_string()))?;
+        let upstream_cleanup = service.upstream.close().await;
+        let governance_cleanup = match &service.enforcement {
+            Some(enforcement) => enforcement.close().await,
+            None => Ok(()),
+        };
+        upstream_cleanup.map_err(|e| (e.code(), e.to_string()))?;
+        governance_cleanup.map_err(|_| ("gateway_cleanup_unavailable", "Local call cleanup could not be committed. Inspect approvals and audit before starting another session.".into()))?;
         result.map_err(|error| ("gateway_session_failed", error.to_string()))
     });
     // OS stdio and an already-started SQLite commit cannot be cancelled by dropping

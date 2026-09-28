@@ -1,8 +1,8 @@
 # Local MCP approvals
 
 Approvals are local, metadata-only and valid for **one call**. An operator decision
-never executes a tool by itself. `mcp serve` still requires `--inventory-only` while
-enforcing composition, exact launch binding, schema validation and limits are built.
+never executes a tool by itself. The [governed gateway](ENFORCEMENT.md) joins
+approval waiting and consumption with reviewed launch, policy, grants and limits.
 The library and CLI support review and decisions independently of Platform.
 
 ## Try the local workflow
@@ -81,9 +81,9 @@ and satisfies only the approval check. It is not general authorization.
 The asynchronous gateway must own synchronous storage on a blocking worker and
 bound its wait with a monotonic deadline no longer than the request validity.
 Cancellation, policy refresh and schema drift require rechecks before dispatch.
-This package supplies the state/CLI/storage boundary; the live gateway's wait and
-enforcing-call composition remain explicit launch gates. It does not silently
-enable execution in the existing inventory endpoint.
+This package supplies the state/CLI/storage boundary; [governed mode](ENFORCEMENT.md)
+implements bounded waiting and rechecks. The existing inventory endpoint remains
+explicitly unable to execute calls.
 
 Storage errors return no permit. Consumption occurs **before dispatch**, so a crash
 after consumption can leave a call unexecuted or its outcome uncertain. Never

@@ -6,7 +6,7 @@
 
 `connect` executes the selected program, initializes MCP and retains a complete inventory and fingerprint baseline. This is execution with the caller's OS privileges; the owner must explicitly authorize launch. It does not use discovered configs implicitly.
 
-The `call` API is a low-level transport for an already-authorized invocation. Its owner must evaluate policy, grants, approval and schema-review requirements before using it. No ordinary CLI command exposes unchecked invocation. The fixture harness can invoke only its own synthetic test server. The current [gateway CLI](GATEWAY.md) connects to this adapter for inventory and explicitly disables calls. The transport alone is not an enforcing gateway.
+The `call` API is a low-level transport for an already-authorized invocation. Its owner must evaluate policy, grants, approval and schema-review requirements before using it. No ordinary CLI command exposes unchecked invocation. The [governed gateway](ENFORCEMENT.md) uses the final dispatch gate below; inventory-only mode continues to disable all calls. The transport alone is not an enforcing gateway.
 
 Raw arguments/results are local content. A result may legitimately contain sensitive text or resources and must not enter diagnostics or telemetry. The adapter neither prints nor persists them. Server stderr is discarded. JSON-RPC errors become fixed `mitigate_mcp::Error` categories; their messages/data are never returned. MCP tool results marked `isError` remain tool content destined for the authorized caller, not operational logs.
 

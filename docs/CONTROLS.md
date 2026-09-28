@@ -2,8 +2,8 @@
 
 `mitigate mcp controls` manages a private local control database. It works without
 Platform, network access or credentials. These controls restrict admission; they
-never grant permission or invoke tools. The executable gateway still requires
-inventory-only mode while the enforcing composition is completed.
+never grant permission or invoke tools. The [governed gateway](ENFORCEMENT.md)
+rechecks them at final admission alongside its other authority requirements.
 
 ## Try the local workflow
 

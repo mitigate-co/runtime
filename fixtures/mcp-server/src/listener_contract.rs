@@ -12,6 +12,7 @@ impl ToolService for Fixture {
         &mut self,
         caller: &CallerIdentity,
         request: ToolRequest,
+        _progress: Option<mitigate_gateway::ProgressSink>,
     ) -> Result<Value, Fault> {
         assert_eq!(caller.client_ref(), Some("cli_fixture"));
         assert!(caller.principal_ref().is_none());

@@ -89,8 +89,8 @@ the loaded last-known-good policy survives invalid refresh/storage failures.
 Separate trust/cache files remain vulnerable to a privileged same-user attacker
 or full old-store restoration. Signing authenticates an authority, not policy
 correctness. This is not hardware rollback protection or a process memory quota.
-See [policy profile and limits](POLICY.md). Grant/approval enforcement remains a
-later gateway composition requirement; these tools do not enable invocation.
+See [policy profile and limits](POLICY.md). The explicit
+[governed gateway](ENFORCEMENT.md) composes this boundary with grants and approvals.
 
 The MCP-009 secret broker stores values only in the current user's native credential
 store. Opaque references cannot select other services, arbitrary paths or vault
@@ -102,9 +102,10 @@ See [credential handling](SECRETS.md) and ADR 0012 for native prompts and failur
 semantics. This does not hide credentials from the selected upstream, its
 descendants, another privileged same-user process, or every memory dump/swap page.
 Deleting a reference does not revoke copied provider credentials. Full telemetry
-privacy enforcement, grants and approvals remain later production gates.
+privacy enforcement and release gates remain open; per-call governance cannot
+revoke a credential already copied into a selected server's environment.
 
-The executable gateway currently requires inventory-only mode and denies all calls before upstream invocation. It validates explicit profile input before launching anything, pages bounded definitions and confirms upstream cleanup on EOF, timeout or graceful shutdown. Its standard-I/O worker lifetime ends at CLI process exit; see ADR 0011. Abrupt OS termination can skip Rust destructors, especially on Unix, so graceful cleanup tests do not establish crash-proof descendant containment. No sandbox or full enforcement guarantee is implied.
+The executable gateway requires an explicit inventory-only or governed mode. Inventory-only denies every call. Governed mode requires reviewed launch/definitions, verified local authority and mandatory audit; see [composition and commit boundaries](ENFORCEMENT.md). Both validate profiles before launch and confirm upstream cleanup on EOF, timeout or graceful shutdown. Its standard-I/O worker lifetime ends at CLI process exit; see ADR 0011. Abrupt OS termination can skip Rust destructors, especially on Unix, so graceful cleanup tests do not establish crash-proof descendant containment. No sandbox is implied.
 
 The managed stdio adapter retains an initial fingerprint baseline and re-enumerates before each authorized transport call. Drift prevents invocation; malformed responses and errors invalidate and terminate the connection. Cancellation poisons the connection before releasing its borrow, preventing a later call from consuming a stale response. Tests verify descendant cleanup and absence of invocation on drift. These are transport controls, not proof of server behavior or a substitute for policy, schema validation, grants and approval. See [upstream boundaries](UPSTREAM.md).
 
@@ -131,8 +132,8 @@ The MCP-007 listener additionally rejects ambiguous envelopes, reused IDs and ou
   authorize it independently. Trusted OS time, parent-directory permissions and
   same-user ownership remain assumptions. Whole-file restoration can roll back
   local state; history is bounded and not remote attestation. Already-dispatched
-  effects cannot be undone. See [controls](CONTROLS.md) and ADR 0017; live gateway
-  composition remains required before tool calls are enabled.
+  effects cannot be undone. See [controls](CONTROLS.md) and ADR 0017. Governed
+  admission never refunds quota when a subsequent approval/audit check fails.
 - Optional exact launch review binds executable bytes, selected code artifacts,
   argv, cwd, ordinary environment and native reference destinations. Reviewed
   connections recheck selected code after inventory refresh and before invoking
@@ -148,15 +149,16 @@ The MCP-007 listener additionally rejects ambiguous envelopes, reused IDs and ou
   is trusted. No raw arguments or predictable argument hashes are stored. Retention
   is bounded and whole-database rollback by a privileged attacker is outside this
   guarantee. See [approval boundaries](APPROVALS.md) and ADR 0016. The live gateway
-  still needs bounded waiting, rechecks and complete enforcing-call audit.
+  owns bounded waiting, rechecks and correlated call audit. A metadata worker has
+  no transport handle and cannot dispatch after request cancellation.
 - Local grants use explicit exact scopes and deny precedence. A missing constraint
   is rejected rather than interpreted as a wildcard; unknown clients cannot be
   allowed. Grants and policy remain separate checks, and partial allowances cannot
   be combined for a broader action. The pure matcher trusts gateway-supplied facts
   and time; it does not authenticate profiles or prevent privileged clock rollback.
   These local rule files are not automatically trusted cloud input. See
-  [grant boundaries](GRANTS.md) and ADR 0015. Call execution remains disabled until
-  reviewed launch binding, schema validation, approval, limits and audit composition.
+  [grant boundaries](GRANTS.md) and ADR 0015. Governed mode reloads rules at each
+  authorization check and requires independent policy and admission checks.
 - Local audit uses bounded SQLite metadata and a hash chain. Raw content is excluded;
   retention intentionally removes an oldest prefix and preserves its checkpoint.
   Corruption or unexpected schema prevents export and required gateway startup.

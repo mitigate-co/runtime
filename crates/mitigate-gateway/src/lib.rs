@@ -6,10 +6,12 @@
 mod framing;
 mod identity;
 mod listener;
+mod progress;
 mod protocol;
 
 pub use identity::{CallerIdentity, IdentityConfidence, IdentitySource};
 pub use listener::{ToolRequest, ToolService, serve};
+pub use progress::ProgressSink;
 use std::fmt;
 
 /// Content-free session failures, safe to expose in diagnostics.
@@ -45,6 +47,12 @@ impl std::error::Error for Error {}
 /// Fixed JSON-RPC faults; raw upstream error bodies must not cross this type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Fault {
+    /// Local authority/approval/control state could not be verified.
+    GovernanceUnavailable,
+    /// A local emergency switch or exact target disable blocked admission.
+    Stopped,
+    /// A local quota refused admission; no automatic retry is authorized.
+    RateLimited,
     /// Required local audit could not be committed; no permission to proceed.
     AuditUnavailable,
     /// Explicit inventory-only endpoint; invocation is intentionally unavailable.
@@ -61,6 +69,15 @@ pub enum Fault {
 impl Fault {
     pub(crate) const fn parts(self) -> (i32, &'static str) {
         match self {
+            Self::GovernanceUnavailable => (
+                -32008,
+                "Local governance unavailable; check policy, approvals and controls",
+            ),
+            Self::Stopped => (-32009, "Tool call disabled by local controls"),
+            Self::RateLimited => (
+                -32010,
+                "Local rate limit reached; no invocation was authorized",
+            ),
             Self::AuditUnavailable => (
                 -32007,
                 "Local audit unavailable; verify storage before retrying",

@@ -1,6 +1,6 @@
 # Local gateway protocol
 
-`mitigate mcp serve` connects the local listener to a [managed stdio upstream](UPSTREAM.md). It opens no TCP socket and has no account dependency. The current explicit inventory-only mode lists real upstream definitions and disables all tool invocations. Native secrets, local audit and [tool schema validation](SCHEMA_VALIDATION.md) are available; enforcing calls still await integration of policy, grants, approvals, controls and full call audit. It is not production enforcement yet.
+`mitigate mcp serve` connects the local listener to a [managed stdio upstream](UPSTREAM.md). It opens no TCP socket and has no account dependency. Explicit inventory-only mode lists real definitions and disables all tool invocations. The separate [governed-call mode](ENFORCEMENT.md) requires reviewed local policy, grants, approvals, controls and audit. See [implementation status](IMPLEMENTATION.md) for remaining production gates.
 
 ## Start an inventory endpoint
 
@@ -10,9 +10,9 @@ Build with `cargo build --workspace --locked`, generate the synthetic launch fil
 mitigate mcp serve --launch-config target/fixture-launch.json --allow-exec --inventory-only
 ```
 
-This command reads MCP messages from stdin and writes only MCP messages to stdout. It is a client-launched stdio service, not an interactive terminal prompt. Startup/session diagnostics use fixed content-free stderr messages and exit 2, including startup cancellation. Normal EOF and explicit shutdown after startup exit 0 after upstream cleanup. `--json` conflicts with serve because stdout is already the MCP transport. Launch intent and `--inventory-only` are required; there is no hidden allow-call switch. Use `--profile examples/gateway-profile.json` only after reviewing its declared mapping. Invalid profiles fail before process launch. [Native credential bindings](SECRETS.md) resolve inside the startup deadline before a child is spawned.
+This command reads MCP messages from stdin and writes only MCP messages to stdout. It is a client-launched stdio service, not an interactive terminal prompt. Startup/session diagnostics use fixed content-free stderr messages and exit 2, including startup cancellation. Normal EOF and explicit shutdown after startup exit 0 after upstream cleanup. `--json` conflicts with serve because stdout is already the MCP transport. Launch intent and exactly one of `--inventory-only` or `--enforce FILE` are required. Use `--profile examples/gateway-profile.json` only after reviewing its declared mapping. Invalid profiles fail before process launch. [Native credential bindings](SECRETS.md) resolve inside the startup deadline before a child is spawned.
 
-Tool listing refreshes the upstream baseline before returning definitions. Pages contain at most 16 tools and are reduced to stay below 512 KiB and the strict parser complexity limits. Versioned local cursors do not accept an offset outside the retained inventory. Tool calls return fixed error `-32006` and never reach the upstream. No file or client configuration is modified automatically.
+Tool listing refreshes the upstream baseline before returning definitions. Pages contain at most 16 tools and are reduced to stay below 512 KiB and the strict parser complexity limits. Versioned local cursors do not accept an offset outside the retained inventory. Inventory-only tool calls return fixed error `-32006` and never reach the upstream. No client configuration is modified automatically.
 
 Add `--audit-db FILE` after creating a private database with `mcp audit init`.
 Startup verifies it before child execution. Completed inventory requests and
@@ -20,8 +20,8 @@ denied calls are committed before returning their response; a storage failure
 returns `-32007`. SQLite work runs on a blocking worker, so disk contention does
 not block the async protocol reactor. Cancellation may occur before a completion
 record exists; an already-started audit commit may still finish after cancellation.
-See [audit scope, bounds and recovery](AUDIT.md). Full execution auditing is a later
-enforcement gate; this option never enables tool invocation.
+See [audit scope, bounds and recovery](AUDIT.md). This inventory option never
+enables invocation. Governed mode owns its mandatory audit configuration separately.
 
 ## Identity
 
@@ -39,7 +39,7 @@ The profile allows only `schema_version`, required `client_ref`, optional `princ
 
 The listener negotiates MCP 2025-11-25, 2025-06-18, 2025-03-26 and 2024-11-05. It returns the requested version when supported and offers 2025-11-25 otherwise; an incompatible client must disconnect. It accepts ping before initialization but does not relay tool requests until `notifications/initialized`. Repeated initialization is a protocol failure.
 
-Implemented methods: `initialize`, `ping`, `tools/list`, `tools/call`, `notifications/initialized`, `notifications/cancelled`. The service determines whether tools are advertised. Sampling, roots, resources, prompts, tasks, elicitation, logging and list-change notifications are not advertised. Task-augmented tool calls are rejected. Tool-list cursors are opaque and bounded. MCP `_meta` on tool calls remains local content, separate from identity and policy facts. Progress emission is an upstream integration concern in MCP-008.
+Implemented methods: `initialize`, `ping`, `tools/list`, `tools/call`, `notifications/initialized`, `notifications/cancelled`. The service determines whether tools are advertised. Sampling, roots, resources, prompts, tasks, elicitation, logging and list-change notifications are not advertised. Task-augmented tool calls are rejected. Tool-list cursors are opaque and bounded. MCP `_meta` on tool calls remains local content, separate from identity and policy facts. A progress token must be an integer or a string of at most 128 bytes. Requested progress carries only finite increasing counters and the current downstream token; free-form text is dropped and intermediate updates can coalesce.
 
 Request IDs are strings up to 128 bytes or integer JSON numbers. String and numeric IDs are distinct. Null/fractional IDs, duplicate object keys, JSON-RPC batches, response-shaped client messages, reused request IDs and unknown envelope fields fail closed. IDs remain reserved until the session ends. Unknown request methods receive `-32601`; notifications receive no response. Malformed/unknown cancellation references are ignored when the envelope is valid; cancellation reasons are discarded.
 
@@ -53,7 +53,8 @@ Request IDs are strings up to 128 bytes or integer JSON numbers. String and nume
 | Unique request IDs / all messages | 32,768 / 65,536 |
 | Session lifetime | 24 hours |
 | Initialization / partial frame | 10 seconds each |
-| Active tool request / output write | 30 seconds / 5 seconds |
+| Active tool request | Inventory: 30 seconds; governed: approval timeout + 30 seconds, at most five minutes |
+| Output write | 5 seconds |
 | Concurrent tool requests | 1; additional requests receive `-32005` |
 
 Idle initialized sessions remain open within the lifetime budget. Pings and cancellation continue while the service is busy. Reading a partial next frame is cancellation-safe: its bytes and deadline survive completion of current work. Oversized frames, malformed sessions, pipe failure and deadlines terminate the connection. Request timeout first sends a fixed `-32002` error if output is available. Fixed writes can add up to their five-second deadline to termination. Output is bounded and revalidated before writing.
@@ -65,8 +66,9 @@ A matching cancellation drops in-flight work and ends the connection, without se
 `serve` optionally accepts `--launch-review FILE` from the [local review
 workflow](LAUNCH_REVIEW.md). It verifies selected code and exact launch facts
 before execution and detects later selected-code drift on inventory refresh.
-It still requires `--allow-exec --inventory-only`; a launch review never enables
-calls. A changed reviewed launch fails rather than falling back to unbound mode.
+Launch intent is always required. A review is optional in inventory-only mode and
+mandatory in governed mode; the review alone never authorizes calls. A changed
+reviewed launch fails rather than falling back to unbound mode.
 
 The listener does not decide that a tool is safe. Each service implementation must authorize calls before forwarding them. There is no default permissive service. Raw arguments and tool results travel only through the local content plane to an explicitly selected service. The listener has no file persistence, logging or Platform networking. `ToolRequest` and caller identity have no `Debug` implementation. Upstream operational errors map to a closed `Fault` enum; descriptions, arguments, credentials and arbitrary error bodies are not diagnostics.
 
