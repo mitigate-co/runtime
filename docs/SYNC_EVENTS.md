@@ -1,8 +1,9 @@
 # Closed sync event candidates
 
-`mitigate-egress` validates the first optional Platform event contract. It has no
-sender, enrollment, durable queue or egress journal yet; validating a candidate
-does not authorize delivery. Local audit/snapshot exports are not accepted events.
+`mitigate-egress` validates the first optional Platform event contract. Its
+[customer-local outbox](OUTBOX.md) records admission and retains validated events.
+There is no sender or enrollment integration yet; validating a candidate does not
+authorize delivery. Local audit/snapshot exports are not accepted events.
 See [ADR 0024](decisions/0024-closed-events-before-durable-sync.md).
 
 ## Version 1: `mcp_tool_decision`

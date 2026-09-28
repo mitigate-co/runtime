@@ -59,8 +59,10 @@ No module bypasses the egress guard for Mitigate telemetry.
 The first implemented [closed event candidate contract](SYNC_EVENTS.md) uses only
 fixed enum strings and enrollment-scoped random reference shapes. It excludes
 free-form identifiers and local content-derived fingerprints. This is a validation
-component, not a complete egress path: queue/journal, enrollment integrity and
-delivery gates remain open. Rejected input is never logged or persisted by it.
+component, not a complete egress path. The [local outbox](OUTBOX.md) records fixed
+admission reasons/counts and durably queues only validated candidates, scoped to
+one runtime/enrollment pair. Rejected input, identifiers and input digests are
+never persisted. Enrollment integrity, signing and delivery gates remain open.
 
 ## Provider/tool traffic is different
 

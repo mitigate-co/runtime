@@ -1,9 +1,12 @@
 //! Closed candidate events for optional Zero-Content synchronization.
 //!
 //! Validation is not enrollment, delivery permission, signing or an egress audit.
-//! This component owns no network/file I/O and cannot forward local audit exports.
+//! Candidate validation performs no I/O. The optional customer-local outbox
+//! persists only validated events and bounded diagnostics; it owns no network
+//! transport and cannot forward local audit exports.
 mod guard;
 mod model;
+pub mod outbox;
 mod reference;
 #[cfg(test)]
 mod tests;
@@ -41,7 +44,8 @@ pub const EVENT_FIELDS: &[&str] = &[
 ];
 
 /// Safe rejection categories. No rejected value, parser error or backend text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Rejection {
     /// Candidate or canonical event exceeds the explicit byte limit.
     Size,

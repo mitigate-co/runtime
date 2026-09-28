@@ -1118,9 +1118,11 @@ version = "0.1.0"
 dependencies = [
  "getrandom 0.4.3",
  "mitigate-json",
+ "rusqlite",
  "serde",
  "serde_json",
  "serde_json_canonicalizer",
+ "sha2 0.10.9",
 ]
 
 [[package]]
