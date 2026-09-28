@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — explicit tool enumeration
+
+- `mcp inspect` starts a reviewed stdio MCP server only with `--allow-exec`, negotiates a supported version and enumerates tools without calling them.
+- Bound protocol messages, pagination, tool counts and deadlines; reject ambiguous responses and inventory changes.
+- Isolate environment inheritance, suppress upstream error/stderr content and terminate process groups/jobs on completion, timeout and cancellation.
+
 ## Unreleased — scanner sources
 
 - Read-only discovery of Claude Code and Cursor repository configurations with human and JSON output.

@@ -1,0 +1,19 @@
+[package]
+name = "mitigate-mcp-fixture"
+description = "Synthetic MCP server for Runtime protocol and lifecycle tests"
+publish = false
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "mitigate-test-mcp"
+path = "src/main.rs"
+
+[dependencies]
+serde_json.workspace = true
+mitigate-mcp = { path = "../../crates/mitigate-mcp", version = "0.1.0" }
+tokio.workspace = true
+
+[lints]
+workspace = true

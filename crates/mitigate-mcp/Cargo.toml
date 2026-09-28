@@ -1,6 +1,6 @@
 [package]
-name = "mitigate-mcp-scan"
-description = "Read-only, bounded MCP configuration discovery"
+name = "mitigate-mcp"
+description = "Bounded local MCP protocol and explicit server enumeration"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,10 +9,10 @@ repository.workspace = true
 
 [dependencies]
 mitigate-json = { path = "../mitigate-json", version = "0.1.0" }
-mitigate-config = { version = "0.1.0", path = "../mitigate-config" }
 serde.workspace = true
 serde_json.workspace = true
-url.workspace = true
+tokio.workspace = true
+process-wrap.workspace = true
 
 [lints]
 workspace = true
