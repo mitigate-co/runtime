@@ -27,6 +27,8 @@ pub enum Domain {
     OutputSchema,
     /// Whitespace-normalized local description, never policy authority.
     Description,
+    /// Salted exact local launch facts; never a telemetry configuration summary.
+    LaunchConfiguration,
 }
 impl Domain {
     fn label(self) -> &'static [u8] {
@@ -38,6 +40,7 @@ impl Domain {
             Self::InputSchema => b"input-schema",
             Self::OutputSchema => b"output-schema",
             Self::Description => b"description",
+            Self::LaunchConfiguration => b"launch-configuration",
         }
     }
 }

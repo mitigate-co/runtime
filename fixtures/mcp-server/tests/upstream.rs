@@ -1,5 +1,5 @@
 //! Managed real-process relay failures and cancellation, using synthetic payloads.
-use mitigate_mcp::{Error, LaunchConfig, Progress, StdioServer};
+use mitigate_mcp::{Error, LaunchConfig, LaunchReview, Progress, StdioServer};
 use serde_json::json;
 use std::{
     fs,
@@ -69,6 +69,97 @@ async fn changed_definition_is_refused_before_any_tool_call() {
         server.check_inventory().await.err(),
         Some(Error::Disconnected)
     );
+    server.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn reviewed_launch_rechecks_code_before_calls_and_poisoned_session_cannot_resume() {
+    let project = Project::new();
+    let artifact = project.0.join("code-artifact.js");
+    fs::write(&artifact, b"synthetic reviewed code").unwrap();
+    let value = json!({"schema_version":1,"executable_path":env!("CARGO_BIN_EXE_mitigate-test-mcp"),"working_directory":project.0,
+        "argv":["relay",project.0.join("child-address"),project.0.join("call-marker")],"artifact_paths":[artifact],"timeout_ms":30000});
+    let config = LaunchConfig::from_bytes(&serde_json::to_vec(&value).unwrap()).unwrap();
+    let review = LaunchReview::create(&config).await.unwrap();
+    let mut server = StdioServer::connect_reviewed(&config, &review)
+        .await
+        .unwrap();
+    assert_eq!(
+        server.launch_receipt().unwrap().launch_ref,
+        review.receipt().launch_ref
+    );
+    assert_eq!(
+        server.call("read_status", json!({}), None).await.unwrap()["structuredContent"]["ok"],
+        true
+    );
+    fs::remove_file(project.0.join("call-marker")).unwrap();
+    fs::write(&artifact, b"changed code").unwrap();
+    assert_eq!(
+        server.call("read_status", json!({}), None).await.err(),
+        Some(Error::LaunchChanged)
+    );
+    assert!(!project.0.join("call-marker").exists());
+    fs::write(&artifact, b"synthetic reviewed code").unwrap();
+    assert_eq!(
+        server.check_inventory().await.err(),
+        Some(Error::Disconnected)
+    );
+    server.close().await.unwrap();
+    let mut changed = value;
+    changed["argv"][0] = json!("relay-error");
+    let changed = LaunchConfig::from_bytes(&serde_json::to_vec(&changed).unwrap()).unwrap();
+    assert_eq!(
+        StdioServer::connect_reviewed(&changed, &review)
+            .await
+            .err()
+            .map(|e| e.code()),
+        Some("mcp_launch_changed")
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn retargeted_code_symlink_is_refused_before_upstream_call() {
+    use std::os::unix::fs::symlink;
+    let project = Project::new();
+    let original = project.0.join("original.js");
+    let replacement = project.0.join("replacement.js");
+    let alias = project.0.join("entry.js");
+    fs::write(&original, b"same bytes").unwrap();
+    fs::write(&replacement, b"same bytes").unwrap();
+    symlink(&original, &alias).unwrap();
+    let config = LaunchConfig::from_bytes(&serde_json::to_vec(&json!({"schema_version":1,"executable_path":env!("CARGO_BIN_EXE_mitigate-test-mcp"),"working_directory":project.0,
+        "argv":["relay",project.0.join("child-address"),project.0.join("call-marker")],"artifact_paths":[alias],"timeout_ms":30000})).unwrap()).unwrap();
+    let review = LaunchReview::create(&config).await.unwrap();
+    let mut server = StdioServer::connect_reviewed(&config, &review)
+        .await
+        .unwrap();
+    fs::remove_file(&alias).unwrap();
+    symlink(&replacement, &alias).unwrap();
+    assert_eq!(
+        server.call("read_status", json!({}), None).await.err(),
+        Some(Error::LaunchChanged)
+    );
+    assert!(!project.0.join("call-marker").exists());
+    server.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn code_change_during_refresh_is_checked_before_invocation() {
+    let project = Project::new();
+    let artifact = project.0.join("entry.js");
+    fs::write(&artifact, b"reviewed code").unwrap();
+    let config = LaunchConfig::from_bytes(&serde_json::to_vec(&json!({"schema_version":1,"executable_path":env!("CARGO_BIN_EXE_mitigate-test-mcp"),"working_directory":project.0,
+        "argv":["relay-code-drift",project.0.join("child-address"),project.0.join("call-marker"),artifact],"artifact_paths":[artifact],"timeout_ms":30000})).unwrap()).unwrap();
+    let review = LaunchReview::create(&config).await.unwrap();
+    let mut server = StdioServer::connect_reviewed(&config, &review)
+        .await
+        .unwrap();
+    assert_eq!(
+        server.call("read_status", json!({}), None).await.err(),
+        Some(Error::LaunchChanged)
+    );
+    assert!(!project.0.join("call-marker").exists());
     server.close().await.unwrap();
 }
 

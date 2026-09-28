@@ -24,9 +24,10 @@ The first command builds the synthetic fixture server and writes its absolute ex
 | `argv` | No | Literal argument array, maximum 64 entries, 4 KiB each, 32 KiB total |
 | `allowed_environment_keys` | No | Up to 32 named references from the current environment; values are never stored in this file |
 | `secret_references` | No | Native bindings with `environment_key` and opaque `secret_ref`; maximum 32 explicit keys combined with environment references |
+| `artifact_paths` | No | Up to 32 absolute code/lockfile paths to include in an explicit [launch review](LAUNCH_REVIEW.md); no automatic file discovery |
 | `timeout_ms` | No | Whole credential-resolution and enumeration deadline, default 30,000; range 100–120,000 |
 
-Configuration is strict JSON, at most 64 KiB. Unknown/duplicate fields, inline `env` values, NUL arguments, duplicate/case-conflicting environment names and unsupported schema versions are refused. No shell string is constructed. Executable resolution never searches PATH. Absolute paths are canonicalized, but another process with the same OS identity can still replace a file; this is explicit execution of trusted local software, not verified executable provenance or isolation.
+Configuration is strict JSON, at most 64 KiB. Unknown/duplicate fields, inline `env` values, NUL arguments, duplicate/case-conflicting environment names and unsupported schema versions are refused. No shell string is constructed. Executable resolution never searches PATH. Absolute paths are canonicalized, but another process with the same OS identity can still replace a file. Optional [launch review](LAUNCH_REVIEW.md) binds selected executable/code bytes and exact launch facts for `serve`; it is not publisher attestation or isolation. `inspect` remains an explicit unbound inventory action.
 
 The child starts with an empty environment except available `SystemRoot`, `WINDIR`, `TEMP` and `TMP`. PATH, HOME, loader switches, proxies and API keys are not inherited unless explicitly named. Ambient references must exist and be bounded (8 KiB each). [Native credentials](SECRETS.md) are resolved before spawn, limited to 2560 UTF-8 bytes each, and never fall back to ambient values. Both share a 64 KiB total environment budget. Values are not stored in launch files. Do not put secrets in argv.
 

@@ -1,6 +1,6 @@
 //! Managed upstream connection. Authorization belongs above this transport layer.
 use crate::{
-    Error, Inventory, LaunchConfig, Result, Snapshot,
+    Error, Inventory, LaunchConfig, LaunchReceipt, LaunchReview, Result, Snapshot,
     protocol::{self, Client},
     stdio::Session,
 };
@@ -57,6 +57,29 @@ impl StdioServer {
         config: &LaunchConfig,
         shutdown: impl std::future::Future<Output = ()>,
     ) -> Result<Self> {
+        Self::connect_inner(config, None, shutdown).await
+    }
+
+    /// Start only when executable bytes, explicit code artifacts and exact
+    /// launch facts still match a private local review. This is not a grant.
+    pub async fn connect_reviewed(config: &LaunchConfig, review: &LaunchReview) -> Result<Self> {
+        Self::connect_reviewed_with_shutdown(config, review, std::future::pending()).await
+    }
+
+    /// Reviewed connection with caller cancellation and confirmed cleanup.
+    pub async fn connect_reviewed_with_shutdown(
+        config: &LaunchConfig,
+        review: &LaunchReview,
+        shutdown: impl std::future::Future<Output = ()>,
+    ) -> Result<Self> {
+        Self::connect_inner(config, Some(review), shutdown).await
+    }
+
+    async fn connect_inner(
+        config: &LaunchConfig,
+        review: Option<&LaunchReview>,
+        shutdown: impl std::future::Future<Output = ()>,
+    ) -> Result<Self> {
         config.validate()?;
         let deadline = Duration::from_millis(config.timeout_ms);
         let until = tokio::time::Instant::now() + deadline;
@@ -64,7 +87,7 @@ impl StdioServer {
         let mut process = tokio::select! {
             biased;
             _ = &mut shutdown => return Err(Error::Cancelled),
-            result = tokio::time::timeout_at(until, Session::start(config)) => result.map_err(|_| Error::Timeout)??,
+            result = tokio::time::timeout_at(until, Session::start_with_review(config, review)) => result.map_err(|_| Error::Timeout)??,
         };
         let mut client = Client::new();
         let initialization = tokio::time::timeout_at(until, async {
@@ -100,6 +123,11 @@ impl StdioServer {
         &self.inventory
     }
 
+    /// Verified local launch evidence, absent for unbound inventory connections.
+    pub fn launch_receipt(&self) -> Option<&LaunchReceipt> {
+        self.process.launch_receipt()
+    }
+
     /// Re-enumerate on the same connection and refuse any baseline drift.
     /// An error invalidates the connection; review/reconnect rather than retrying.
     pub async fn check_inventory(&mut self) -> Result<()> {
@@ -113,15 +141,16 @@ impl StdioServer {
             usable: &mut self.usable,
             completed: false,
         };
-        let result = tokio::time::timeout(
-            self.deadline,
+        let result = tokio::time::timeout(self.deadline, async {
             refresh(
                 &mut self.client,
                 operation.process,
                 &self.inventory,
                 &self.baseline,
-            ),
-        )
+            )
+            .await?;
+            operation.process.check_launch().await
+        })
         .await
         .map_err(|_| Error::Timeout)
         .and_then(|r| r);
@@ -174,6 +203,9 @@ impl StdioServer {
                 &self.baseline,
             )
             .await?;
+            // Refresh itself may take time or run mutable server code. Check
+            // selected code after refresh, immediately before tools/call.
+            operation.process.check_launch().await?;
             let token = json!(self.client.next_request_id());
             let mut params = json!({"name":name,"arguments":arguments});
             if progress.is_some() {

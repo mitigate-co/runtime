@@ -5,6 +5,7 @@ mod audit;
 mod controls;
 mod gateway;
 mod grants;
+mod launch;
 mod output;
 mod policy;
 mod secrets;
@@ -51,6 +52,9 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
             command: McpCommand::Controls { command },
         } => return controls::run(command, cli.json),
         Command::Mcp {
+            command: McpCommand::Launch { command },
+        } => return launch::run(command, cli.json),
+        Command::Mcp {
             command: McpCommand::Approvals { command },
         } => return approvals::run(command, cli.json),
         Command::Mcp {
@@ -71,9 +75,15 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                     inventory_only: _,
                     profile,
                     audit_db,
+                    launch_review,
                 },
         } => {
-            return gateway::run(&launch_config, profile.as_deref(), audit_db.as_deref());
+            return gateway::run(
+                &launch_config,
+                profile.as_deref(),
+                audit_db.as_deref(),
+                launch_review.as_deref(),
+            );
         }
         Command::Mcp {
             command:

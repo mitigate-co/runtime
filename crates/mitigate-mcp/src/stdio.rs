@@ -1,7 +1,8 @@
 //! Explicit process lifecycle: bounded pipes, whole-session deadline, group cleanup.
 
 use crate::{
-    Error, Inventory, LaunchConfig, Result,
+    Error, Inventory, LaunchConfig, LaunchReview, Result,
+    launch::review::VerifiedLaunch,
     protocol::{self, Transport},
 };
 use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
@@ -18,6 +19,7 @@ pub(crate) struct Session {
     output: BufReader<ChildStdout>,
     received: usize,
     cleaned: bool,
+    reviewed: Option<VerifiedLaunch>,
 }
 impl Drop for Session {
     fn drop(&mut self) {
@@ -30,10 +32,33 @@ impl Drop for Session {
 
 impl Session {
     pub async fn start(config: &LaunchConfig) -> Result<Self> {
+        Self::start_with_review(config, None).await
+    }
+    pub async fn start_with_review(
+        config: &LaunchConfig,
+        review: Option<&LaunchReview>,
+    ) -> Result<Self> {
         config.validate()?;
-        let (executable, cwd) = config.paths()?;
-        let environment = config.environment()?;
+        let paths = config.paths()?;
+        let inherited = config.environment()?;
+        // Resolve only explicit native references. Review preparation runs after
+        // any native unlock prompt, so code is checked close to actual launch.
         let secrets = config.secrets().await?;
+        let (executable, cwd, environment, reviewed) = match review {
+            Some(review) => {
+                let prepared = review.prepare(config).await?;
+                (
+                    prepared.executable,
+                    prepared.cwd,
+                    prepared.environment,
+                    Some(prepared.verified),
+                )
+            }
+            None => {
+                let (executable, cwd) = paths;
+                (executable, cwd, inherited, None)
+            }
+        };
         let environment_size: usize = environment.iter().map(|(k, v)| k.len() + v.len()).sum();
         let secret_size: usize = secrets
             .iter()
@@ -80,7 +105,17 @@ impl Session {
             output: BufReader::new(output),
             received: 0,
             cleaned: false,
+            reviewed,
         })
+    }
+    pub fn launch_receipt(&self) -> Option<&crate::LaunchReceipt> {
+        self.reviewed.as_ref().map(|r| &r.receipt)
+    }
+    pub async fn check_launch(&self) -> Result<()> {
+        if let Some(reviewed) = &self.reviewed {
+            reviewed.check_files().await?;
+        }
+        Ok(())
     }
     pub fn interrupt(&mut self) {
         self.input.take();

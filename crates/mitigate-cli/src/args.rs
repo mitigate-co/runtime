@@ -76,6 +76,11 @@ pub(crate) enum McpCommand {
         #[command(subcommand)]
         command: ControlsCommand,
     },
+    /// Review and verify exact local launch facts without executing a server.
+    Launch {
+        #[command(subcommand)]
+        command: LaunchCommand,
+    },
     /// Review and decide bounded local approval requests.
     Approvals {
         #[command(subcommand)]
@@ -113,6 +118,9 @@ pub(crate) enum McpCommand {
         /// Existing audit database initialized with `mcp audit init`.
         #[arg(long)]
         audit_db: Option<PathBuf>,
+        /// Require exact executable/artifact/configuration review before launch.
+        #[arg(long)]
+        launch_review: Option<PathBuf>,
     },
     /// Compare local snapshots without starting a server.
     Diff {
@@ -211,6 +219,24 @@ pub(crate) enum ControlsCommand {
         db: PathBuf,
         #[arg(long)]
         context: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum LaunchCommand {
+    /// Fingerprint selected code and launch facts; write a new private review.
+    Review {
+        #[arg(long)]
+        launch_config: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Verify current launch facts against an existing private review.
+    Check {
+        #[arg(long)]
+        launch_config: PathBuf,
+        #[arg(long)]
+        review: PathBuf,
     },
 }
 
