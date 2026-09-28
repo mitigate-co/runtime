@@ -7,6 +7,7 @@ mod gateway;
 mod grants;
 mod launch;
 mod output;
+mod panic_report;
 mod policy;
 mod secrets;
 
@@ -322,6 +323,7 @@ fn finish(result: io::Result<ExitCode>, machine: bool) -> ExitCode {
 }
 
 fn main() -> ExitCode {
+    panic_report::install();
     let arguments: Vec<_> = std::env::args_os().collect();
     // Examine only the global switch; never format or log argument values.
     let machine = arguments

@@ -22,12 +22,19 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
 
-Enforcing-gateway prerequisite in verification: exact private launch review binds
+Enforcing-gateway prerequisite merged in PR #16, main `eab5a6b`: exact private launch review binds
 executable/selected artifact bytes, argv, cwd, ordinary environment and native
 credential references. Optional reviewed inventory connections detect code drift
 and record the launch reference locally. Launch metadata, symlink/code-drift,
-actual CLI/privacy/audit contracts and Linux workspace checks have passed;
-cross-OS CI/merge remains pending. Full schema validation, governed invocation,
-approval waiting and complete call audit remain open gates.
+actual CLI/privacy/audit contracts and Windows/macOS/Linux/security CI passed.
+
+Tool schema validation is in verification: the explicit bounded local Draft
+2020-12 profile compiles input/output schemas before invocation, rejects invalid
+arguments and withholds invalid results. No remote/file retrieval or coercion is
+allowed; unsupported constraints fail closed. Schema/real-process tests, full
+Linux workspace tests, actual executable demonstration, strict lint and dependency/
+license/secret checks passed locally. CLI panic privacy is covered by a subprocess
+regression. Cross-OS CI/merge is pending. Governed invocation, approval waiting
+and complete call audit remain open gates.
 
 Known launch gates include gateway semantics, grants, Regorus conformance, approvals, secrets, audit, optional sync, registry/fleet, hostile/privacy corpus and signed platform releases. Private vulnerability reporting is enabled. No public binary release or hosted deployment has occurred.

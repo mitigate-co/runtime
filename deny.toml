@@ -5,6 +5,12 @@ version = 2
 version = 2
 allow = ["Apache-2.0", "MIT", "Unicode-3.0", "BSD-3-Clause"]
 confidence-threshold = 0.95
+# Reviewed permissive transitive licenses; no global license-policy expansion.
+# See ADR 0019. Retain their notices in the release license bundle.
+exceptions = [
+  { name = "borrow-or-share", version = "=0.2.4", allow = ["MIT-0"] },
+  { name = "foldhash", version = "=0.2.0", allow = ["Zlib"] },
+]
 
 [bans]
 multiple-versions = "warn"

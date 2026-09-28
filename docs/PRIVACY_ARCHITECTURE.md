@@ -117,6 +117,14 @@ Every release runs synthetic privacy fixtures against:
 
 Any fixture leakage is a release blocker.
 
+Tool-schema compilation and validation run locally with resource retrieval
+disabled. Dependency diagnostics are discarded in favor of fixed errors. Schemas,
+arguments and results have no new persistence or telemetry path. The executable
+also replaces default Rust panic diagnostics with a fixed notice: panic payloads
+and backtraces must not expose values handled by dependencies. A subprocess test
+injects a synthetic panic payload with backtraces enabled and verifies omission.
+Library embedders remain responsible for their own process-wide panic hooks.
+
 ## Implemented local control metadata
 
 The MCP-014 control database stores exact hashed references, numeric quota state,

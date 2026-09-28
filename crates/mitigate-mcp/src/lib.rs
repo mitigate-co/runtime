@@ -8,6 +8,7 @@ pub mod classification;
 mod launch;
 mod model;
 mod protocol;
+pub mod schema;
 mod snapshot;
 mod stdio;
 mod upstream;
@@ -61,6 +62,12 @@ pub enum Error {
     LaunchReview,
     /// Executable, artifact or exact launch facts differ from local review.
     LaunchChanged,
+    /// Tool schema is invalid or outside the supported execution profile.
+    Schema,
+    /// Schema compilation/validation exceeded a resource or waiting limit.
+    SchemaLimit,
+    /// Local arguments or structured results do not satisfy the tool schema.
+    SchemaMismatch,
 }
 
 impl Error {
@@ -86,6 +93,9 @@ impl Error {
             Self::Classification => "mcp_classification_invalid",
             Self::LaunchReview => "mcp_launch_review_invalid",
             Self::LaunchChanged => "mcp_launch_changed",
+            Self::Schema => "mcp_schema_unsupported",
+            Self::SchemaLimit => "mcp_schema_limit",
+            Self::SchemaMismatch => "mcp_schema_mismatch",
         }
     }
 }
@@ -111,6 +121,9 @@ impl fmt::Display for Error {
             Self::Classification => "Review the explicit classification file, its limits and fingerprints against a fresh snapshot; every override must match the current server and tool definition.",
             Self::LaunchReview => "Use a valid private launch review or a new writable path. Check explicit artifact paths and size limits.",
             Self::LaunchChanged => "The launch differs from its review. Inspect executable, artifacts, arguments and environment before creating a new review.",
+            Self::Schema => "The tool schema is invalid or unsupported for execution. Review the schema-validation profile before retrying.",
+            Self::SchemaLimit => "Tool schema validation exceeded a resource or wait limit. Reduce schema or value complexity before retrying.",
+            Self::SchemaMismatch => "The tool arguments or structured result do not match the declared schema. Source values were withheld.",
         })
     }
 }

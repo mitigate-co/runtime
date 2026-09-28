@@ -9,6 +9,93 @@ use std::{
 };
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
+
+#[tokio::test]
+async fn input_contract_blocks_invocation_and_valid_input_can_still_run() {
+    let project = Project::new();
+    let mut server = StdioServer::connect(&project.config("relay-schema", 5000))
+        .await
+        .unwrap();
+    for args in [
+        json!({}),
+        json!({"value":"1"}),
+        json!({"value":0}),
+        json!({"value":1,"extra":true}),
+    ] {
+        assert_eq!(
+            server.call("read_status", args, None).await.err(),
+            Some(Error::SchemaMismatch)
+        );
+        assert!(!project.0.join("call-marker").exists());
+    }
+    let result = server
+        .call("read_status", json!({"value":1}), None)
+        .await
+        .unwrap();
+    assert_eq!(result["structuredContent"]["ok"], true);
+    server.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn unsupported_output_schema_is_refused_before_any_invocation() {
+    let project = Project::new();
+    let mut server = StdioServer::connect(&project.config("relay-schema-unsupported", 5000))
+        .await
+        .unwrap();
+    assert_eq!(
+        server
+            .call("read_status", json!({"value":1}), None)
+            .await
+            .err(),
+        Some(Error::Schema)
+    );
+    assert!(!project.0.join("call-marker").exists());
+    server.check_inventory().await.unwrap();
+    server.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn invalid_or_missing_structured_output_is_withheld_and_poisons_connection() {
+    for mode in [
+        "relay-schema-wrong",
+        "relay-schema-missing",
+        "relay-schema-error-invalid",
+    ] {
+        let project = Project::new();
+        let mut server = StdioServer::connect(&project.config(mode, 5000))
+            .await
+            .unwrap();
+        let error = server
+            .call("read_status", json!({"value":1}), None)
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(error, Error::SchemaMismatch);
+        assert!(!error.to_string().contains("canary"));
+        assert!(project.0.join("call-marker").exists());
+        assert_eq!(
+            server.check_inventory().await.err(),
+            Some(Error::Disconnected)
+        );
+        server.close().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn tool_error_can_omit_success_output_without_fabricating_data() {
+    let project = Project::new();
+    let mut server = StdioServer::connect(&project.config("relay-schema-error", 5000))
+        .await
+        .unwrap();
+    let result = server
+        .call("read_status", json!({"value":1}), None)
+        .await
+        .unwrap();
+    assert_eq!(result["isError"], true);
+    assert!(result.get("structuredContent").is_none());
+    server.close().await.unwrap();
+}
+
 struct Project(PathBuf);
 impl Project {
     fn new() -> Self {

@@ -111,6 +111,13 @@ The managed stdio adapter retains an initial fingerprint baseline and re-enumera
 The MCP-007 listener additionally rejects ambiguous envelopes, reused IDs and out-of-order initialization, bounds local streams, and prevents clientInfo or request metadata from changing caller identity. Profile identity is explicitly declared, never authenticated by implication. Cancellation and disconnect drop in-flight service work; the upstream owner must confirm cleanup. No permissive service or network listener is included. See [gateway boundaries](GATEWAY.md) and ADR 0010. This protocol library alone is not an enforcing gateway.
 
 - A local admin/root user can usually tamper with local security software.
+- Tool schemas must pass a closed, bounded local execution profile before calls.
+  Unknown dialects/keywords, external references, cycles and excessive expansion
+  fail closed. Both input and output schemas compile before invocation; invalid
+  results are withheld, without retrying possibly completed effects. Validation
+  workers retain bounded admission slots after timeout/cancellation. This is not
+  a thread-killing timeout or OS sandbox. See [schema validation](SCHEMA_VALIDATION.md)
+  and ADR 0019. Raw result content is still workload data, not safe telemetry.
 - Local control state and quota balances survive normal restarts and use atomic
   shared-database admission. Emergency/exact disables precede quotas; a failed
   commit releases no allowance. Missing/corrupt/busy/full storage and backward
