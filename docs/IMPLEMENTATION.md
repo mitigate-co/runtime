@@ -169,3 +169,10 @@ Initial CLI CI passed Windows/Linux and dependency/privacy gates. macOS stalled
 when the CLI accessed the unsigned example's Keychain item. The macOS fixtures
 now keep native receipt checks in the creating binary and run the actual CLI's
 pending/retry/deletion lifecycle with its own entries; Keychain ACLs stay intact.
+
+Interactive enrollment now reads a hidden code with bounded owned input, normal
+keyboard cancellation and exact terminal restoration. Pipe input remains explicit
+and required for machine output. Linux actual-CLI tests and PTY scenarios passed;
+the same production prompt module passed Windows ConPTY scenarios in a disposable
+harness. Full Windows/macOS CLI behavior remains subject to CI. Dependency review,
+advisory audit and license checks passed. See ADR 0030 and the enrollment CLI guide.

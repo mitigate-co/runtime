@@ -67,8 +67,8 @@ pub(crate) enum EnrollmentCommand {
         /// New enrollment file in an existing private local directory.
         #[arg(long)]
         state: PathBuf,
-        /// Read the code from a pipe; never supply it as an argument or environment variable.
-        #[arg(long, required = true)]
+        /// Read a secure pipe instead of prompting; required with --json. Never put the code in an argument or environment variable.
+        #[arg(long)]
         stdin: bool,
     },
     /// Recover a pending request using its original code and identity.

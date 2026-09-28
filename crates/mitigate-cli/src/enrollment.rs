@@ -1,5 +1,5 @@
-//! Explicit enrollment orchestration; secrets are read from a bounded pipe.
-use crate::{args::EnrollmentCommand, output};
+//! Explicit enrollment orchestration; secrets use a bounded pipe or hidden prompt.
+use crate::{args::EnrollmentCommand, hidden_input, output};
 use mitigate_enrollment::{
     EnrollmentCode, PlatformOrigin, https,
     storage::{self, EnrollmentStore, Status},
@@ -47,7 +47,34 @@ impl From<https::Error> for Failure {
     }
 }
 fn input_error() -> Failure {
-    Failure { code: "enrollment_code", message: "Pipe one complete enrollment code with --stdin. Never put a code in a command argument or environment variable.".to_owned() }
+    Failure {
+        code: "enrollment_code",
+        message: "Paste one complete enrollment code from your organization's Runtimes page."
+            .to_owned(),
+    }
+}
+impl From<hidden_input::Error> for Failure {
+    fn from(error: hidden_input::Error) -> Self {
+        let (code, message) = match error {
+            hidden_input::Error::Cancelled => (
+                "enrollment_cancelled",
+                "Enrollment cancelled. No local enrollment was created.",
+            ),
+            hidden_input::Error::Unavailable => (
+                "enrollment_terminal",
+                "Hidden input is unavailable. Use a normal terminal or --stdin with a secure pipe.",
+            ),
+            hidden_input::Error::Restore => (
+                "enrollment_terminal",
+                "Terminal input could not be restored. Close this terminal and retry. No enrollment was created.",
+            ),
+            hidden_input::Error::Invalid => return input_error(),
+        };
+        Self {
+            code,
+            message: message.to_owned(),
+        }
+    }
 }
 fn origin(value: &str) -> Result<PlatformOrigin, Failure> {
     PlatformOrigin::parse(value).map_err(|_| Failure {
@@ -102,19 +129,31 @@ fn submit(store: EnrollmentStore) -> Result<Report, Failure> {
     let confirmed = store.confirm(receipt.as_bytes())?;
     Ok(report(&confirmed))
 }
-fn execute(command: EnrollmentCommand) -> Result<Report, Failure> {
+fn execute(command: EnrollmentCommand, machine: bool) -> Result<Report, Failure> {
     match command {
         EnrollmentCommand::Start {
             platform,
             state,
-            stdin: _,
+            stdin,
         } => {
             let origin = origin(&platform)?;
             new_state(&state)?;
-            if io::stdin().is_terminal() {
-                return Err(input_error());
-            }
-            let code = read_code(io::stdin().lock())?;
+            let code = if stdin {
+                if io::stdin().is_terminal() {
+                    return Err(input_error());
+                }
+                read_code(io::stdin().lock())?
+            } else {
+                if machine {
+                    return Err(Failure {
+                        code: "enrollment_code",
+                        message: "Use --stdin with --json to read the code from a secure pipe."
+                            .to_owned(),
+                    });
+                }
+                EnrollmentCode::from_secret(hidden_input::enrollment_code()?)
+                    .map_err(|_| input_error())?
+            };
             submit(EnrollmentStore::create(&state, origin, code)?)
         }
         EnrollmentCommand::Retry { platform, state } => {
@@ -148,7 +187,7 @@ fn execute(command: EnrollmentCommand) -> Result<Report, Failure> {
     }
 }
 pub(crate) fn run(command: EnrollmentCommand, machine: bool) -> io::Result<ExitCode> {
-    match execute(command) {
+    match execute(command, machine) {
         Ok(report) => {
             if machine {
                 output::json(&report, io::stdout().lock())?;

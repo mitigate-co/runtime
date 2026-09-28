@@ -7,6 +7,7 @@ mod egress;
 mod enrollment;
 mod gateway;
 mod grants;
+mod hidden_input;
 mod launch;
 mod output;
 mod panic_report;
