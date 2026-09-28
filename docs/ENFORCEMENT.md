@@ -89,6 +89,9 @@ the already verified in-memory policy active and emits one fixed warning per
 failure period. Fresh processes still require valid local stores and a verified
 bundle. `offline` is currently `true`: this gateway has no Platform channel.
 
+See [offline operation and recovery](OFFLINE.md) for cache, restart and unavailable
+approval behavior and the executable outage contract.
+
 Server references use the reviewed `launch_ref`, not a server's claimed name.
 Tool identity hashes `[launch_ref, tool_name]` in the `tool-identity` domain.
 Definition identity hashes the closed object `tool`, `input_schema`,
