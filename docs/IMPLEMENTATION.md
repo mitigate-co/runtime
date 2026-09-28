@@ -165,3 +165,7 @@ including failed TLS, stable retries, duplicate-start refusal and idempotent
 deletion. Interactive hidden input remains separate. See [CLI](ENROLLMENT_CLI.md).
 The full Linux workspace/all-feature suite and strict workspace Clippy passed;
 the staged secret scan found no leaks. Three-OS CI remains the merge gate.
+Initial CLI CI passed Windows/Linux and dependency/privacy gates. macOS stalled
+when the CLI accessed the unsigned example's Keychain item. The macOS fixtures
+now keep native receipt checks in the creating binary and run the actual CLI's
+pending/retry/deletion lifecycle with its own entries; Keychain ACLs stay intact.

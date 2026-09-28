@@ -83,7 +83,9 @@ jobs:
           security default-keychain -d user -s "$keychain"
           target/debug/mitigate-test-mcp secret-contract target/debug/mitigate
           python scripts/verify-policy.py target/debug/mitigate --native
-          cargo run -p mitigate-enrollment --example native_lifecycle --locked -- --allow-native-fixture --cli target/debug/mitigate
+          # Keychain ACLs trust the creating application. Keep the receipt fixture
+          # in its own binary; the following CLI fixture creates its own entries.
+          cargo run -p mitigate-enrollment --example native_lifecycle --locked -- --allow-native-fixture
           node scripts/verify-enrollment-cli.mjs target/debug/mitigate
       - name: Verify native credentials on Linux
         if: runner.os == 'Linux'

@@ -87,3 +87,10 @@ complete TLS, proving no plaintext credential is sent, no implicit retry occurs,
 pending identity survives, and precise/idempotent deletion retains the anchor.
 No external endpoint, real enrollment code or insecure certificate option is used.
 If native cleanup cannot be confirmed, the recovery anchor is retained.
+
+On macOS, omit `--cli target/debug/mitigate` from the native lifecycle example
+unless you intend to approve cross-application Keychain access. The unsigned
+example and CLI have different application identities. macOS CI runs the receipt
+fixture within its creating binary and the actual CLI lifecycle separately, each
+with its own entries. It does not relax Keychain ACLs or automate user approval.
+Signed release upgrades must verify continuity of application identity.
