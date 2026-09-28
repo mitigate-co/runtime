@@ -75,6 +75,12 @@ before transmission, use a timeout shorter than the lease and classify responses
 without passing their bodies into this API. The queue alone does not authenticate
 a destination or authorize any network action.
 
+The pure [event signing contract](SIGNED_EVENTS.md) takes this committed lease and
+checks both partition references before signing. It binds the exact canonical
+body and verifies matching receipt fields without changing the queue. It cannot
+establish current consent, native enrollment, lease validity or durable remote
+acceptance by itself.
+
 `set_paused` prevents new admission/claims. `purge` pauses and removes pending
 bodies and duplicate receipts; it retains the bounded content-free journal and
 counters. Neither can retract bytes already copied into an outstanding lease or

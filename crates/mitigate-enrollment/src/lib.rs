@@ -9,6 +9,7 @@
 
 mod claim;
 mod code;
+pub mod event;
 #[cfg(feature = "https")]
 pub mod https;
 pub mod storage;

@@ -7,6 +7,10 @@ The optional [HTTPS transport](ENROLLMENT_HTTPS.md) sends one explicit verified
 bootstrap request. Enrollment does not enable synchronization. Local MCP
 operation remains independent of Platform.
 
+The pure [signed event contract](SIGNED_EVENTS.md) requires a committed, checked
+outbox lease and binds it to this enrollment and Platform. It does not establish
+confirmed native state, current consent or authority to send.
+
 ## Bootstrap boundary
 
 A user selects one canonical HTTPS Platform origin separately from an enrollment

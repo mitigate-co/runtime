@@ -11,6 +11,19 @@ use zeroize::Zeroizing;
 /// The seed may be exported only into the existing native-store secret owner.
 pub struct EnrollmentKey(SigningKey);
 impl EnrollmentKey {
+    /// Bind a journaled, checked outbox lease to this key, audience and enrollment.
+    /// This pure operation does not establish current lease validity, confirmed
+    /// native enrollment, sync consent or permission to send. The sender owns
+    /// those checks immediately before transmission; Platform owns authorization.
+    pub fn sign_event(
+        &self,
+        origin: &PlatformOrigin,
+        identity: &EnrollmentIdentity,
+        lease: &mitigate_egress::outbox::Lease,
+    ) -> Result<crate::event::SignedEvent, crate::event::Error> {
+        crate::event::SignedEvent::from_lease(&self.0, origin, identity, lease)
+    }
+
     /// Generate a fresh Ed25519 seed using OS randomness.
     pub fn generate() -> Result<Self, Error> {
         let mut seed = Zeroizing::new([0; 32]);

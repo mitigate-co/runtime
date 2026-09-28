@@ -62,7 +62,11 @@ free-form identifiers and local content-derived fingerprints. This is a validati
 component, not a complete egress path. The [local outbox](OUTBOX.md) records fixed
 admission reasons/counts and durably queues only validated candidates, scoped to
 one runtime/enrollment pair. Rejected input, identifiers and input digests are
-never persisted. Enrollment integrity, signing and delivery gates remain open.
+never persisted. The [signed event contract](SIGNED_EVENTS.md) hashes only an
+already validated, journaled event and checks its enrollment partition. Its closed
+envelope adds only version, enrollment reference and signature; no bootstrap
+credential, key or arbitrary metadata. Active delivery and consent composition
+remain required; a signature alone never enables sync.
 
 The [privacy CLI](PRIVACY_COMMANDS.md) injects synthetic content through the actual
 queue admission boundary, checks retained bytes and removes its private fixture.
