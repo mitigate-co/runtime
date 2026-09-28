@@ -261,6 +261,10 @@ fn main() {
                     std::fs::write(&args[4], b"code changed during inventory refresh").unwrap();
                     json!({"tools":[tool("read_status")]})
                 }
+                "relay-gate" if lists > 1 => {
+                    std::fs::write(&args[4], b"stopped during refresh").unwrap();
+                    json!({"tools":[tool("read_status")]})
+                }
                 mode if mode.starts_with("relay-schema") => {
                     let mut definition = tool("read_status");
                     definition["inputSchema"] = json!({"type":"object","properties":{"value":{"type":"integer","minimum":1}},"required":["value"],"additionalProperties":false});

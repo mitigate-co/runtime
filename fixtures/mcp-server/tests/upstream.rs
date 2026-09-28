@@ -1,5 +1,5 @@
 //! Managed real-process relay failures and cancellation, using synthetic payloads.
-use mitigate_mcp::{Error, LaunchConfig, LaunchReview, Progress, StdioServer};
+use mitigate_mcp::{CallFailure, Error, LaunchConfig, LaunchReview, Progress, StdioServer};
 use serde_json::json;
 use std::{
     fs,
@@ -9,6 +9,8 @@ use std::{
 };
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
+
+mod gate;
 
 #[tokio::test]
 async fn input_contract_blocks_invocation_and_valid_input_can_still_run() {
@@ -242,10 +244,18 @@ async fn code_change_during_refresh_is_checked_before_invocation() {
     let mut server = StdioServer::connect_reviewed(&config, &review)
         .await
         .unwrap();
+    let gate_called = std::cell::Cell::new(false);
     assert_eq!(
-        server.call("read_status", json!({}), None).await.err(),
-        Some(Error::LaunchChanged)
+        server
+            .call_with_gate("read_status", json!({}), None, || async {
+                gate_called.set(true);
+                Ok::<(), ()>(())
+            })
+            .await
+            .err(),
+        Some(CallFailure::Upstream(Error::LaunchChanged))
     );
+    assert!(!gate_called.get());
     assert!(!project.0.join("call-marker").exists());
     server.close().await.unwrap();
 }

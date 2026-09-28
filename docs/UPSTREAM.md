@@ -12,6 +12,28 @@ Raw arguments/results are local content. A result may legitimately contain sensi
 
 ## Connection state
 
+`call_with_gate` is the composition boundary for final authorization. It checks
+input/output contracts, validates arguments, refreshes inventory and checks selected
+launch code before invoking an owner-provided asynchronous gate exactly once.
+The gate receives no raw arguments and cannot mutate the pending call or borrow
+its connection. It must recheck policy/grants/controls, consume any approval and
+commit pre-dispatch audit before returning success. Human approval waiting belongs
+before this method; the gate shares the bounded upstream transaction deadline.
+
+A gate refusal returns `CallFailure::Rejected` without sending `tools/call`, and
+the healthy connection remains usable. Validation/transport failures return
+`CallFailure::Upstream`; these may occur before or after dispatch, so owners must
+track their own authorization record and never infer safe replay from this variant.
+Late gate success is refused even when a non-yielding future returns after its
+deadline. Cancellation/timeout while waiting poisons and terminates the connection.
+
+The transport is owned by the request future, never a detached gate/storage worker.
+A storage commit that finishes after cancellation cannot invoke the tool. Its
+approval/quota/audit effects must not be reused or automatically refunded. There
+is no transaction spanning local stores and a child process; committed admission
+can precede a cancelled or uncertain dispatch. Selected code is checked before the
+gate, not locked against privileged concurrent replacement. See ADR 0021.
+
 `inventory()` returns the initial local definitions. `check_inventory()` re-enumerates on the same connection and compares all fingerprints with the initial baseline; a server without tools is pinged instead. `call()` first performs this comparison, then sends the invocation. Added/removed tools, input/output schema edits and normalized description changes fail before a tool call is sent. A list-change notification also invalidates the connection. Review and reconnect to accept a new baseline; this transport never silently updates one.
 
 This is observed consistency, not a guarantee that a malicious server executes its advertised behavior. The server could alter its implementation after enumeration. Later grant/approval binding must also include exact launch identity and reviewed policy facts; the declaration summary fingerprint is insufficient.
