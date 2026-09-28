@@ -191,10 +191,16 @@ No generic client or insecure override is exposed. Delivery does not establish
 durable confirmation or sync consent. See [transport limits](ENROLLMENT_HTTPS.md).
 See [enrollment boundaries](ENROLLMENT.md) and ADR 0027.
 
-The enrollment CLI rejects echoed terminal input and code arguments. It keeps
-pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
+The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
+code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local
 receipt, not fresh remote authorization. Explicit local deletion preserves the
 anchor and does not revoke a remote key. Pipe producers and private parent
 directories remain trusted; this does not protect against a same-user memory
 reader, unsafe shell history or a malicious pipe producer.
+
+Hidden entry owns terminal mode through the entire bounded read, restores the
+exact previous mode on normal completion/cancellation and drains rejected paste
+input before restoring echo. It creates no credential if restoration fails. A
+forced kill or OS/console failure can prevent restoration; closing that terminal
+is then required. No protection against a hostile terminal host is claimed.

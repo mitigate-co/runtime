@@ -12,11 +12,17 @@ origin and a new state filename in an existing private local directory. Keep tha
 path for status and recovery. Do not place codes in arguments, environment
 variables, shell history or plaintext files.
 
-`enroll start --platform ORIGIN --state FILE --stdin` reads one code from a pipe.
-The pipe producer must obtain the secret securely; `echo CODE` is not a safe
-producer. This initial CLI supports piped input only. A terminal connected to
-stdin is rejected rather than accepting an echoed code. Input is bounded to the
-85-byte code with an optional LF or CRLF; other whitespace and extra bytes fail.
+`enroll start --platform ORIGIN --state FILE` prompts for a hidden code. Paste it,
+then press Enter. Backspace removes a character; Ctrl-U clears the entry; Ctrl-C
+or Ctrl-D cancels before any enrollment is created. No characters or asterisks are
+echoed. Invalid or oversized input is drained through Enter while echo stays off.
+The owned input buffer is fixed at 85 bytes and zeroized when released.
+
+Add `--stdin` to read a secure pipe. The pipe producer must obtain the secret
+securely; `echo CODE` is not a safe producer. `--json` requires `--stdin`, keeping
+machine error output free of prompt text. Pipe input accepts the 85-byte code
+with an optional LF or CRLF; other whitespace and extra bytes fail. Interactive
+input requires terminal stdin and stderr; it never falls back to echoed input.
 
 The command stores a fresh key, code and opaque references in the OS-native
 credential broker before sending one verified HTTPS request. The state file
@@ -77,9 +83,10 @@ cargo test -p mitigate-cli --locked
 cargo build -p mitigate-enrollment --example native_lifecycle --locked
 cargo run -p mitigate-enrollment --example native_lifecycle --locked -- --allow-native-fixture --cli target/debug/mitigate
 node scripts/verify-enrollment-cli.mjs target/debug/mitigate
+python scripts/verify-enrollment-terminal.py target/debug/mitigate
 ```
 
-The last two commands deliberately create disposable synthetic native entries and
+The native lifecycle and Node commands create disposable synthetic native entries and
 require an unlocked native store. Append `.exe` to the CLI path on Windows. CI uses
 isolated macOS/Linux keyrings. The native fixture proves pending/confirmed restart
 and local confirmed retry. The CLI fixture uses a loopback endpoint that cannot
@@ -94,3 +101,15 @@ example and CLI have different application identities. macOS CI runs the receipt
 fixture within its creating binary and the actual CLI lifecycle separately, each
 with its own entries. It does not relax Keychain ACLs or automate user approval.
 Signed release upgrades must verify continuity of application identity.
+
+The terminal fixture uses POSIX PTYs or Windows ConPTY and only synthetic input.
+It checks normal/edited input, over-limit pastes, invalid Unicode, cancellation,
+no secret echo and exact mode restoration in a parent observer. Even a valid code
+stops at an intentionally missing parent directory, before native storage/network.
+
+Keyboard cancellation and ordinary errors restore the original terminal mode.
+An OS failure to restore it returns an error before enrollment; close that terminal
+before retrying. SIGKILL, process abort, console closure and external termination
+cannot guarantee restoration. Standard-library and OS input buffers are outside
+the owned-buffer zeroization guarantee. A same-user process can inspect memory or
+the terminal. See [prompt decision and dependency review](decisions/0030-hidden-enrollment-input.md).

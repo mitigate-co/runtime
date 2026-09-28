@@ -7,7 +7,7 @@ Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAN
 | Task | Command | Side effect |
 | --- | --- | --- |
 | Check installed version | `mitigate version` | None |
-| Connect to an organization | `mitigate enroll start --platform ORIGIN --state NEW_FILE --stdin` | Saves a native credential, sends one HTTPS enrollment proof; sync stays off; [setup and recovery](ENROLLMENT_CLI.md) |
+| Connect to an organization | `mitigate enroll start --platform ORIGIN --state NEW_FILE` | Prompts for a hidden code, saves a native credential, sends one HTTPS proof; sync stays off; [setup and recovery](ENROLLMENT_CLI.md) |
 | Recover enrollment | `mitigate enroll retry --platform ORIGIN --state FILE` | Sends the original pending proof, or returns a confirmed local receipt |
 | Inspect enrollment | `mitigate enroll status --platform ORIGIN --state FILE` | Reads local state and native receipt; no network |
 | Remove enrollment credential | `mitigate enroll forget --platform ORIGIN --state FILE --confirm` | Deletes the exact native entry; retains the anchor; does not revoke remote access |
@@ -51,6 +51,9 @@ For report commands, `--json` can appear before or after the command. It emits o
 `--fail-on-risk` on scan/inspect returns 3 when any review flag exists. `--fail-on-change` on diff returns 3 for any fingerprint change. The complete success report is still printed. Input errors take precedence and return 2 without a partial report. These switches are automation signals, not policy enforcement. A consumer closing stdout early is a normal broken pipe and returns 0.
 
 Every error JSON has exactly `schema_version: 1`, a fixed `error` code and a `message` with fixed corrective guidance. Parser failures use `cli_invalid_arguments` without echoing invalid values or paths. Avoid credentials in command arguments: shell history and process listings are outside this output guarantee.
+
+`enroll start --json` requires `--stdin` and a secure pipe. Interactive code entry
+uses a hidden terminal prompt only in human mode, so machine output stays closed.
 
 ## Success contracts
 

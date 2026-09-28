@@ -187,8 +187,14 @@ TLS/HTTP/OS buffers are not promised to be erased. The transport does not persis
 confirmation, enable sync or admit bootstrap material as telemetry.
 
 The explicit [enrollment CLI](ENROLLMENT_CLI.md) composes native persistence and
-HTTPS while holding the operation lock. Its bounded pipe input never accepts a
-code argument or environment fallback. Errors do not echo input; status and
-confirmed retry are local. Removing a credential requires explicit intent and
+HTTPS while holding the operation lock. Its bounded pipe or hidden terminal input
+never accepts a code argument or environment fallback. Errors do not echo input;
+status and confirmed retry are local. Removing a credential requires explicit intent and
 does not claim remote revocation. Enrollment reports describe only local receipt
 state and keep synchronization off.
+
+Hidden input disables terminal echo before showing the prompt, reads a fixed
+85-byte owned buffer and restores the original mode before creating credentials.
+Keyboard cancellation is handled as input, so normal cleanup still runs. Input
+buffers owned by std/OS and forced process termination remain outside these
+zeroization/restoration guarantees. Machine output requires explicit piped input.

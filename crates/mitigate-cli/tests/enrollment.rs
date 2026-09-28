@@ -38,6 +38,19 @@ fn invalid_enrollment_requests_never_echo_input_or_reach_native_storage() {
                 "enroll",
                 "start",
                 "--platform",
+                "https://mitigate.example",
+                "--state",
+                path,
+                "--json",
+            ],
+            code.as_bytes(),
+            "enrollment_code",
+        ),
+        (
+            vec![
+                "enroll",
+                "start",
+                "--platform",
                 "http://secret-canary.invalid",
                 "--state",
                 path,
@@ -101,4 +114,21 @@ fn invalid_enrollment_requests_never_echo_input_or_reach_native_storage() {
         assert!(!text.contains(path));
         assert!(!missing.exists());
     }
+    let output = run(
+        &[
+            "enroll",
+            "start",
+            "--platform",
+            "https://mitigate.example",
+            "--state",
+            path,
+        ],
+        b"secret-canary",
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    let message = String::from_utf8(output.stderr).unwrap();
+    assert!(message.contains("Hidden input is unavailable"));
+    assert!(!message.contains("secret-canary"));
+    assert!(!missing.exists());
 }

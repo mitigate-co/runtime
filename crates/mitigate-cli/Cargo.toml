@@ -31,5 +31,11 @@ clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "=1.1.5", default-features = false, features = ["std", "stdio", "termios"] }
+
+[target.'cfg(windows)'.dependencies]
+crossterm_winapi = "=0.9.1"
+
 [lints]
 workspace = true

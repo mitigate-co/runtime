@@ -74,7 +74,9 @@ Secure orchestration must persist pending material through the OS-native broker
 proof. Receipt validation alone does not mark any state durable or enable a sender.
 The native lifecycle implements that ordering and exact recovery. The optional
 HTTPS component validates one bounded response, while the caller still owns
-durable confirmation. Command UI and signed telemetry remain subsequent slices.
+durable confirmation. The [enrollment CLI](ENROLLMENT_CLI.md) composes these
+operations with hidden entry and explicit recovery. Signed telemetry remains a
+subsequent slice.
 This library alone does not complete MCP-018.
 
 Zeroization does not protect against same-user/root memory access, crash dumps,

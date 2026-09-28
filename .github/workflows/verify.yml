@@ -41,6 +41,7 @@ jobs:
         run: |
           cli=target/debug/mitigate
           if [ "$RUNNER_OS" = Windows ]; then cli="$cli.exe"; fi
+          python scripts/verify-enrollment-terminal.py "$cli"
           cargo run --locked -p mitigate-mcp-fixture -- cli-contract "$cli"
           cargo run --locked -p mitigate-mcp-fixture -- gateway-contract "$cli"
           cargo run --locked -p mitigate-mcp-fixture -- audit-contract "$cli"
