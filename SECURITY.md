@@ -6,7 +6,9 @@ Mitigate treats security and privacy failures as product failures.
 
 Do not open public issues for exploitable vulnerabilities or sensitive reports.
 
-The production repository should publish a dedicated security contact and `security.txt` before launch. Until then, repository owners must configure a private GitHub security advisory workflow.
+Use [GitHub private vulnerability reporting](https://github.com/mitigate-co/runtime/security/advisories/new). It is enabled for this repository. Include a synthetic reproduction, affected commit/version, impact and suggested mitigation; exclude customer data and live credentials.
+
+A dedicated security contact and `security.txt` remain production launch requirements. No production release is supported yet.
 
 ## Scope priorities
 
