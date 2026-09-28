@@ -7,6 +7,8 @@ Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAN
 | Task | Command | Side effect |
 | --- | --- | --- |
 | Check installed version | `mitigate version` | None |
+| Verify privacy admission | `mitigate privacy self-test` | Creates/removes a private synthetic temporary queue; no network; [details](PRIVACY_COMMANDS.md) |
+| Inspect egress fields | `mitigate egress inspect` | Lists supported closed event fields; optional scoped queue inspection is read-only |
 | Validate Runtime limits | `mitigate config check --config FILE` | Reads one local file |
 | Find declarations | `mitigate mcp scan --root PROJECT` | Reads documented project configs; no execution/network |
 | Review configuration flags | Add `--details` to scan | Same read-only scope |
@@ -37,7 +39,7 @@ For report commands, `--json` can appear before or after the command. It emits o
 | Exit | Meaning |
 | --- | --- |
 | `0` | Completed, including empty inventories and findings under default behavior |
-| `1` | Output could not be written |
+| `1` | Output could not be written, or privacy self-test completed with a failed assertion |
 | `2` | Invalid arguments/configuration, unavailable input, MCP failure, cancellation, incompatible snapshot or stale override |
 | `3` | Completed with findings, when the caller requested a findings exit |
 

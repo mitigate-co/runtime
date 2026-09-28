@@ -19,7 +19,7 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-013 — Approvals | Merged | PR #14, main `60fc055`. One-call binding, local decisions, atomic consumption, expiry/revocation/cancellation and bounded storage. Approval, CLI/privacy, full Windows/macOS/Linux and dependency/secret gates passed. Live enforcing-call composition remains a launch gate. |
 | MCP-014 — Kill switch and limits | Merged | Controls PR #15, governance PR #20 and exact-reference setup PR #21, main `72e68fe`. Governed calls enforce stops/targets/quotas alongside policy/grants/approvals and required audit. Both final CI runs passed all three operating systems and security gates. |
 | MCP-015 — Offline behavior | In verification | PR #22 verifies cached allow/deny and unavailable approvals with actual processes. The durable outbox validates candidates before persistence and isolates optional delivery state from local authority; final cross-OS gates remain required. |
-| MCP-016 — Privacy boundary | Closed event and queue components in verification | PR #23 defines the closed candidate. Queue admission now records fixed rejection reasons without source content. `privacy self-test` and `egress inspect` CLI integration remain open. |
+| MCP-016 — Privacy boundary | CLI and boundary in verification | PR #23 defines the closed candidate, PR #24 the durable admission journal. `privacy self-test` rejects 147 synthetic candidates through real admission; `egress inspect` uses read-only scoped inspection. Full actual-CLI cross-OS verification and later enrolled integrity remain required. |
 | MCP-017 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
@@ -95,3 +95,10 @@ and failed commits, concurrent leases, stale acknowledgements, bounded retry/
 retention, corrupt state and rejection-canary exclusion. It has no sender or
 automatic gateway producer. See [outbox contract](OUTBOX.md); cross-OS/security
 CI remains required before merge and milestone completion.
+
+The privacy CLI slice adds a 147-candidate probe through actual outbox admission
+and a read-only scoped inspector. Twenty-seven local Windows egress/storage/probe
+tests, the compile-fail check, strict crate lint, executable probe, advisory audit,
+license/source checks and Gitleaks passed. Full CLI checking is blocked locally
+by the missing MSVC Spectre libraries; actual subprocess tests are required in
+all three OS CI runs and are not yet reported as passed.

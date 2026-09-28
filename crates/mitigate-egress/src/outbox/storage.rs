@@ -17,6 +17,17 @@ pub struct Outbox {
     pub(super) test_time: Option<u64>,
 }
 impl Outbox {
+    /// Inspect an existing store through a read-only SQLite connection. Performs
+    /// no maintenance, file creation, schema change or write-journal recovery.
+    pub fn inspect_file(path: &Path, partition: Partition) -> Result<Report, Error> {
+        let mut store = Self {
+            conn: db::readonly(path)?,
+            partition,
+            #[cfg(test)]
+            test_time: None,
+        };
+        store.inspect()
+    }
     #[cfg(test)]
     pub(super) fn connection(&self) -> &Connection {
         &self.conn

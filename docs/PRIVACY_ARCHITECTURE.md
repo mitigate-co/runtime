@@ -64,6 +64,11 @@ admission reasons/counts and durably queues only validated candidates, scoped to
 one runtime/enrollment pair. Rejected input, identifiers and input digests are
 never persisted. Enrollment integrity, signing and delivery gates remain open.
 
+The [privacy CLI](PRIVACY_COMMANDS.md) injects synthetic content through the actual
+queue admission boundary, checks retained bytes and removes its private fixture.
+The inspector opens existing queues read-only and distinguishes supported fields
+from observed queue state. Neither command sends telemetry or claims certification.
+
 ## Provider/tool traffic is different
 
 If the customer tells Mitigate Gateway to call an upstream MCP server, payloads necessarily travel to that customer-approved server. That is customer workload traffic, not Mitigate Platform telemetry.

@@ -522,3 +522,37 @@ fn maximum_capacity_can_be_verified_claimed_and_purged_within_work_limits() {
     store.purge().unwrap();
     assert_eq!(store.inspect().unwrap().pending, 0);
 }
+
+#[test]
+fn inspection_is_read_only_and_never_repairs_or_prunes_retained_state() {
+    let fixture = Fixture::new();
+    let mut store = fixture.store(Limits {
+        max_events: 1,
+        max_age_ms: 1000,
+    });
+    store.admit(&event('1')).unwrap();
+    drop(store);
+    let before = fs::read(fixture.db()).unwrap();
+    let report = Outbox::inspect_file(&fixture.db(), partition()).unwrap();
+    assert_eq!(report.pending, 1); // The historical fixture time is expired today.
+    assert_eq!(fs::read(fixture.db()).unwrap(), before);
+    assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 1);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(fixture.db(), fs::Permissions::from_mode(0o400)).unwrap();
+        assert_eq!(
+            Outbox::inspect_file(&fixture.db(), partition())
+                .unwrap()
+                .pending,
+            1
+        );
+        fs::set_permissions(fixture.db(), fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    let missing = fixture.0.join("missing");
+    assert!(matches!(
+        Outbox::inspect_file(&missing, partition()),
+        Err(Error::Path)
+    ));
+    assert!(!missing.exists());
+}

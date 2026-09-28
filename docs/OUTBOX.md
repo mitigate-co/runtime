@@ -115,5 +115,5 @@ removes only its own fixture directory. It performs no network or credential I/O
 Tests additionally cover clock rollback, disk-full/commit failures, exact capacity,
 lease expiry, concurrent workers, stale acknowledgements, permanent rejection,
 bounded backoff/journal/receipts, invalid stored content/schema and private paths.
-CLI `egress inspect`/`privacy self-test` are the next MCP-016 integration; optional
-authenticated Platform delivery remains MCP-018 work.
+[CLI inspection and privacy self-test](PRIVACY_COMMANDS.md) exercise this boundary
+without a sender. Optional authenticated Platform delivery remains MCP-018 work.

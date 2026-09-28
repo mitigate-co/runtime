@@ -18,6 +18,8 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
       - run: cargo run -p mitigate-egress --example outbox --locked
+      - run: cargo run --locked -- privacy self-test --json
+      - run: cargo run --locked -- egress inspect --json
       - run: cargo run --locked -- version --json
       - run: cargo run --locked -- config check --config examples/runtime.json --json
       - run: cargo run --locked -- mcp scan --root examples/scanner-project --json

@@ -88,6 +88,17 @@ Use `--details` for full human reports, or `--json` for the versioned machine co
 
 ## Verify
 
+Run the [privacy self-test and egress inspector](docs/PRIVACY_COMMANDS.md) locally:
+
+```sh
+cargo run --locked -- privacy self-test --json
+cargo run --locked -- egress inspect --json
+```
+
+The self-test uses an isolated synthetic queue and sends nothing. The inspector
+shows exact supported fields and optional retained queue diagnostics. This build
+has no Platform sender; accepted queue events do not imply cloud delivery.
+
 The [gateway reference](docs/GATEWAY.md) documents `mcp serve --launch-config FILE --allow-exec --inventory-only`, its local protocol and explicit caller profiles. It lists real upstream definitions while disabling tool calls. Exercise the complete CLI with `cargo run --locked -p mitigate-mcp-fixture -- gateway-contract target/debug/mitigate` (append `.exe` on Windows after building both binaries). Full gateway enforcement remains in development.
 
 ```sh

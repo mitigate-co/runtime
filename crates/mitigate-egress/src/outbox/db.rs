@@ -33,6 +33,12 @@ pub(super) fn create_file(path: &Path) -> Result<(), Error> {
         .map_err(|_| Error::Storage)
 }
 pub(super) fn connect(path: &Path) -> Result<Connection, Error> {
+    open(path, false)
+}
+pub(super) fn readonly(path: &Path) -> Result<Connection, Error> {
+    open(path, true)
+}
+fn open(path: &Path, readonly: bool) -> Result<Connection, Error> {
     let metadata = fs::symlink_metadata(path).map_err(|_| Error::Path)?;
     if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > MAX_FILE {
         return Err(Error::Path);
@@ -56,8 +62,11 @@ pub(super) fn connect(path: &Path) -> Result<Connection, Error> {
     }
     let conn = Connection::open_with_flags(
         path.canonicalize().map_err(|_| Error::Path)?,
-        OpenFlags::SQLITE_OPEN_READ_WRITE
-            | OpenFlags::SQLITE_OPEN_NO_MUTEX
+        (if readonly {
+            OpenFlags::SQLITE_OPEN_READ_ONLY
+        } else {
+            OpenFlags::SQLITE_OPEN_READ_WRITE
+        }) | OpenFlags::SQLITE_OPEN_NO_MUTEX
             | OpenFlags::SQLITE_OPEN_NOFOLLOW,
     )?;
     conn.busy_timeout(Duration::from_millis(250))?;
@@ -74,7 +83,16 @@ pub(super) fn connect(path: &Path) -> Result<Connection, Error> {
         conn.set_limit(limit, value)?;
     }
     budget(&conn)?;
-    conn.execute_batch("PRAGMA page_size=4096; PRAGMA auto_vacuum=FULL; PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; PRAGMA secure_delete=ON; PRAGMA temp_store=MEMORY; PRAGMA cache_size=-2048; PRAGMA max_page_count=4096;")?;
+    if readonly {
+        conn.execute_batch(
+            "PRAGMA query_only=ON; PRAGMA temp_store=MEMORY; PRAGMA cache_size=-2048;",
+        )?;
+        if conn.query_row("PRAGMA journal_mode", [], |r| r.get::<_, String>(0))? != "delete" {
+            return Err(Error::Integrity);
+        }
+    } else {
+        conn.execute_batch("PRAGMA page_size=4096; PRAGMA auto_vacuum=FULL; PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; PRAGMA secure_delete=ON; PRAGMA temp_store=MEMORY; PRAGMA cache_size=-2048; PRAGMA max_page_count=4096;")?;
+    }
     if conn.query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0))? != 4096
         || conn.query_row("PRAGMA auto_vacuum", [], |r| r.get::<_, i64>(0))? != 1
     {
