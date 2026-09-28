@@ -18,6 +18,11 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
+    /// Connect this Runtime to an organization without enabling telemetry.
+    Enroll {
+        #[command(subcommand)]
+        command: EnrollmentCommand,
+    },
     /// Look up attributed public facts; never install servers or change grants.
     Registry {
         #[command(subcommand)]
@@ -49,6 +54,52 @@ pub(crate) enum Command {
     Mcp {
         #[command(subcommand)]
         command: McpCommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum EnrollmentCommand {
+    /// Save a new native identity, then send its one-use enrollment proof over HTTPS.
+    Start {
+        /// Canonical HTTPS Platform origin, without a path or trailing slash.
+        #[arg(long)]
+        platform: String,
+        /// New enrollment file in an existing private local directory.
+        #[arg(long)]
+        state: PathBuf,
+        /// Read the code from a pipe; never supply it as an argument or environment variable.
+        #[arg(long, required = true)]
+        stdin: bool,
+    },
+    /// Recover a pending request using its original code and identity.
+    Retry {
+        /// Original canonical HTTPS Platform origin.
+        #[arg(long)]
+        platform: String,
+        /// Existing enrollment file.
+        #[arg(long)]
+        state: PathBuf,
+    },
+    /// Inspect the local enrollment receipt without contacting Platform.
+    Status {
+        /// Original canonical HTTPS Platform origin.
+        #[arg(long)]
+        platform: String,
+        /// Existing enrollment file.
+        #[arg(long)]
+        state: PathBuf,
+    },
+    /// Delete this native enrollment credential; does not revoke Platform access.
+    Forget {
+        /// Original canonical HTTPS Platform origin.
+        #[arg(long)]
+        platform: String,
+        /// Existing enrollment file, retained to prevent concurrent reuse.
+        #[arg(long)]
+        state: PathBuf,
+        /// Confirm deletion of the local key and pending code/receipt.
+        #[arg(long, required = true)]
+        confirm: bool,
     },
 }
 

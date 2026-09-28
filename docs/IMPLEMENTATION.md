@@ -153,4 +153,15 @@ by a parent test), all 27 Windows enrollment tests and two enrollment compile-fa
 checks, strict workspace/crate Clippy, and the real Windows native-store fixture
 with HTTPS enabled. The fresh advisory audit covered 310 locked external packages;
 all-feature license/source/bans checks passed with reviewed duplicate-version
-warnings. No existing external version changed. Three-OS CI remains required.
+warnings. No existing external version changed. Both complete Windows/macOS/Linux
+and security CI runs passed before HTTPS PR #29 merged at `30e1944`.
+
+The enrollment CLI now composes explicit start, retry, local status and precise
+credential deletion. Pending proof is persisted before HTTPS and retained on
+failure; confirmed retry is local. A bounded pipe keeps codes out of arguments
+and fixed diagnostics. No external dependency/version is added by the CLI slice.
+Actual-binary validation and an isolated Linux native-store demonstration passed,
+including failed TLS, stable retries, duplicate-start refusal and idempotent
+deletion. Interactive hidden input remains separate. See [CLI](ENROLLMENT_CLI.md).
+The full Linux workspace/all-feature suite and strict workspace Clippy passed;
+the staged secret scan found no leaks. Three-OS CI remains the merge gate.

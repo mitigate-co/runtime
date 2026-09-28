@@ -185,3 +185,10 @@ ambient proxies, bounded deadlines/response and fixed errors. Dependency `log`
 output is compiled out. Mitigate-owned claim/receipt buffers zeroize; third-party
 TLS/HTTP/OS buffers are not promised to be erased. The transport does not persist
 confirmation, enable sync or admit bootstrap material as telemetry.
+
+The explicit [enrollment CLI](ENROLLMENT_CLI.md) composes native persistence and
+HTTPS while holding the operation lock. Its bounded pipe input never accepts a
+code argument or environment fallback. Errors do not echo input; status and
+confirmed retry are local. Removing a credential requires explicit intent and
+does not claim remote revocation. Enrollment reports describe only local receipt
+state and keep synchronization off.

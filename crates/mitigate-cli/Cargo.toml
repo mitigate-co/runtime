@@ -12,6 +12,7 @@ name = "mitigate"
 path = "src/main.rs"
 
 [dependencies]
+mitigate-enrollment = { path = "../mitigate-enrollment", version = "0.1.0", features = ["https"] }
 mitigate-registry = { path = "../mitigate-registry", version = "0.1.0" }
 mitigate-egress = { path = "../mitigate-egress", version = "0.1.0" }
 mitigate-policy = { path = "../mitigate-policy", version = "0.1.0" }
