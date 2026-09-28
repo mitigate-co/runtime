@@ -75,6 +75,8 @@ Local snapshots separate identity, schema, description and server-fact changes. 
 
 Regression evidence: discovery privacy fixtures, subprocess protocol/lifecycle canaries, snapshot drift tests and classification poisoning/stale-override tests. OS-native secret storage, grants, approvals, audit, egress firewall and signed releases remain later gates.
 
+Windows cleanup additionally checks actual job membership, rather than treating any completion-port message as success. A reviewed source patch and deterministic cancellation regression cover the upstream wait defect found in CI; see ADR 0009. This does not widen permissions or change the local execution boundary.
+
 ## Known limitations
 
 - A local admin/root user can usually tamper with local security software.
