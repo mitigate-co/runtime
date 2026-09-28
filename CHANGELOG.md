@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — scanner sources
+
+- Read-only discovery of Claude Code and Cursor repository configurations with human and JSON output.
+- Report configuration risks without launching servers, expanding variables, opening referenced files, or transmitting data.
+- Reject ambiguous, malformed, oversized and linked configuration sources; exclude credentials, raw arguments and URL paths from reports.
+
 ## Unreleased
 
 - Add standalone `mitigate version` and strict `mitigate config check` commands.

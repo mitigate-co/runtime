@@ -134,6 +134,88 @@ fn rejects_missing_directory_and_oversized_configuration() {
     }
 }
 
+#[test]
+fn scanner_reports_scope_and_fixture_without_an_account() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/scanner-project");
+    for json in [false, true] {
+        let mut args = vec!["mcp", "scan", "--root", root.to_str().unwrap()];
+        if json {
+            args.push("--json");
+        }
+        let result = cli(&args);
+        assert!(result.status.success());
+        assert!(result.stderr.is_empty());
+        let output = String::from_utf8(result.stdout).unwrap();
+        assert!(!output.contains("EXAMPLE_TOKEN"));
+        assert!(!output.contains("this-command-is-never-executed"));
+        assert!(!output.contains("/customer/workspace"));
+        if json {
+            let report: Value = serde_json::from_str(&output).unwrap();
+            assert_eq!(report["schema_version"], 1);
+            assert_eq!(report["sources"].as_array().unwrap().len(), 2);
+            assert_eq!(report["servers"].as_array().unwrap().len(), 3);
+        } else {
+            assert!(output.contains("No servers started or contacted"));
+        }
+    }
+    let empty = Fixture::new();
+    let result = cli(&["mcp", "scan", "--root", empty.0.to_str().unwrap(), "--json"]);
+    assert!(result.status.success());
+    let report: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(report["servers"], serde_json::json!([]));
+    assert!(
+        report["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| s["present"] == false)
+    );
+}
+
+#[test]
+fn scanner_errors_and_custom_limits_have_stable_exit_contracts() {
+    let fixture = Fixture::new();
+    let config = fixture.file(br#"{"schema_version":1,"scan":{"max_servers":1}}"#);
+    fs::write(
+        fixture.0.join(".mcp.json"),
+        br#"{"mcpServers":{"one":{"command":"npx"},"two":{"command":"npx"}}}"#,
+    )
+    .unwrap();
+    let result = cli(&[
+        "mcp",
+        "scan",
+        "--root",
+        fixture.0.to_str().unwrap(),
+        "--runtime-config",
+        config.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(result.status.code(), Some(2));
+    assert!(result.stdout.is_empty());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&result.stderr).unwrap()["error"],
+        "scan_server_limit"
+    );
+    fs::write(
+        fixture.0.join(".mcp.json"),
+        br#"{"mcpServers":{"private-canary-value":{"command":42}}}"#,
+    )
+    .unwrap();
+    for json in [false, true] {
+        let mut args = vec!["mcp", "scan", "--root", fixture.0.to_str().unwrap()];
+        if json {
+            args.push("--json");
+        }
+        let result = cli(&args);
+        assert_eq!(result.status.code(), Some(2));
+        assert!(result.stdout.is_empty());
+        let error = String::from_utf8(result.stderr).unwrap();
+        assert!(!error.contains("private-canary-value"));
+        assert!(!error.contains(fixture.0.to_str().unwrap()));
+        assert!(error.contains("scan_invalid_server"));
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn refuses_symlink_configuration() {

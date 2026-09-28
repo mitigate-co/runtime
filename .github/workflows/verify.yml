@@ -18,6 +18,7 @@ jobs:
       - run: cargo test --workspace --locked
       - run: cargo run --locked -- version --json
       - run: cargo run --locked -- config check --config examples/runtime.json --json
+      - run: cargo run --locked -- mcp scan --root examples/scanner-project --json
   dependencies:
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -11,9 +11,11 @@ Install Rust through rustup. The repository pins its toolchain and lockfile.
 ```sh
 cargo run --locked -- version
 cargo run --locked -- config check --config examples/runtime.json --json
+cargo run --locked -- mcp scan --root examples/scanner-project
+cargo run --locked -- mcp scan --root examples/scanner-project --json
 ```
 
-These commands work without an account, credentials, or a network connection once build dependencies are available. [Configuration v1](docs/CONFIGURATION.md) documents limits, errors and output. Scanner and gateway commands are being implemented in the ordered MCP work packages; they are not available in this foundation commit.
+These commands work without an account, credentials, or a network connection once build dependencies are available. The scanner reads two documented project configuration locations without launching or contacting servers. Replace the fixture root with your project directory to inspect its declarations. [Scanner scope and output](docs/SCANNER.md) explains what is checked and excluded; [configuration v1](docs/CONFIGURATION.md) documents resource limits. Tool enumeration and the gateway are not available yet.
 
 ## Verify
 
