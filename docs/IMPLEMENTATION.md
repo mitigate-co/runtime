@@ -20,8 +20,9 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-014 — Kill switch and limits | Merged | Controls PR #15, governance PR #20 and exact-reference setup PR #21, main `72e68fe`. Governed calls enforce stops/targets/quotas alongside policy/grants/approvals and required audit. Both final CI runs passed all three operating systems and security gates. |
 | MCP-015 — Offline behavior | Local authority and safe queue merged | PR #22 at `def9772` and PR #24 at `e952779` passed final Windows/macOS/Linux and security CI. Cached policy and unavailable approvals remain local; the durable queue validates before persistence. Enrolled delivery remains MCP-018 work. |
 | MCP-016 — Privacy boundary | Local boundary and CLI merged | PR #23 at `22244f5`, PR #24 at `e952779` and PR #25 at `2ef62f0` passed final Windows/macOS/Linux and security CI. The 147-candidate privacy self-test and read-only scoped inspector work with real storage. Enrolled integrity remains MCP-018 work. |
-| MCP-017 — Registry v0 | Runtime contract/client in verification | Closed source-attributed catalogs and explicit offline CLI lookup; conflicting claims and stale/unknown status remain visible. Hosted import/API/UI in private Platform are still open. |
-| MCP-018 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
+| MCP-017 — Registry v0 | Runtime contract/client merged | PR #26, main `768a4e0`; final cross-platform/security CI passed. Closed source-attributed catalogs and offline CLI lookup preserve conflicts and stale/unknown status. Hosted integration remains a separate gate. |
+| MCP-018 — Optional Platform sync | Enrollment proof in verification | Pure bounded Ed25519 claim and exact receipt validation. Native enrollment lifecycle, HTTPS delivery, signed event ingest and fleet composition remain open. |
+| MCP-019 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
 
@@ -106,7 +107,24 @@ by the missing MSVC Spectre libraries; both final main-based Windows/macOS/Linux
 The Runtime registry slice adds a closed bounded public import contract and
 `registry lookup --catalog FILE --subject NAMESPACE/SERVER`. Eight local
 Windows hostile/provenance/resource tests, strict crate lint and the standalone
-synthetic lookup demonstration passed. Four actual CLI tests passed initial Windows/macOS/Linux CI; final main-based verification remains required
-in CI while the local Spectre dependency is unavailable. No new external
+synthetic lookup demonstration passed. Four actual CLI tests and final main-based
+Windows/macOS/Linux/security CI passed before PR #26 merged. No new external
 dependency/version, online lookup or authorization input was added. See
 [registry contract](REGISTRY.md); hosted work belongs in private Platform.
+
+The enrollment protocol slice adds a secret-owned one-use code, canonical HTTPS
+audience, fresh Ed25519 key and independent opaque references, closed bounded
+claim, and exact receipt validation. Six hostile/protocol/privacy tests and two
+compile-fail API checks cover malformed codes, ambiguous origins, field tampering,
+lost-response identity restoration and prohibited event admission. Independent
+Node/OpenSSL reproduction and the executable Rust fixture are CI contracts. See
+[enrollment](ENROLLMENT.md) and ADR 0027. No network/native-store side effects or
+automatic sync activation are implemented by this component.
+
+Local enrollment verification passed all 246 Linux workspace tests with zero
+failures/ignored tests, strict workspace Clippy, the independent Node/OpenSSL
+fixture comparison, advisory audit and license/source/bans checks. The reviewed
+base64 codec adds no runtime transitive dependencies and only its `alloc` feature
+is enabled. The actual Platform verifier accepted the Rust synthetic output and
+rejected a changed audience and all six individually mutated fields. Three-OS/
+native-store/executable CI remains required for merge.

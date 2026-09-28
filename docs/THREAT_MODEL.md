@@ -169,3 +169,13 @@ The MCP-007 listener additionally rejects ambiguous envelopes, reused IDs and ou
 - MCP clients bypassing the gateway are discovered only where scanner visibility exists.
 - Tool capability classification can be incomplete or wrong; explicit admin decisions override assisted inference.
 - Open-source auditability does not by itself guarantee the shipped binary matches source; provenance/reproducibility addresses that gap.
+
+Optional enrollment binds a grant, random token digest, public key, opaque
+references and exact HTTPS origin in an Ed25519 transcript. Cross-origin/changed
+claim replay cannot preserve the proof. Platform must validate grant authority,
+expiry/revocation and possession; Runtime must authenticate HTTPS and retain the
+same identity after an uncertain response. Closed receipt validation is not TLS,
+hardware attestation or ongoing authorization. The pure protocol neither sends
+requests nor enables sync, and bootstrap credentials cannot be admitted as normal
+telemetry. Native persistence and delivery remain separate implementation gates.
+See [enrollment boundaries](ENROLLMENT.md) and ADR 0027.
