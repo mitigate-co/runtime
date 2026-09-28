@@ -89,6 +89,16 @@ mitigate
 
 Do not create sidecars for convenience.
 
+## Implemented local control store
+
+MCP-014 adds a customer-side SQLite control store in `mitigate-policy`: emergency
+stop, exact target disables, persistent deterministic quotas and bounded local
+administrator history. A transaction commits all matched quota deductions before
+returning admission. The operator CLI and gateways can share that store without
+process-local quota resets. Passing controls does not satisfy grants, policy,
+approval or audit; the executable remains inventory-only until that composition
+passes its gates. See [control boundaries](CONTROLS.md) and ADR 0017.
+
 ## Platform architecture
 
 Keep the first Platform implementation simple:

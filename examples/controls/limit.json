@@ -1,0 +1,5 @@
+{
+  "action": "set_limit",
+  "target": { "kind": "global" },
+  "rate": { "capacity": 10, "refill_tokens": 10, "period_ms": 60000 }
+}

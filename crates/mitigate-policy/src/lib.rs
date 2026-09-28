@@ -2,6 +2,7 @@
 //! credentials enter the interpreter. Policy source never enters diagnostics.
 pub mod approvals;
 mod bundle;
+pub mod controls;
 mod files;
 pub mod grants;
 mod input;

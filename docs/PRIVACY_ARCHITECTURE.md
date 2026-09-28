@@ -116,3 +116,13 @@ Every release runs synthetic privacy fixtures against:
 - error reporting.
 
 Any fixture leakage is a release blocker.
+
+## Implemented local control metadata
+
+The MCP-014 control database stores exact hashed references, numeric quota state,
+fixed administrator actions, revisions/timestamps and declared operator references.
+It has no arguments, results, descriptions, credential values, free-form notes or
+generic metadata. Its CLI accepts only closed bounded documents, rejects unknown
+fields and prints fixed errors without input/path/backend echoes. Local control
+reports are not Platform telemetry contracts and must not be forwarded as such.
+See [storage, retention and trust limits](CONTROLS.md).
