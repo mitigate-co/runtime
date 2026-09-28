@@ -21,7 +21,7 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-015 — Offline behavior | Local authority and safe queue merged | PR #22 at `def9772` and PR #24 at `e952779` passed final Windows/macOS/Linux and security CI. Cached policy and unavailable approvals remain local; the durable queue validates before persistence. Enrolled delivery remains MCP-018 work. |
 | MCP-016 — Privacy boundary | Local boundary and CLI merged | PR #23 at `22244f5`, PR #24 at `e952779` and PR #25 at `2ef62f0` passed final Windows/macOS/Linux and security CI. The 147-candidate privacy self-test and read-only scoped inspector work with real storage. Enrolled integrity remains MCP-018 work. |
 | MCP-017 — Registry v0 | Runtime contract/client merged | PR #26, main `768a4e0`; final cross-platform/security CI passed. Closed source-attributed catalogs and offline CLI lookup preserve conflicts and stale/unknown status. Hosted integration remains a separate gate. |
-| MCP-018 — Optional Platform sync | Enrollment proof merged; native lifecycle in verification | PR #27 at `77e8133` passed all five gates in both three-OS/security CI runs. Native pending/confirmed recovery now has explicit locked ownership and failure tests. HTTPS delivery, signed event ingest and fleet composition remain open. |
+| MCP-018 — Optional Platform sync | Protocol/native lifecycle merged; HTTPS in verification | PR #27 at `77e8133` and PR #28 at `f567bc4` passed all five gates in both three-OS/security CI runs. Native recovery and explicit verified HTTPS now have failure tests. CLI orchestration, signed event ingest and fleet composition remain open. |
 | MCP-019 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
@@ -139,3 +139,18 @@ Eighteen Windows/Linux tests plus two compile-fail checks passed, with one helpe
 executed in a child process. The actual Windows native fixture passed pending/
 confirmed restart, identical proof and precise idempotent deletion. No network
 operation or automatic sender is added. See [native lifecycle](ENROLLMENT_STORAGE.md).
+
+Native lifecycle PR #28 passed both complete Windows/macOS/Linux and security
+CI runs before merge at `f567bc4`, including the real OS-store demonstrations.
+The optional HTTPS slice adds one authenticated, bounded, nonredirecting bootstrap
+request and a claim-bound receipt. Real loopback TLS fixtures cover failure and
+privacy behavior. Source/dependency choices and trust limits are documented in
+[HTTPS transport](ENROLLMENT_HTTPS.md) and ADR 0029. It does not activate a sender
+or complete enrollment CLI composition.
+
+Local verification passed 267 Linux workspace tests (one lock helper is invoked
+by a parent test), all 27 Windows enrollment tests and two enrollment compile-fail
+checks, strict workspace/crate Clippy, and the real Windows native-store fixture
+with HTTPS enabled. The fresh advisory audit covered 310 locked external packages;
+all-feature license/source/bans checks passed with reviewed duplicate-version
+warnings. No existing external version changed. Three-OS CI remains required.

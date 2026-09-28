@@ -10,6 +10,11 @@ confidence-threshold = 0.95
 exceptions = [
   { name = "borrow-or-share", version = "=0.2.4", allow = ["MIT-0"] },
   { name = "foldhash", version = "=0.2.0", allow = ["Zlib"] },
+  # HTTPS enrollment, reviewed in ADR 0029; retain all upstream notices.
+  { name = "ring", version = "=0.17.14", allow = ["ISC"] },
+  { name = "rustls-webpki", version = "=0.103.15", allow = ["ISC"] },
+  { name = "untrusted", version = "=0.9.0", allow = ["ISC"] },
+  { name = "webpki-roots", version = "=1.0.9", allow = ["CDLA-Permissive-2.0"] },
 ]
 
 [bans]

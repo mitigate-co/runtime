@@ -178,3 +178,10 @@ persists the bounded seed/code/receipt record only in the native broker; its
 immutable plaintext anchor holds only a canonical Platform origin and random
 credential reference. Confirming a matching receipt removes the bootstrap code.
 Neither component performs network requests or enables synchronization.
+
+The optional [HTTPS transport](ENROLLMENT_HTTPS.md) explicitly sends the bootstrap
+claim to its signed audience with certificate verification, no redirects or
+ambient proxies, bounded deadlines/response and fixed errors. Dependency `log`
+output is compiled out. Mitigate-owned claim/receipt buffers zeroize; third-party
+TLS/HTTP/OS buffers are not promised to be erased. The transport does not persist
+confirmation, enable sync or admit bootstrap material as telemetry.

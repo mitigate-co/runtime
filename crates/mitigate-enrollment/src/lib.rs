@@ -1,12 +1,16 @@
 //! Optional Platform enrollment authentication, separate from telemetry admission.
 //!
-//! Core protocol types perform no network or persistence. The explicit `storage`
-//! module owns native persistence and exclusive recovery. Neither enables sync
-//! nor authorizes a tenant: Platform must consume a valid one-use grant. A sender
-//! must pin HTTPS and obtain local consent. Local MCP operation is independent.
+//! Core protocol types perform no I/O. The `storage` module owns native persistence
+//! and exclusive recovery. The optional `https` feature provides one explicit
+//! authenticated bootstrap request. Neither enables sync nor authorizes
+//! a tenant: Platform must consume a valid one-use grant. The caller must obtain
+//! local consent and durably store pending credentials before sending. Local MCP
+//! operation is independent.
 
 mod claim;
 mod code;
+#[cfg(feature = "https")]
+pub mod https;
 pub mod storage;
 #[cfg(test)]
 mod tests;
