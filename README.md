@@ -1,5 +1,9 @@
 # Mitigate Runtime
 
+Tool calls through the library validate arguments and structured results using
+the [bounded local JSON Schema profile](docs/SCHEMA_VALIDATION.md). The CLI remains
+inventory-only while the enforcing gateway is being composed.
+
 The Apache-2.0 customer-side MCP scanner and gateway for Mitigate. Local operation must work without a Platform account. Credentials and tool payloads stay on the customer side.
 
 Development has started. No release binaries or production-ready gateway are published yet. The executable work packages and acceptance gates are in [the MCP specification](docs/modules/mcp/LOW_LEVEL.md). See [implementation status](docs/IMPLEMENTATION.md) for verified scope.

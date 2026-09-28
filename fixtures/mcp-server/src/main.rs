@@ -3,6 +3,7 @@
 mod cli_contract;
 mod gateway_contract;
 mod listener_contract;
+mod schema_contract;
 mod secret_contract;
 mod upstream_contract;
 
@@ -26,6 +27,10 @@ fn tool(name: &str) -> Value {
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     let mode = args.get(1).map_or("ok", String::as_str);
+    if mode == "schema-contract" {
+        schema_contract::verify();
+        return;
+    }
     if mode == "secret-contract" {
         secret_contract::verify(std::path::Path::new(
             args.get(2).expect("explicit CLI binary path"),
@@ -256,6 +261,15 @@ fn main() {
                     std::fs::write(&args[4], b"code changed during inventory refresh").unwrap();
                     json!({"tools":[tool("read_status")]})
                 }
+                mode if mode.starts_with("relay-schema") => {
+                    let mut definition = tool("read_status");
+                    definition["inputSchema"] = json!({"type":"object","properties":{"value":{"type":"integer","minimum":1}},"required":["value"],"additionalProperties":false});
+                    definition["outputSchema"] = json!({"type":"object","properties":{"ok":{"const":true}},"required":["ok"],"additionalProperties":false});
+                    if mode == "relay-schema-unsupported" {
+                        definition["outputSchema"]["$ref"] = json!("file:///never-read-canary");
+                    }
+                    json!({"tools":[definition]})
+                }
                 "paged" if cursor.is_none() => {
                     json!({"tools":[tool("z_last")],"nextCursor":"second"})
                 }
@@ -281,6 +295,19 @@ fn main() {
                     std::thread::sleep(Duration::from_secs(1));
                 },
                 "relay-invalid" => reply(id, json!({"content":[{"type":"text","text":12}]})),
+                "relay-schema-wrong" => reply(
+                    id,
+                    json!({"content":[],"structuredContent":{"ok":"result-canary"}}),
+                ),
+                "relay-schema-missing" => reply(id, json!({"content":[]})),
+                "relay-schema-error" => reply(
+                    id,
+                    json!({"content":[{"type":"text","text":"synthetic-tool-error"}],"isError":true}),
+                ),
+                "relay-schema-error-invalid" => reply(
+                    id,
+                    json!({"content":[],"isError":true,"structuredContent":{"ok":false}}),
+                ),
                 "relay-wrong-id" => reply(&json!(1), json!({"content":[]})),
                 _ => {
                     if mode == "relay-progress"

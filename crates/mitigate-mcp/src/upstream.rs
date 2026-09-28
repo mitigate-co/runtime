@@ -2,6 +2,7 @@
 use crate::{
     Error, Inventory, LaunchConfig, LaunchReceipt, LaunchReview, Result, Snapshot,
     protocol::{self, Client},
+    schema::ToolSchema,
     stdio::Session,
 };
 use serde_json::{Value, json};
@@ -166,7 +167,8 @@ impl StdioServer {
     ///
     /// Arguments/results stay local and are never printed or persisted here.
     /// The owner must evaluate grants, policy, schema review and approval first.
-    /// This function only checks protocol/observed definition consistency.
+    /// This function checks protocol, definition consistency and the supported
+    /// local schema profile. Schema validation is not authorization.
     /// `progress` receives counters only, never upstream message text or tokens.
     /// Once a transaction starts, failure/cancellation terminates the process and
     /// forbids reuse. Invalid local input is refused without starting a transaction.
@@ -184,10 +186,21 @@ impl StdioServer {
         }
         // Validate size/complexity before any new upstream request. Raw content
         // never enters errors, including invalid input supplied by library callers.
-        let bytes = serde_json::to_vec(&arguments).map_err(|_| Error::Protocol)?;
-        if bytes.len() > 60_000 || mitigate_json::parse(&bytes).is_err() {
-            return Err(Error::Limit);
-        }
+        crate::schema::argument_bounds(&arguments)?;
+        let tool = self
+            .inventory
+            .tools
+            .iter()
+            .find(|tool| tool.name == name)
+            .ok_or(Error::Protocol)?;
+        let input = ToolSchema::compile(&tool.input_schema).await?;
+        // Compile both schemas before dispatch: an unsupported result contract
+        // must not be discovered after a destructive tool has already run.
+        let output = match &tool.output_schema {
+            Some(schema) => Some(ToolSchema::compile(schema).await?),
+            None => None,
+        };
+        input.validate(&arguments).await?;
         self.process.begin_transaction();
         self.client.begin_transaction();
         let mut operation = Operation {
@@ -247,6 +260,15 @@ impl StdioServer {
                 )
                 .await?;
             validate_result(&result)?;
+            if let Some(schema) = &output {
+                // Error results may omit structuredContent. If supplied, even
+                // error data must satisfy the advertised result contract.
+                match result.get("structuredContent") {
+                    Some(value) => schema.validate(value).await?,
+                    None if result.get("isError").and_then(Value::as_bool) == Some(true) => (),
+                    None => return Err(Error::SchemaMismatch),
+                }
+            }
             Ok(result)
         })
         .await

@@ -19,6 +19,7 @@ repository = "https://github.com/mitigate-co/runtime"
 [workspace.dependencies]
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"
+jsonschema = { version = "=0.58.2", default-features = false }
 clap = { version = "=4.6.7", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
 url = "=2.5.8"
 sha2 = "=0.10.9"
@@ -28,7 +29,7 @@ regorus = { version = "=0.12.0", default-features = false, features = ["std", "a
 ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["zeroize"] }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "limits", "hooks"] }
 serde_json_canonicalizer = "=0.3.2"
-tokio = { version = "=1.53.1", default-features = false, features = ["rt", "process", "io-util", "time", "macros", "signal"] }
+tokio = { version = "=1.53.1", default-features = false, features = ["rt", "process", "io-util", "time", "macros", "signal", "sync"] }
 process-wrap = { version = "=10.0.1", default-features = false, features = ["tokio1", "creation-flags", "job-object", "kill-on-drop", "process-group"] }
 
 [workspace.lints.rust]

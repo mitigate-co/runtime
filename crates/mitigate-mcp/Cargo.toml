@@ -13,6 +13,7 @@ mitigate-fingerprint = { path = "../mitigate-fingerprint", version = "0.1.0" }
 mitigate-json = { path = "../mitigate-json", version = "0.1.0" }
 serde.workspace = true
 serde_json.workspace = true
+jsonschema.workspace = true
 tokio.workspace = true
 process-wrap.workspace = true
 sha2.workspace = true

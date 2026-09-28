@@ -1,6 +1,6 @@
 # Local gateway protocol
 
-`mitigate mcp serve` connects the local listener to a [managed stdio upstream](UPSTREAM.md). It opens no TCP socket and has no account dependency. The current explicit inventory-only mode lists real upstream definitions and disables all tool invocations. Native secrets and local audit are available; enforcing calls still await policy, grants, approvals and complete schema validation/integration. It is not production enforcement yet.
+`mitigate mcp serve` connects the local listener to a [managed stdio upstream](UPSTREAM.md). It opens no TCP socket and has no account dependency. The current explicit inventory-only mode lists real upstream definitions and disables all tool invocations. Native secrets, local audit and [tool schema validation](SCHEMA_VALIDATION.md) are available; enforcing calls still await integration of policy, grants, approvals, controls and full call audit. It is not production enforcement yet.
 
 ## Start an inventory endpoint
 
