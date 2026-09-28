@@ -82,6 +82,14 @@ sent on the network. The owning sender must cancel outstanding work on opt-out.
 
 ## Storage and recovery
 
+Lock contention beyond the 250 ms wait returns the distinct fixed `Busy` error
+with no delivery lease. The optional worker may retry after backoff; contention
+never enters tool authorization. Other SQLite failures remain `Storage` and
+must not be silently treated as an empty queue. Concurrent-worker tests allow
+only successful/empty claims or explicit lock contention, then verify exactly
+one committed lease and delivery. A held-lock regression verifies that failed
+admission/claim attempts leave counts and leases unchanged.
+
 Each transaction verifies the exact schema, closed stored records, canonical event
 bytes, reference binding, numeric/time bounds and capacity. SQLite uses full
 synchronous DELETE journaling, secure deletion, full auto-vacuum, bounded SQL,
