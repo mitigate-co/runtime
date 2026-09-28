@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "scan": {
+    "max_file_bytes": 262144,
+    "max_servers": 128
+  }
+}

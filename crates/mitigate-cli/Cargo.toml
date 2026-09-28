@@ -1,0 +1,21 @@
+[package]
+name = "mitigate-cli"
+description = "Local-first Mitigate MCP command line"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "mitigate"
+path = "src/main.rs"
+
+[dependencies]
+mitigate-config = { version = "0.1.0", path = "../mitigate-config" }
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,7 @@
+title = "Mitigate Runtime secret scanning"
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Ignored local build and Git internals; source and complete history are scanned separately"
+paths = ['''(^|[/\\])(target|\.git|\.data)([/\\]|$)''']
