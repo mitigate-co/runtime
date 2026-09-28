@@ -50,6 +50,26 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
         Command::Mcp {
+            command:
+                McpCommand::Context {
+                    launch_config,
+                    launch_review,
+                    tool_snapshot,
+                    allow_exec: _,
+                    profile,
+                    classification_overrides,
+                },
+        } => {
+            return gateway::context::run(
+                &launch_config,
+                &launch_review,
+                &tool_snapshot,
+                profile.as_deref(),
+                classification_overrides.as_deref(),
+                cli.json,
+            );
+        }
+        Command::Mcp {
             command: McpCommand::Controls { command },
         } => return controls::run(command, cli.json),
         Command::Mcp {

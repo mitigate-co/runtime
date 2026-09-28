@@ -50,6 +50,7 @@ pub(super) async fn run(binary: &Path, root: &Path) {
         serde_json::from_slice(&fs::read(project.path("snapshot.json")).unwrap()).unwrap();
     snapshot["server_facts"] = json!("0".repeat(64));
     write(&project.path("snapshot.json"), snapshot);
+    context::stale(binary, &project).await;
     let mut client = Client::start(binary, &project, true);
     client.finish(2).await;
     assert!(project.path("child-address").exists());

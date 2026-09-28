@@ -629,6 +629,35 @@ fn governed_mode_requires_review_and_cannot_mix_audit_or_inventory_configuration
 }
 
 #[test]
+fn context_requires_explicit_execution_and_rejects_invalid_profiles_before_launch() {
+    let mut args = vec![
+        "mcp",
+        "context",
+        "--launch-config",
+        "unused",
+        "--launch-review",
+        "unused",
+        "--tool-snapshot",
+        "unused",
+        "--json",
+    ];
+    let no_intent = cli(&args);
+    assert_eq!(no_intent.status.code(), Some(2));
+    assert!(no_intent.stdout.is_empty());
+    let error: Value = serde_json::from_slice(&no_intent.stderr).unwrap();
+    assert_eq!(error["error"], "cli_invalid_arguments");
+    let fixture = Fixture::new();
+    let profile = fixture.file(br#"{"schema_version":1,"client_ref":"raw canary"}"#);
+    args.extend(["--allow-exec", "--profile", profile.to_str().unwrap()]);
+    let invalid = cli(&args);
+    assert_eq!(invalid.status.code(), Some(2));
+    assert!(invalid.stdout.is_empty());
+    assert!(!String::from_utf8_lossy(&invalid.stderr).contains("canary"));
+    let error: Value = serde_json::from_slice(&invalid.stderr).unwrap();
+    assert_eq!(error["error"], "gateway_profile_invalid");
+}
+
+#[test]
 fn scan_findings_exit_is_opt_in_and_keeps_complete_json() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/scanner-project");
     let result = cli(&[
