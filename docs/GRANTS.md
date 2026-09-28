@@ -5,6 +5,10 @@ It does not start servers or authorize execution. The [governed gateway](ENFORCE
 loads these rules alongside policy, exact launch binding, schema checks, approval,
 controls and mandatory audit.
 
+Use [mcp context](GOVERNANCE_CONTEXT.md) to inspect the exact local references
+before selecting grant scopes. It shares enforcement's fact construction and
+does not grant permission or call tools.
+
 ```sh
 mitigate mcp grants check --rules examples/grants/read-development.json
 mitigate mcp grants test --rules examples/grants/read-development.json --input examples/grants/read-context.json --json

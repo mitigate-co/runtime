@@ -8,6 +8,10 @@ gates are tracked in [implementation status](IMPLEMENTATION.md).
 
 ## Start a reviewed connection
 
+First use [local context inspection](GOVERNANCE_CONTEXT.md) to obtain the exact
+references for grant scopes and control targets; no manual hash calculation is
+required. It uses the same reviewed inputs as enforcement and invokes no tools.
+
 Configure the MCP client to launch the following command with your selected files:
 
 ```sh

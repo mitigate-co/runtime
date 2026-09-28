@@ -1,6 +1,7 @@
 //! Executable stdio composition. No permissive or unreviewed invocation mode.
 mod authority;
 mod configuration;
+pub(crate) mod context;
 mod enforcement;
 mod facts;
 

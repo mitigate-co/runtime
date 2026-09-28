@@ -56,6 +56,8 @@ the approval, control, launch-review and audit checks.
 
 Use [local grants](docs/GRANTS.md) to validate exact scopes and test whether an
 action has an explicit allowance or denial. These local diagnostics invoke no tools.
+Use [mcp context](docs/GOVERNANCE_CONTEXT.md) to obtain the reviewed references
+for those scopes without calculating hashes or starting a governed call first.
 
 [Local approvals](docs/APPROVALS.md) support metadata review, bounded one-call
 decisions and revocation before consumption. Approval does not invoke a tool or

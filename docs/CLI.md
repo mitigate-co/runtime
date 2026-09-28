@@ -14,6 +14,7 @@ Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAN
 | Review classification evidence | Add `--details` to inspect | Shows full labels, classes, rules, sources and flags |
 | Save fingerprints | Add `--snapshot NEW_FILE` to inspect | Creates a new file; never overwrites |
 | Apply reviewed classification | Add `--classification-overrides FILE` to inspect | Reads bound administrator decisions; never grants access |
+| Get exact governance references | `mitigate mcp context --launch-config FILE --launch-review FILE --tool-snapshot FILE --profile FILE --allow-exec` | Executes and enumerates the reviewed server, confirms cleanup, prints local references; no tool calls or grant changes |
 | Compare fingerprints | `mitigate mcp diff --before FILE --after FILE` | Reads two snapshots; no execution/network |
 | Expose an inventory endpoint | `mitigate mcp serve --launch-config FILE --allow-exec --inventory-only` | Executes the reviewed server; serves MCP on stdin/stdout; all tool calls disabled |
 | Govern local calls | `mitigate mcp serve --launch-config FILE --launch-review FILE --profile FILE --enforce FILE --allow-exec` | Explicit execution after local policy, grants, approvals, controls and required audit; [configuration](ENFORCEMENT.md) |
@@ -53,6 +54,7 @@ Every error JSON has exactly `schema_version: 1`, a fixed `error` code and a `me
 | `mcp scan` | 2 | `sources`, `servers`; [declaration contract](SCANNER.md) |
 | `mcp inspect` | 2 | `protocol_version`, `server_name`, `server_version`, `tools_supported`, `tools`; [classification contract](CLASSIFICATION.md) |
 | `mcp diff` | 1 | `server_identity_changed`, `server_facts_changed`, `tools_supported_changed`, `tools`; [change contract](FINGERPRINTS.md) |
+| `mcp context` | 1 | `client_ref`, `principal_ref`, `agent_ref`, `attribution`, `server_ref`, `tools`; [local context contract](GOVERNANCE_CONTEXT.md) |
 | `mcp audit init/verify` | 1 | `records`, `payload_bytes`, `anchor_sequence`, `anchor_hash`, `head_sequence`, `head_hash`, `retention` |
 | `mcp audit list` | 1 | `anchor_sequence`, `anchor_hash`, `head_sequence`, `records`, `next_after`; [local audit contract](AUDIT.md) |
 | `mcp audit prune` | 1 | `removed_records`, nested `verification` report |

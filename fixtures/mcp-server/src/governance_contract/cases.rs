@@ -3,6 +3,7 @@ use mitigate_policy::controls::{Rate, Target};
 
 pub(super) async fn run(binary: &Path, root: &Path) {
     let project = Project::new(root, "allow", "relay-progress", "allow", 60_000).await;
+    let context = context::verify(binary, &project).await;
     let mut client = Client::start(binary, &project, true);
     client.initialize().await;
     client.call(2, json!({"value":"argument-canary"})).await;
@@ -15,6 +16,16 @@ pub(super) async fn run(binary: &Path, root: &Path) {
     assert_eq!(events[1]["call"]["phase"], "completion");
     assert_eq!(events[0]["call"]["call_ref"], events[1]["call"]["call_ref"]);
     assert_eq!(events[1]["detail"]["result_class"], "success");
+    for field in ["client_ref", "principal_ref", "agent_ref", "server_ref"] {
+        assert_eq!(events[0]["detail"][field], context[field]);
+    }
+    for field in ["tool_ref", "schema_fingerprint", "capability_classes"] {
+        assert_eq!(events[0]["detail"][field], context["tools"][0][field]);
+    }
+    assert_eq!(
+        events[0]["call"]["definition_fingerprint"],
+        context["tools"][0]["definition_fingerprint"]
+    );
     fs::remove_file(project.path("call-marker")).unwrap();
 
     project.control(Change::Stop {});

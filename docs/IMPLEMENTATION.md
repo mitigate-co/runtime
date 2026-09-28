@@ -17,7 +17,7 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-011 — Regorus | Merged | PR #12, main `2ff8669`. Restricted Rego profile, closed inputs/decisions, strict Ed25519 trust, native signing CLI and transactional activation. Windows/macOS/Linux suites, actual CLI/native signing contracts, 22 OPA comparison cases and dependency/license/secret gates passed. Local Windows still requires the MSVC Spectre component; isolated WSL supports verification. |
 | MCP-012 — Grants | Merged | PR #13, main `cc13a10`. Explicit scopes, deny precedence, whole-action allowance and independent policy constraint. Policy/grant unit tests, actual CLI/privacy fixtures and complete Windows/macOS/Linux/security CI passed. |
 | MCP-013 — Approvals | Merged | PR #14, main `60fc055`. One-call binding, local decisions, atomic consumption, expiry/revocation/cancellation and bounded storage. Approval, CLI/privacy, full Windows/macOS/Linux and dependency/secret gates passed. Live enforcing-call composition remains a launch gate. |
-| MCP-014 — Kill switch and limits | Control component merged | PR #15, main `77877aa`. Persistent stops, exact target disables, deterministic atomic quotas, bounded operator history and management CLI. Windows/macOS/Linux suites, actual CLI/privacy fixtures and dependency/secret gates passed. Enforcing gateway composition remains required within this package. |
+| MCP-014 — Kill switch and limits | Merged | Controls PR #15, governance PR #20 and setup PR #21, main `72e68fe`. Actual calls enforce stops/targets/quotas alongside policy/grants/approvals and required audit. Exact-reference setup is demonstrated by real CLI grants and matching audit. Both final CI runs passed all three operating systems and security gates. |
 | MCP-015 — Offline behavior | In verification; safe queue still open | Executable cached-policy/approval outage corpus and recovery documentation added. Final CI is pending. |
 | MCP-016 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
@@ -50,24 +50,31 @@ lint and the executable relay demonstration passed locally. Timeout/cancellation
 cannot dispatch a late gate result; explicit refusal preserves healthy reuse.
 Windows/macOS/Linux and dependency/license/secret CI gates passed.
 
-Local governance composition is in verification. Explicit `serve --enforce` joins
+Local governance composition merged in PR #20, main `e19aa6e`. Explicit `serve --enforce` joins
 reviewed launch and definitions with verified policy, current grants, bounded
 one-call approvals, final controls and required versioned call audit. The actual
 CLI fixture passed allowed/denied calls, unknown identity, approval consumption,
 expiry/cancellation, live authority changes, drift, invalid output, audit failure,
 bounded progress and cancellation after dispatch. Final-refresh revocation and
-startup-failure coverage is added. Strict workspace lint and the initial live
-fixture passed locally. The subsequent full Linux suite was interrupted by host
-disk exhaustion/WSL I/O failures in three process tests; its partial result is not
-a passing gate. Cross-OS CI must verify the complete final change.
-Operator setup/reference ergonomics remain open within MCP-014.
+startup-failure coverage passed. Final Windows/macOS/Linux workspace and executable
+contracts, native credential fixtures, OPA comparison, dependency/license and secret
+gates passed in both push and PR CI runs. Local WSL disk exhaustion interrupted
+some local verification; those interrupted attempts are not reported as passes.
 
 An intermittent executable CI failure exposed pre-lock clock sampling in shared
 approval/control stores. Production callers now use in-transaction `SystemClock`
 observations; deterministic lock probes retain rollback, expiry and quota checks.
 The policy suite (53), CLI authority/unit tests (11) and CLI integration tests (17)
 passed locally after the correction, together with strict workspace lint and the
-CLI/fixture build. WSL could not launch the final executable check after host disk
-exhaustion recurred. Final executable/CI validation is pending.
+CLI/fixture build. Final executable verification then passed on all three CI
+operating systems. The fix retains strict rollback detection without tolerances.
+
+`mcp context` supplies exact reviewed caller/server/tool references for grants and
+control targets. It requires explicit process execution, compares the selected
+snapshot and overrides, confirms cleanup and emits no schemas or raw caller
+labels. The executable fixture uses its output for an exact grant and compares
+the resulting call audit. Full Linux workspace tests and strict lint passed;
+both final cross-OS CI runs then passed executable, workspace and security gates.
+This setup slice merged in PR #21, main `72e68fe`.
 
 Known launch gates include gateway semantics, grants, Regorus conformance, approvals, secrets, audit, optional sync, registry/fleet, hostile/privacy corpus and signed platform releases. Private vulnerability reporting is enabled. No public binary release or hosted deployment has occurred.

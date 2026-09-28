@@ -71,6 +71,27 @@ pub(crate) enum SecretsCommand {
 
 #[derive(Subcommand)]
 pub(crate) enum McpCommand {
+    /// Show verified local references for exact grants and control targets; never call tools.
+    Context {
+        /// Explicit process configuration, separate from discovery files.
+        #[arg(long)]
+        launch_config: PathBuf,
+        /// Existing exact executable/artifact/configuration review.
+        #[arg(long)]
+        launch_review: PathBuf,
+        /// Existing reviewed tool fingerprint snapshot.
+        #[arg(long)]
+        tool_snapshot: PathBuf,
+        /// Required: execute the selected server with your OS privileges.
+        #[arg(long, required = true)]
+        allow_exec: bool,
+        /// Explicit local caller mapping; omitted attribution remains unknown.
+        #[arg(long)]
+        profile: Option<PathBuf>,
+        /// Reviewed classifications bound to these definitions.
+        #[arg(long)]
+        classification_overrides: Option<PathBuf>,
+    },
     /// Manage local emergency stops, disabled targets and rate limits.
     Controls {
         #[command(subcommand)]
