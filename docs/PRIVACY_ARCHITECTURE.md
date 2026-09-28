@@ -163,3 +163,14 @@ part of the commitment. The salt remains in the private local review document,
 excluded from receipts. Reviews and receipts are not Platform event contracts.
 They do not authorize forwarding content-derived configuration fingerprints.
 See [launch-review privacy and filesystem boundaries](LAUNCH_REVIEW.md).
+
+## Optional enrollment bootstrap
+
+The public [enrollment protocol](ENROLLMENT.md) authenticates a fresh Runtime key
+using an explicitly supplied one-use code and canonical HTTPS origin. The bounded
+credential exchange is separate from telemetry admission; claims are rejected by
+the Zero-Content event parser. No workload/config fingerprints or machine/human
+identifiers are added. The private seed never enters the claim. Secret owners
+zeroize their allocations and expose no generic diagnostic/serialization trait.
+Enrollment neither implies consent to telemetry nor activates a sender. The pure
+component currently performs no network or persistence.

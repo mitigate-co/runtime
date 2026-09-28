@@ -17,6 +17,11 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+      - name: Verify enrollment interoperability with Node/OpenSSL
+        shell: bash
+        run: |
+          cargo run -p mitigate-enrollment --example proof --locked > target/enrollment-fixture.json
+          node scripts/verify-enrollment.mjs target/enrollment-fixture.json
       - run: cargo run -p mitigate-egress --example outbox --locked
       - run: cargo run --locked -- privacy self-test --json
       - run: cargo run --locked -- egress inspect --json

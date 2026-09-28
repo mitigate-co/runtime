@@ -1,0 +1,12 @@
+{
+  "fixture": "Synthetic Node/OpenSSL vector; seed is byte 23 repeated 32 times; token is byte 41 repeated 32 times. Never a live credential.",
+  "origin": "https://mitigate.example",
+  "claim": {
+    "grant_id": "00000000-0000-4000-8000-000000000001",
+    "token": "KSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSk",
+    "public_key": "Md6-VdN8cidosTcTHKpghwgLLgtguUvXhdFFdc-kmLw",
+    "runtime_ref": "ref_11111111111111111111111111111111",
+    "enrollment_ref": "ref_22222222222222222222222222222222",
+    "signature": "W8rjRAz0pM_0DoGQEqMv6xuKfsZE0WWuM-WLFtLWmMmNJ4OYXoI2yCGDOiNIf8tpaRn9rpBx0J0zCD_GWGGtAw"
+  }
+}
