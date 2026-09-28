@@ -18,8 +18,8 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-012 — Grants | Merged | PR #13, main `cc13a10`. Explicit scopes, deny precedence, whole-action allowance and independent policy constraint. Policy/grant unit tests, actual CLI/privacy fixtures and complete Windows/macOS/Linux/security CI passed. |
 | MCP-013 — Approvals | Merged | PR #14, main `60fc055`. One-call binding, local decisions, atomic consumption, expiry/revocation/cancellation and bounded storage. Approval, CLI/privacy, full Windows/macOS/Linux and dependency/secret gates passed. Live enforcing-call composition remains a launch gate. |
 | MCP-014 — Kill switch and limits | Merged | Controls PR #15, governance PR #20 and exact-reference setup PR #21, main `72e68fe`. Governed calls enforce stops/targets/quotas alongside policy/grants/approvals and required audit. Both final CI runs passed all three operating systems and security gates. |
-| MCP-015 — Offline behavior | In verification | PR #22 verifies cached allow/deny and unavailable approvals with actual processes. The durable outbox validates candidates before persistence and isolates optional delivery state from local authority; final cross-OS gates remain required. |
-| MCP-016 — Privacy boundary | Closed event and queue components in verification | PR #23 defines the closed candidate. Queue admission now records fixed rejection reasons without source content. `privacy self-test` and `egress inspect` CLI integration remain open. |
+| MCP-015 — Offline behavior | In verification | PR #22 merged at `def9772`, verifying cached allow/deny and unavailable approvals with actual processes on Windows/macOS/Linux. The durable outbox validates candidates before persistence and isolates optional delivery state from local authority; final cross-OS gates remain required. |
+| MCP-016 — Privacy boundary | Closed event and queue components in verification | PR #23 merged at `22244f5` with all three OS and security gates passing. Queue admission now records fixed rejection reasons without source content. `privacy self-test` and `egress inspect` CLI integration remain open. |
 | MCP-017 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
@@ -86,7 +86,7 @@ decision candidate, opaque enrollment-scoped references, string allowlist and
 strict bounds/fact checks. This is not a sender or completed MCP-015/016 gate.
 Nine Windows privacy/contract tests, the compile-fail export check, strict crate
 lint, documented fixture acceptance/rejection and secret scanning passed locally.
-Full cross-OS CI remains required. See [candidate contract](SYNC_EVENTS.md).
+Both final Windows/macOS/Linux and dependency/secret CI runs passed. Merged in PR #23 at `22244f5`. See [candidate contract](SYNC_EVENTS.md).
 
 The durable outbox component passed 25 local Windows contract/privacy/storage
 tests, a compile-fail export check, strict crate lint and the executable restart/
@@ -94,4 +94,4 @@ retry/purge demonstration. Coverage includes full capacity, actual SQLite-full
 and failed commits, concurrent leases, stale acknowledgements, bounded retry/
 retention, corrupt state and rejection-canary exclusion. It has no sender or
 automatic gateway producer. See [outbox contract](OUTBOX.md); cross-OS/security
-CI remains required before merge and milestone completion.
+CI passed on the stacked branch; final main-based verification remains required.
