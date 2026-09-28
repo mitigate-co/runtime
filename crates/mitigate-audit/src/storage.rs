@@ -1,4 +1,4 @@
-use crate::{Error, Event, EventDetails};
+use crate::{CallContext, Error, Event, EventDetails};
 use mitigate_fingerprint::canonicalize;
 use rusqlite::{
     Connection, OpenFlags, TransactionBehavior, config::DbConfig, limits::Limit, params,
@@ -212,8 +212,29 @@ impl AuditStore {
     pub fn append(&mut self, detail: EventDetails) -> Result<Record, Error> {
         self.append_at(detail, now()?)
     }
+    /// Append version-two governed-call metadata in the existing verified chain.
+    /// A dispatch record is evidence of authorization, never proof of effects.
+    /// Failure returns no durable receipt and gives no permission to invoke.
+    pub fn append_call(
+        &mut self,
+        detail: EventDetails,
+        call: CallContext,
+    ) -> Result<Record, Error> {
+        self.append_event_at(detail, Some(call), now()?)
+    }
     pub(crate) fn append_at(&mut self, detail: EventDetails, time: u64) -> Result<Record, Error> {
+        self.append_event_at(detail, None, time)
+    }
+    pub(crate) fn append_event_at(
+        &mut self,
+        detail: EventDetails,
+        call: Option<CallContext>,
+        time: u64,
+    ) -> Result<Record, Error> {
         detail.validate()?;
+        if let Some(context) = &call {
+            context.validate(&detail)?;
+        }
         budget(&self.conn)?;
         let tx = self
             .conn
@@ -230,10 +251,11 @@ impl AuditStore {
         let mut random = [0u8; 16];
         getrandom::fill(&mut random).map_err(|_| Error::Unavailable)?;
         let event = Event {
-            schema_version: 1,
+            schema_version: if call.is_some() { 2 } else { 1 },
             event_id: random.iter().map(|b| format!("{b:02x}")).collect(),
             time_ms: time,
             detail,
+            call,
         };
         event.validate()?;
         let payload = canonicalize(&serde_json::to_value(&event).map_err(|_| Error::InvalidInput)?)
