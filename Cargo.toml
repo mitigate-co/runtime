@@ -2,6 +2,11 @@
 resolver = "3"
 members = ["crates/mitigate-cli", "crates/mitigate-config", "crates/mitigate-mcp-scan", "crates/mitigate-json", "crates/mitigate-mcp", "crates/mitigate-fingerprint", "fixtures/mcp-server"]
 default-members = ["crates/mitigate-cli"]
+exclude = ["vendor/process-wrap"]
+
+# Reviewed Windows cleanup correction; provenance and removal criteria in vendor/.
+[patch.crates-io]
+process-wrap = { path = "vendor/process-wrap" }
 
 [workspace.package]
 version = "0.1.0"

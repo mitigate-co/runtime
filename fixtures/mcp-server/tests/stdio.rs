@@ -9,6 +9,24 @@ use std::{
 };
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
+
+// A successful TCP handshake alone can outlive process exit while Windows tears
+// down the listener. Require a response written by the actual descendant process.
+fn descendant_alive(address: &std::net::SocketAddr) -> bool {
+    use std::io::Read;
+    let Ok(mut socket) = std::net::TcpStream::connect_timeout(address, Duration::from_millis(200))
+    else {
+        return false;
+    };
+    if socket
+        .set_read_timeout(Some(Duration::from_millis(500)))
+        .is_err()
+    {
+        return false;
+    }
+    let mut response = [0; b"mitigate-fixture-alive\n".len()];
+    socket.read_exact(&mut response).is_ok() && &response == b"mitigate-fixture-alive\n"
+}
 struct Project(PathBuf);
 impl Project {
     fn new() -> Self {
@@ -117,10 +135,7 @@ async fn timeout_terminates_descendants_that_retain_pipes() {
         .expect("child must have started")
         .parse()
         .unwrap();
-    assert!(
-        std::net::TcpStream::connect_timeout(&address, Duration::from_millis(200)).is_err(),
-        "descendant survived cleanup"
-    );
+    assert!(!descendant_alive(&address), "descendant survived cleanup");
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -148,7 +163,7 @@ async fn cancelling_enumeration_kills_the_process_group() {
     drop(running);
     let address = fs::read_to_string(marker).unwrap().parse().unwrap();
     tokio::time::timeout(Duration::from_secs(2), async {
-        while std::net::TcpStream::connect_timeout(&address, Duration::from_millis(50)).is_ok() {
+        while descendant_alive(&address) {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     })
@@ -194,7 +209,59 @@ async fn explicit_shutdown_confirms_descendant_cleanup() {
     .unwrap();
     assert_eq!(result.err(), Some(Error::Cancelled));
     let address = fs::read_to_string(marker).unwrap().parse().unwrap();
-    assert!(std::net::TcpStream::connect_timeout(&address, Duration::from_millis(200)).is_err());
+    assert!(!descendant_alive(&address));
+}
+
+#[cfg(windows)]
+#[tokio::test(flavor = "current_thread")]
+async fn job_wait_tracks_descendants_after_parent_exit_and_wait_cancellation() {
+    use process_wrap::tokio::{CommandWrap, CreationFlags, JobObject, KillOnDrop};
+    let project = Project::new();
+    let marker = project.0.join("orphan-address");
+    let mut command = CommandWrap::with_new(env!("CARGO_BIN_EXE_mitigate-test-mcp"), |command| {
+        command
+            .args(["tree-parent-exit", marker.to_str().unwrap()])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+    });
+    let mut flags = CreationFlags(Default::default());
+    flags.0.0 = 0x08000000;
+    command.wrap(KillOnDrop).wrap(flags).wrap(JobObject);
+    let mut child = command.spawn().unwrap();
+    let address = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if let Some(address) = fs::read_to_string(&marker)
+                .ok()
+                .and_then(|s| s.parse::<std::net::SocketAddr>().ok())
+            {
+                break address;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(descendant_alive(&address));
+    assert!(
+        child.try_wait().unwrap().is_none(),
+        "parent exit is not job completion"
+    );
+    // The child remains live; waiting must not consume a creation/exit packet as
+    // completion. Cancelling this wait must not cache premature success either.
+    for _ in 0..2 {
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), child.wait())
+                .await
+                .is_err()
+        );
+    }
+    child.start_kill().unwrap();
+    tokio::time::timeout(Duration::from_secs(2), child.wait())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!descendant_alive(&address));
 }
 
 #[tokio::test(flavor = "current_thread")]

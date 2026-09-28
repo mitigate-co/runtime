@@ -13,12 +13,12 @@ use std::{
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ToolFingerprint {
-    name: String,
-    identity: Fingerprint,
-    input_schema: Fingerprint,
-    output_schema: Option<Fingerprint>,
-    description: Option<Fingerprint>,
+pub(crate) struct ToolFingerprint {
+    pub(crate) name: String,
+    pub(crate) identity: Fingerprint,
+    pub(crate) input_schema: Fingerprint,
+    pub(crate) output_schema: Option<Fingerprint>,
+    pub(crate) description: Option<Fingerprint>,
 }
 
 /// Closed local snapshot. Digests are change detectors, not anonymization or
@@ -29,9 +29,9 @@ pub struct Snapshot {
     schema_version: u32,
     fingerprint_profile: String,
     server_identity: Fingerprint,
-    server_facts: Fingerprint,
+    pub(crate) server_facts: Fingerprint,
     tools_supported: bool,
-    tools: Vec<ToolFingerprint>,
+    pub(crate) tools: Vec<ToolFingerprint>,
 }
 
 impl Snapshot {

@@ -459,6 +459,7 @@ name = "mitigate-mcp-fixture"
 version = "0.1.0"
 dependencies = [
  "mitigate-mcp",
+ "process-wrap",
  "serde_json",
  "tokio",
 ]
@@ -520,8 +521,6 @@ dependencies = [
 [[package]]
 name = "process-wrap"
 version = "10.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f21b97672d2dc848e7b25701ab4535618b92f4861c13cc3f7f7bed52ad3c8da"
 dependencies = [
  "futures",
  "indexmap",

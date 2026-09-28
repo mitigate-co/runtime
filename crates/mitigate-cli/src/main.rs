@@ -61,6 +61,9 @@ enum McpCommand {
         /// Save fingerprints to a new local file; never overwrites an existing file.
         #[arg(long)]
         snapshot: Option<PathBuf>,
+        /// Explicit local admin classifications bound to current fingerprints.
+        #[arg(long)]
+        classification_overrides: Option<PathBuf>,
     },
     /// Read Claude Code and Cursor project configurations locally.
     Scan {
@@ -193,28 +196,41 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                     launch_config,
                     allow_exec: _,
                     snapshot,
+                    classification_overrides,
                 },
         } => {
-            let result = mitigate_mcp::LaunchConfig::from_file(&launch_config)
-                .and_then(|config| {
-                    let runtime = tokio::runtime::Builder::new_current_thread()
-                        .enable_all()
-                        .build()
-                        .map_err(|_| mitigate_mcp::Error::Launch)?;
-                    runtime.block_on(mitigate_mcp::enumerate_with_shutdown(&config, async {
-                        let _ = tokio::signal::ctrl_c().await;
-                    }))
-                })
-                .and_then(|inventory| {
-                    if let Some(path) = snapshot {
-                        mitigate_mcp::Snapshot::from_inventory(&inventory)?.write_new(&path)?;
+            let overrides = match classification_overrides {
+                Some(path) => {
+                    match mitigate_mcp::classification::ClassificationOverrides::from_file(&path) {
+                        Ok(overrides) => overrides,
+                        Err(error) => return mcp_error(error, cli.json),
                     }
-                    Ok(inventory)
-                });
+                }
+                None => mitigate_mcp::classification::ClassificationOverrides::default(),
+            };
+            let result = mitigate_mcp::LaunchConfig::from_file(&launch_config).and_then(|config| {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|_| mitigate_mcp::Error::Launch)?;
+                runtime.block_on(mitigate_mcp::enumerate_with_shutdown(&config, async {
+                    let _ = tokio::signal::ctrl_c().await;
+                }))
+            });
             match result {
                 Ok(inventory) => {
+                    let report = match inventory.classify(&overrides) {
+                        Ok(report) => report,
+                        Err(error) => return mcp_error(error, cli.json),
+                    };
+                    if let Some(path) = snapshot
+                        && let Err(error) = mitigate_mcp::Snapshot::from_inventory(&inventory)
+                            .and_then(|s| s.write_new(&path))
+                    {
+                        return mcp_error(error, cli.json);
+                    }
                     if cli.json {
-                        write_json(&inventory.report(), io::stdout().lock())?;
+                        write_json(&report, io::stdout().lock())?;
                     } else {
                         let mut output = io::stdout().lock();
                         writeln!(
@@ -226,8 +242,20 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                         if !inventory.tools_supported {
                             writeln!(output, "Server does not advertise tools.")?;
                         }
-                        for tool in &inventory.tools {
-                            writeln!(output, "{}", tool.name)?;
+                        writeln!(
+                            output,
+                            "Capability hints require review; they do not grant access."
+                        )?;
+                        for tool in &report.tools {
+                            writeln!(output, "{}  {:?}", tool.name, tool.classification.classes)?;
+                            writeln!(
+                                output,
+                                "  {:?} confidence; {:?}",
+                                tool.classification.confidence, tool.classification.sources
+                            )?;
+                            if !tool.classification.flags.is_empty() {
+                                writeln!(output, "  Review: {:?}", tool.classification.flags)?;
+                            }
                         }
                     }
                 }

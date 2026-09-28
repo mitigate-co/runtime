@@ -43,10 +43,12 @@ fn main() {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         std::fs::write(&args[2], listener.local_addr().unwrap().to_string()).unwrap();
         loop {
-            let _ = listener.accept();
+            if let Ok((mut stream, _)) = listener.accept() {
+                let _ = stream.write_all(b"mitigate-fixture-alive\n");
+            }
         }
     }
-    if mode == "tree" {
+    if mode == "tree" || mode == "tree-parent-exit" {
         let mut child = std::process::Command::new(std::env::current_exe().unwrap());
         child.args(["child", &args[2]]);
         #[cfg(windows)]
@@ -58,6 +60,9 @@ fn main() {
         std::thread::spawn(move || {
             let _ = descendant.wait();
         });
+        if mode == "tree-parent-exit" {
+            return;
+        }
     }
     if mode == "crash" {
         std::process::exit(3);
