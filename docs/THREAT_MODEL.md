@@ -79,6 +79,8 @@ Windows cleanup additionally checks actual job membership, rather than treating 
 
 ## Known limitations
 
+The MCP-007 listener additionally rejects ambiguous envelopes, reused IDs and out-of-order initialization, bounds local streams, and prevents clientInfo or request metadata from changing caller identity. Profile identity is explicitly declared, never authenticated by implication. Cancellation and disconnect drop in-flight service work; the upstream owner must confirm cleanup. No permissive service or network listener is included. See [gateway boundaries](GATEWAY.md) and ADR 0010. This protocol library alone is not an enforcing gateway.
+
 - A local admin/root user can usually tamper with local security software.
 - Unmanaged devices with no Runtime are not visible.
 - MCP clients bypassing the gateway are discovered only where scanner visibility exists.

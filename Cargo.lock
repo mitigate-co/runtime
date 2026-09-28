@@ -435,6 +435,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mitigate-gateway"
+version = "0.1.0"
+dependencies = [
+ "mitigate-json",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "mitigate-json"
 version = "0.1.0"
 dependencies = [
@@ -458,6 +468,7 @@ dependencies = [
 name = "mitigate-mcp-fixture"
 version = "0.1.0"
 dependencies = [
+ "mitigate-gateway",
  "mitigate-mcp",
  "process-wrap",
  "serde_json",

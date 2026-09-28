@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — gateway listener
+
+- Add a bounded stdio-compatible protocol listener and immutable explicit caller profiles; unconfigured attribution stays unknown.
+- Enforce initialization, unique request IDs, deadlines and cancellation-safe framing; keep operational errors content-free.
+- Add a local listener contract demonstration and hostile protocol/race tests. CLI/upstream integration follows in MCP-008; no permissive call path is exposed.
+
 ## Unreleased — CLI usability
 
 - Add compact scan/inspection tables and `--details` with full labels and review guidance.
