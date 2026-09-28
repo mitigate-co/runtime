@@ -1,4 +1,5 @@
 //! CLI composition: explicit local actions with content-free operational errors.
+mod approvals;
 mod args;
 mod audit;
 mod gateway;
@@ -45,6 +46,9 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command: McpCommand::Approvals { command },
+        } => return approvals::run(command, cli.json),
         Command::Mcp {
             command: McpCommand::Grants { command },
         } => return grants::run(command, cli.json),
@@ -239,7 +243,7 @@ fn parse_error(error: clap::Error, machine: bool) -> io::Result<ExitCode> {
             return Ok(ExitCode::SUCCESS);
         }
         ErrorKind::MissingRequiredArgument => {
-            "Missing required options. Inspection/serve require --launch-config and --allow-exec; serve also requires --inventory-only. Run the command with --help."
+            "Missing required options. Run this command with --help to see its required values and confirmation flags."
         }
         ErrorKind::ArgumentConflict => {
             "Conflicting options. Use --details for human output or --json for reports; serve uses MCP on stdout and cannot use --json. Check the command's --help."

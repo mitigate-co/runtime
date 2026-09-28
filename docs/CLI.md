@@ -86,6 +86,11 @@ On Windows append `.exe` to the binary path. This checks actual JSON/human repor
 
 ## Recovery
 
+The [approval reference](APPROVALS.md) documents `mcp approvals init`, `request`,
+`list`, `show`, `approve` and `deny`. Operator decisions require `--confirm` and an
+explicit declared operator reference. Commands operate only on local metadata;
+none consumes an approval or invokes a tool.
+
 The [grant reference](GRANTS.md) documents `mcp grants check --rules FILE` and
 `mcp grants test --rules FILE --input FILE`. These validate local rules and resolve
 synthetic/administrator-selected metadata without starting a server. Exit 0 also
@@ -112,5 +117,9 @@ bundle. Source, raw metadata values and private keys are omitted from reports.
 - `grant_rules_invalid`: correct missing/unknown scope fields, duplicate references, class lists or time windows; no rules were accepted.
 - `grant_context_invalid`: provide closed action metadata, nonempty classes and explicit nulls for unknown identity.
 - `grant_file_unavailable`: check file type, size and permissions; no source values are echoed.
+- `approval_state_conflict`: inspect current state; expired/terminal approvals cannot be reused.
+- `approval_store_unavailable`: preserve corrupt state; check storage and permissions before retrying.
+- `approval_clock_invalid`: correct the system clock; do not reset approval state to bypass the check.
+- `approval_capacity_reached`: resolve active requests; active approvals are never evicted to admit new ones.
 
 The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory pagination and shutdown. Enforcing grant/policy composition, approvals and Platform synchronization remain later packages.

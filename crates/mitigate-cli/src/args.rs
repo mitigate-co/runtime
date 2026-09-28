@@ -71,6 +71,11 @@ pub(crate) enum SecretsCommand {
 
 #[derive(Subcommand)]
 pub(crate) enum McpCommand {
+    /// Review and decide bounded local approval requests.
+    Approvals {
+        #[command(subcommand)]
+        command: ApprovalsCommand,
+    },
     /// Validate local grant rules or test them against action metadata.
     Grants {
         #[command(subcommand)]
@@ -151,6 +156,61 @@ pub(crate) enum McpCommand {
         /// Return exit code 3 when at least one configuration risk is present.
         #[arg(long)]
         fail_on_risk: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum ApprovalsCommand {
+    /// Create a new private local approval store.
+    Init {
+        #[arg(long)]
+        db: PathBuf,
+    },
+    /// Create a metadata-only request for local testing; no tool is invoked.
+    Request {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        context: PathBuf,
+        /// Validity window, 1–300 seconds; approvals are always for one call.
+        #[arg(long, default_value_t = 60, value_parser = clap::value_parser!(u32).range(1..=300))]
+        expires_in_seconds: u32,
+    },
+    /// List bounded local approval metadata, applying expiry and retention.
+    List {
+        #[arg(long)]
+        db: PathBuf,
+    },
+    /// Show one request and its immutable scope before deciding.
+    Show {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        reference: String,
+    },
+    /// Approve one still-pending request; all gateway checks still apply.
+    Approve {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        reference: String,
+        /// Declared local operator reference; not an authentication credential.
+        #[arg(long)]
+        operator_ref: String,
+        /// Required explicit decision for this exact request.
+        #[arg(long, required = true)]
+        confirm: bool,
+    },
+    /// Deny a pending request or revoke approval before consumption.
+    Deny {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        reference: String,
+        #[arg(long)]
+        operator_ref: String,
+        #[arg(long, required = true)]
+        confirm: bool,
     },
 }
 

@@ -1,5 +1,6 @@
 //! Local, deterministic policy decisions. No network, raw tool payloads or
 //! credentials enter the interpreter. Policy source never enters diagnostics.
+pub mod approvals;
 mod bundle;
 mod files;
 pub mod grants;
