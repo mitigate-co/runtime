@@ -2,6 +2,7 @@
 mod args;
 mod audit;
 mod gateway;
+mod grants;
 mod output;
 mod policy;
 mod secrets;
@@ -44,6 +45,9 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command: McpCommand::Grants { command },
+        } => return grants::run(command, cli.json),
         Command::Mcp {
             command: McpCommand::Policy { command },
         } => return policy::run(command, cli.json),

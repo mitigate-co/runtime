@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — explicit local grants
+
+- Add exact principal/agent/client/server/tool scopes, capability coverage, environment constraints and half-open time windows.
+- Make matching denials win regardless of order or specificity; require one allowance to cover the complete action and a known client.
+- Add `mcp grants check` and `test`, closed local schemas, deterministic diagnostics and independent grant/policy constraints.
+- Verify malformed/ambiguous rules, unknown attribution, expiry and mixed capabilities. Gateway invocation remains disabled pending the remaining enforcement safeguards.
+
 ## Unreleased — local signed policy
 
 - Embed Regorus with a versioned, structurally bounded Rego profile and closed metadata input/decision output.

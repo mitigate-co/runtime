@@ -71,6 +71,11 @@ pub(crate) enum SecretsCommand {
 
 #[derive(Subcommand)]
 pub(crate) enum McpCommand {
+    /// Validate local grant rules or test them against action metadata.
+    Grants {
+        #[command(subcommand)]
+        command: GrantsCommand,
+    },
     /// Validate, sign, activate and test local MCP policies.
     Policy {
         #[command(subcommand)]
@@ -146,6 +151,22 @@ pub(crate) enum McpCommand {
         /// Return exit code 3 when at least one configuration risk is present.
         #[arg(long)]
         fail_on_risk: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum GrantsCommand {
+    /// Validate explicit grant scopes without starting a server.
+    Check {
+        #[arg(long)]
+        rules: PathBuf,
+    },
+    /// Resolve a local action fixture; never authorize or invoke a tool.
+    Test {
+        #[arg(long)]
+        rules: PathBuf,
+        #[arg(long)]
+        input: PathBuf,
     },
 }
 

@@ -86,6 +86,11 @@ On Windows append `.exe` to the binary path. This checks actual JSON/human repor
 
 ## Recovery
 
+The [grant reference](GRANTS.md) documents `mcp grants check --rules FILE` and
+`mcp grants test --rules FILE --input FILE`. These validate local rules and resolve
+synthetic/administrator-selected metadata without starting a server. Exit 0 also
+covers denied/no-match resolutions; exit 2 means invalid or unavailable input.
+
 The [policy reference](POLICY.md) documents `mcp policy check`, `test`, `keygen`,
 `sign`, `init`, `activate`, `status` and `evaluate`. Source tests do not invoke
 tools. Stored evaluation requires a separately pinned authority and verified
@@ -104,5 +109,8 @@ bundle. Source, raw metadata values and private keys are omitted from reports.
 - `policy_version_rejected`: use a higher signed version; inspect current status after uncertain writes.
 - `policy_evaluation_failed`: execution is not authorized; review overlapping rules and retry.
 - `policy_signing_key_unavailable`: check the native key reference and unlock the OS store.
+- `grant_rules_invalid`: correct missing/unknown scope fields, duplicate references, class lists or time windows; no rules were accepted.
+- `grant_context_invalid`: provide closed action metadata, nonempty classes and explicit nulls for unknown identity.
+- `grant_file_unavailable`: check file type, size and permissions; no source values are echoed.
 
-The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory pagination and shutdown. Gateway enforcement, grants, approvals and Platform synchronization remain later packages.
+The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory pagination and shutdown. Enforcing grant/policy composition, approvals and Platform synchronization remain later packages.
