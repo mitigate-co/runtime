@@ -38,6 +38,23 @@ pub enum Error {
     /// Receipt does not confirm the current pending identity.
     Receipt,
 }
+impl Error {
+    /// Stable local diagnostic category; no path, credential or provider details.
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Exists => "enrollment_exists",
+            Self::Path => "enrollment_path",
+            Self::Busy => "enrollment_busy",
+            Self::Integrity => "enrollment_integrity",
+            Self::Origin => "enrollment_origin",
+            Self::Missing => "enrollment_missing",
+            Self::Storage => "enrollment_storage",
+            Self::Randomness => "enrollment_randomness",
+            Self::Confirmed => "enrollment_confirmed",
+            Self::Receipt => "enrollment_receipt",
+        }
+    }
+}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {

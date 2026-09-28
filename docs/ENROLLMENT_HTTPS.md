@@ -73,5 +73,6 @@ No certificate is installed in the OS, no key is checked in and no server
 verification is disabled. Test-only code injects its ephemeral trusted root.
 CI runs the feature on Windows, macOS and Linux alongside existing privacy gates.
 
-The library transport does not complete MCP-018. CLI orchestration, signed event
-delivery, safe ingest and fleet composition remain separate acceptance gates.
+The library transport does not complete MCP-018. The [CLI](ENROLLMENT_CLI.md)
+composes it with durable native state. Signed event delivery, safe ingest and
+fleet composition remain separate acceptance gates.

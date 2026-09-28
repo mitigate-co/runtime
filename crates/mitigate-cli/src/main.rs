@@ -4,6 +4,7 @@ mod args;
 mod audit;
 mod controls;
 mod egress;
+mod enrollment;
 mod gateway;
 mod grants;
 mod launch;
@@ -51,6 +52,7 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Enroll { command } => return enrollment::run(command, cli.json),
         Command::Privacy { command } => return egress::privacy(command, cli.json),
         Command::Egress { command } => return egress::inspect(command, cli.json),
         Command::Registry { command } => return registry::run(command, cli.json),

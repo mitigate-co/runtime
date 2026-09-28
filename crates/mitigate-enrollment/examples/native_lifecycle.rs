@@ -4,7 +4,11 @@ use mitigate_enrollment::{
     storage::{EnrollmentStore, Status},
 };
 use mitigate_secrets::{Secret, SecretRef};
-use std::{fs, path::PathBuf, process::ExitCode};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::{Command, ExitCode},
+};
 
 struct Cleanup {
     path: PathBuf,
@@ -31,7 +35,22 @@ fn require(value: bool) -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    require(std::env::args().skip(1).eq(["--allow-native-fixture"]))?;
+    let mut arguments = std::env::args_os().skip(1);
+    require(
+        arguments
+            .next()
+            .is_some_and(|a| a == "--allow-native-fixture"),
+    )?;
+    let cli = match arguments.next() {
+        None => None,
+        Some(flag) => {
+            require(flag == "--cli")?;
+            Some(PathBuf::from(
+                arguments.next().ok_or("missing fixture executable")?,
+            ))
+        }
+    };
+    require(arguments.next().is_none())?;
     let origin = PlatformOrigin::parse("https://mitigate.example")?;
     let dir = std::env::temp_dir().join(format!(
         "mitigate-native-enrollment-{}",
@@ -54,6 +73,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     require(pending.status() == Status::Pending)?;
     let first = pending.claim()?;
     drop(pending);
+    if let Some(cli) = &cli {
+        check_cli(cli, &cleanup, "status", "pending")?;
+    }
     let restored = EnrollmentStore::open(&cleanup.path, &cleanup.origin)?;
     require(first.as_bytes() == restored.claim()?.as_bytes())?;
     let receipt = serde_json::to_vec(&serde_json::json!({"schema_version":1,"enrollment":{
@@ -72,6 +94,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             },
     )?;
     drop(restored);
+    if let Some(cli) = &cli {
+        check_cli(cli, &cleanup, "status", "confirmed")?;
+        // The deliberately nonexistent example host proves a confirmed retry
+        // remains local instead of trying to resolve or contact Platform again.
+        check_cli(cli, &cleanup, "retry", "confirmed")?;
+    }
     EnrollmentStore::forget(&cleanup.path, &cleanup.origin)?;
     require(
         EnrollmentStore::open(&cleanup.path, &cleanup.origin).err()
@@ -81,6 +109,34 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "Native enrollment verified: pending restart, identical proof, confirmed restart and exact deletion. No network requests."
     );
+    Ok(())
+}
+fn check_cli(
+    cli: &Path,
+    cleanup: &Cleanup,
+    action: &str,
+    status: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new(cli)
+        .args([
+            "enroll",
+            action,
+            "--platform",
+            cleanup.origin.as_str(),
+            "--state",
+        ])
+        .arg(&cleanup.path)
+        .arg("--json")
+        .stdin(std::process::Stdio::null())
+        .output()?;
+    require(output.status.success() && output.stderr.is_empty())?;
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    require(
+        value["schema_version"] == 1 && value["status"] == status && value["sync_enabled"] == false,
+    )?;
+    if status == "confirmed" {
+        require(value["enrolled_at_ms"] == 1790614800000u64)?;
+    }
     Ok(())
 }
 fn main() -> ExitCode {

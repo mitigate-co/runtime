@@ -1,12 +1,16 @@
 # Command line reference
 
-Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAND` or `target/debug/mitigate` (`mitigate.exe` on Windows). No account is required. The first build downloads dependencies; these commands do not contact Platform.
+Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAND` or `target/debug/mitigate` (`mitigate.exe` on Windows). Local MCP use requires no account. The first build downloads dependencies. Only explicit enrollment start/pending retry contacts Platform; other command side effects are listed below.
 
 ## Choose a command
 
 | Task | Command | Side effect |
 | --- | --- | --- |
 | Check installed version | `mitigate version` | None |
+| Connect to an organization | `mitigate enroll start --platform ORIGIN --state NEW_FILE --stdin` | Saves a native credential, sends one HTTPS enrollment proof; sync stays off; [setup and recovery](ENROLLMENT_CLI.md) |
+| Recover enrollment | `mitigate enroll retry --platform ORIGIN --state FILE` | Sends the original pending proof, or returns a confirmed local receipt |
+| Inspect enrollment | `mitigate enroll status --platform ORIGIN --state FILE` | Reads local state and native receipt; no network |
+| Remove enrollment credential | `mitigate enroll forget --platform ORIGIN --state FILE --confirm` | Deletes the exact native entry; retains the anchor; does not revoke remote access |
 | Verify privacy admission | `mitigate privacy self-test` | Creates/removes a private synthetic temporary queue; no network; [details](PRIVACY_COMMANDS.md) |
 | Inspect egress fields | `mitigate egress inspect` | Lists supported closed event fields; optional scoped queue inspection is read-only |
 | Look up public registry facts | `mitigate registry lookup --catalog FILE --subject NAMESPACE/SERVER` | Reads one explicit public catalog; no network, installation or grant changes; [contract](REGISTRY.md) |
@@ -53,6 +57,7 @@ Every error JSON has exactly `schema_version: 1`, a fixed `error` code and a `me
 | Command | Schema | Fields (besides `schema_version`) |
 | --- | --- | --- |
 | `version` | 1 | `product`, `version`, `config_schema_version` |
+| `enroll start/retry/status/forget` | 1 | `status`, `sync_enabled`; pending/confirmed add `runtime_ref`, `enrollment_ref`; confirmed adds `enrolled_at_ms`; [contract](ENROLLMENT_CLI.md) |
 | `config check` | 1 | `valid`, validated `config` |
 | `mcp scan` | 2 | `sources`, `servers`; [declaration contract](SCANNER.md) |
 | `mcp inspect` | 2 | `protocol_version`, `server_name`, `server_version`, `tools_supported`, `tools`; [classification contract](CLASSIFICATION.md) |

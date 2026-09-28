@@ -1199,6 +1199,7 @@ dependencies = [
  "mitigate-audit",
  "mitigate-config",
  "mitigate-egress",
+ "mitigate-enrollment",
  "mitigate-fingerprint",
  "mitigate-gateway",
  "mitigate-json",

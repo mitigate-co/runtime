@@ -68,7 +68,8 @@ jobs:
           cargo test --locked -p mitigate-secrets native_windows_record_uses_local_persistence -- --ignored
           target/debug/mitigate-test-mcp.exe secret-contract target/debug/mitigate.exe
           python scripts/verify-policy.py target/debug/mitigate.exe --native
-          cargo run -p mitigate-enrollment --example native_lifecycle --locked -- --allow-native-fixture
+          cargo run -p mitigate-enrollment --example native_lifecycle --locked -- --allow-native-fixture --cli target/debug/mitigate.exe
+          node scripts/verify-enrollment-cli.mjs target/debug/mitigate.exe
       - name: Verify native credentials on macOS
         if: runner.os == 'macOS'
         timeout-minutes: 3
@@ -82,7 +83,10 @@ jobs:
           security default-keychain -d user -s "$keychain"
           target/debug/mitigate-test-mcp secret-contract target/debug/mitigate
           python scripts/verify-policy.py target/debug/mitigate --native
+          # Keychain ACLs trust the creating application. Keep the receipt fixture
+          # in its own binary; the following CLI fixture creates its own entries.
           cargo run -p mitigate-enrollment --example native_lifecycle --locked -- --allow-native-fixture
+          node scripts/verify-enrollment-cli.mjs target/debug/mitigate
       - name: Verify native credentials on Linux
         if: runner.os == 'Linux'
         shell: bash
