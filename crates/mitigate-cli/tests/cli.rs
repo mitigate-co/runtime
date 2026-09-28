@@ -10,6 +10,83 @@ use std::{
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
+#[test]
+fn audit_commands_validate_bounds_preserve_files_and_require_prune_intent() {
+    let fixture = Fixture::new();
+    let path = fixture.0.join("audit.sqlite");
+    let db = path.to_str().unwrap();
+    let invalid = cli(&[
+        "mcp",
+        "audit",
+        "init",
+        "--db",
+        db,
+        "--max-records",
+        "0",
+        "--json",
+    ]);
+    assert_eq!(invalid.status.code(), Some(2));
+    assert!(!path.exists());
+    let created = cli(&[
+        "mcp",
+        "audit",
+        "init",
+        "--db",
+        db,
+        "--max-records",
+        "12",
+        "--json",
+    ]);
+    assert!(created.status.success());
+    let report: Value = serde_json::from_slice(&created.stdout).unwrap();
+    assert_eq!(report["retention"]["max_records"], 12);
+    let before = fs::read(&path).unwrap();
+    assert_eq!(
+        cli(&["mcp", "audit", "init", "--db", db, "--json"])
+            .status
+            .code(),
+        Some(2)
+    );
+    assert_eq!(fs::read(&path).unwrap(), before);
+    let listed = cli(&["mcp", "audit", "list", "--db", db]);
+    assert!(listed.status.success());
+    assert!(
+        String::from_utf8(listed.stdout)
+            .unwrap()
+            .contains("No retained events.")
+    );
+    assert_eq!(
+        cli(&[
+            "mcp", "audit", "list", "--db", db, "--limit", "251", "--json"
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert_eq!(
+        cli(&["mcp", "audit", "prune", "--db", db, "--json"])
+            .status
+            .code(),
+        Some(2)
+    );
+    assert!(
+        cli(&["mcp", "audit", "prune", "--db", db, "--confirm", "--json"])
+            .status
+            .success()
+    );
+    assert!(
+        cli(&["mcp", "audit", "verify", "--db", db, "--json"])
+            .status
+            .success()
+    );
+    fs::write(&path, b"sensitive-audit-error-canary").unwrap();
+    let failed = cli(&["mcp", "audit", "verify", "--db", db, "--json"]);
+    assert_eq!(failed.status.code(), Some(2));
+    assert!(failed.stdout.is_empty());
+    assert!(!String::from_utf8_lossy(&failed.stderr).contains("canary"));
+    assert!(!String::from_utf8_lossy(&failed.stderr).contains(db));
+}
+
 struct Fixture(PathBuf);
 impl Fixture {
     fn new() -> Self {

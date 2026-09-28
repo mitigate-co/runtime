@@ -45,6 +45,8 @@ impl std::error::Error for Error {}
 /// Fixed JSON-RPC faults; raw upstream error bodies must not cross this type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Fault {
+    /// Required local audit could not be committed; no permission to proceed.
+    AuditUnavailable,
     /// Explicit inventory-only endpoint; invocation is intentionally unavailable.
     Disabled,
     /// Invalid method parameters.
@@ -59,6 +61,10 @@ pub enum Fault {
 impl Fault {
     pub(crate) const fn parts(self) -> (i32, &'static str) {
         match self {
+            Self::AuditUnavailable => (
+                -32007,
+                "Local audit unavailable; verify storage before retrying",
+            ),
             Self::Disabled => (-32006, "Tool calls disabled in inventory-only mode"),
             Self::InvalidParams => (-32602, "Invalid method parameters"),
             Self::Denied => (-32001, "Tool call denied by local policy"),

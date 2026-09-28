@@ -1,5 +1,6 @@
 //! CLI composition: explicit local actions with content-free operational errors.
 mod args;
+mod audit;
 mod gateway;
 mod output;
 mod secrets;
@@ -42,6 +43,9 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command: McpCommand::Audit { command },
+        } => return audit::run(command, cli.json),
         Command::Secrets { command } => return secrets::run(command, cli.json),
         Command::Mcp {
             command:
@@ -50,9 +54,10 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                     allow_exec: _,
                     inventory_only: _,
                     profile,
+                    audit_db,
                 },
         } => {
-            return gateway::run(&launch_config, profile.as_deref());
+            return gateway::run(&launch_config, profile.as_deref(), audit_db.as_deref());
         }
         Command::Mcp {
             command:

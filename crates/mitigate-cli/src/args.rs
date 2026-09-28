@@ -71,6 +71,11 @@ pub(crate) enum SecretsCommand {
 
 #[derive(Subcommand)]
 pub(crate) enum McpCommand {
+    /// Create, verify, read or prune a local metadata audit database.
+    Audit {
+        #[command(subcommand)]
+        command: AuditCommand,
+    },
     /// Serve a reviewed server's inventory over stdio; tool calls stay disabled.
     Serve {
         /// Reviewed local process launch configuration.
@@ -85,6 +90,9 @@ pub(crate) enum McpCommand {
         /// Explicit local caller mapping; omitted attribution remains unknown.
         #[arg(long)]
         profile: Option<PathBuf>,
+        /// Existing audit database initialized with `mcp audit init`.
+        #[arg(long)]
+        audit_db: Option<PathBuf>,
     },
     /// Compare local snapshots without starting a server.
     Diff {
@@ -133,6 +141,48 @@ pub(crate) enum McpCommand {
         /// Return exit code 3 when at least one configuration risk is present.
         #[arg(long)]
         fail_on_risk: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum AuditCommand {
+    /// Create a new private audit file; never overwrite an existing path.
+    Init {
+        #[arg(long)]
+        db: PathBuf,
+        /// Retain at most this many records (1–100,000).
+        #[arg(long, default_value_t = 10_000)]
+        max_records: u32,
+        /// Retain records for this many days (1–365).
+        #[arg(long, default_value_t = 30)]
+        max_age_days: u32,
+        /// Maximum retained event bytes (4 KiB–64 MiB).
+        #[arg(long, default_value_t = 16_777_216)]
+        max_payload_bytes: u64,
+    },
+    /// Verify the complete retained hash chain and report retention checkpoints.
+    Verify {
+        #[arg(long)]
+        db: PathBuf,
+    },
+    /// Verify and read a bounded page of local audit metadata.
+    List {
+        #[arg(long)]
+        db: PathBuf,
+        /// Sequence after which to read; retention gaps appear in the checkpoint.
+        #[arg(long, default_value_t = 0)]
+        after: u64,
+        /// Number of records to show (1–250).
+        #[arg(long, default_value_t = 50)]
+        limit: u32,
+    },
+    /// Permanently remove records outside the stored retention limits.
+    Prune {
+        #[arg(long)]
+        db: PathBuf,
+        /// Required explicit intent to delete expired records.
+        #[arg(long, required = true)]
+        confirm: bool,
     },
 }
 

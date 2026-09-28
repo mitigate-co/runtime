@@ -1,12 +1,13 @@
 [workspace]
 resolver = "3"
-members = ["crates/mitigate-cli", "crates/mitigate-config", "crates/mitigate-mcp-scan", "crates/mitigate-json", "crates/mitigate-mcp", "crates/mitigate-fingerprint", "crates/mitigate-gateway", "crates/mitigate-secrets", "fixtures/mcp-server"]
+members = ["crates/mitigate-cli", "crates/mitigate-config", "crates/mitigate-mcp-scan", "crates/mitigate-json", "crates/mitigate-mcp", "crates/mitigate-fingerprint", "crates/mitigate-gateway", "crates/mitigate-secrets", "crates/mitigate-audit", "fixtures/mcp-server"]
 default-members = ["crates/mitigate-cli"]
-exclude = ["vendor/process-wrap"]
+exclude = ["vendor/process-wrap", "vendor/libsqlite3-sys"]
 
-# Reviewed Windows cleanup correction; provenance and removal criteria in vendor/.
+# Reviewed native corrections; provenance and removal criteria in vendor/.
 [patch.crates-io]
 process-wrap = { path = "vendor/process-wrap" }
+libsqlite3-sys = { path = "vendor/libsqlite3-sys" }
 
 [workspace.package]
 version = "0.1.0"
@@ -23,6 +24,7 @@ url = "=2.5.8"
 sha2 = "=0.10.9"
 zeroize = "=1.9.0"
 getrandom = "=0.4.3"
+rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "limits", "hooks"] }
 serde_json_canonicalizer = "=0.3.2"
 tokio = { version = "=1.53.1", default-features = false, features = ["rt", "process", "io-util", "time", "macros", "signal"] }
 process-wrap = { version = "=10.0.1", default-features = false, features = ["tokio1", "creation-flags", "job-object", "kill-on-drop", "process-group"] }

@@ -1,6 +1,6 @@
 # Local gateway protocol
 
-`mitigate mcp serve` connects the local listener to a [managed stdio upstream](UPSTREAM.md). It opens no TCP socket and has no account dependency. The current explicit inventory-only mode lists real upstream definitions and disables all tool invocations. An enforcing call path awaits the later policy, grants, approval, schema validation, secret and audit packages. It is not production enforcement yet.
+`mitigate mcp serve` connects the local listener to a [managed stdio upstream](UPSTREAM.md). It opens no TCP socket and has no account dependency. The current explicit inventory-only mode lists real upstream definitions and disables all tool invocations. Native secrets and local audit are available; enforcing calls still await policy, grants, approvals and complete schema validation/integration. It is not production enforcement yet.
 
 ## Start an inventory endpoint
 
@@ -13,6 +13,15 @@ mitigate mcp serve --launch-config target/fixture-launch.json --allow-exec --inv
 This command reads MCP messages from stdin and writes only MCP messages to stdout. It is a client-launched stdio service, not an interactive terminal prompt. Startup/session diagnostics use fixed content-free stderr messages and exit 2, including startup cancellation. Normal EOF and explicit shutdown after startup exit 0 after upstream cleanup. `--json` conflicts with serve because stdout is already the MCP transport. Launch intent and `--inventory-only` are required; there is no hidden allow-call switch. Use `--profile examples/gateway-profile.json` only after reviewing its declared mapping. Invalid profiles fail before process launch. [Native credential bindings](SECRETS.md) resolve inside the startup deadline before a child is spawned.
 
 Tool listing refreshes the upstream baseline before returning definitions. Pages contain at most 16 tools and are reduced to stay below 512 KiB and the strict parser complexity limits. Versioned local cursors do not accept an offset outside the retained inventory. Tool calls return fixed error `-32006` and never reach the upstream. No file or client configuration is modified automatically.
+
+Add `--audit-db FILE` after creating a private database with `mcp audit init`.
+Startup verifies it before child execution. Completed inventory requests and
+denied calls are committed before returning their response; a storage failure
+returns `-32007`. SQLite work runs on a blocking worker, so disk contention does
+not block the async protocol reactor. Cancellation may occur before a completion
+record exists; an already-started audit commit may still finish after cancellation.
+See [audit scope, bounds and recovery](AUDIT.md). Full execution auditing is a later
+enforcement gate; this option never enables tool invocation.
 
 ## Identity
 

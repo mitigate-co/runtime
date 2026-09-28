@@ -6,7 +6,9 @@ Development has started. No release binaries or production-ready gateway are pub
 
 ## Run from source
 
-Install Rust through rustup. The repository pins its toolchain and lockfile.
+Install Rust through rustup and a native C build toolchain (Visual Studio C++ build
+tools on Windows, Xcode command-line tools on macOS, or a C compiler on Linux).
+The repository pins its Rust toolchain and lockfile; SQLite is bundled from source.
 
 ```sh
 cargo run --locked -- version
@@ -30,6 +32,11 @@ Use [native credentials](docs/SECRETS.md) when a reviewed server requires a key.
 `mitigate secrets import --stdin` reads a pipe into your OS store and returns an
 opaque launch reference. Values never belong in command arguments or launch files.
 Check, rotate and delete credentials locally without a Platform account.
+
+Use [local audit](docs/AUDIT.md) to record inventory requests and denied calls:
+initialize a private database with `mitigate mcp audit init --db FILE`, then add
+`--audit-db FILE` to serve. Verify, page through, or prune its bounded metadata
+history locally. No arguments, results or credentials are audit fields.
 
 Add `--snapshot target/before.json` to save fingerprints to a new local file. After a later inspection saved to another file, compare them offline:
 

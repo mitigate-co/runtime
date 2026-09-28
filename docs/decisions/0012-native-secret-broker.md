@@ -1,6 +1,6 @@
 # ADR 0012: Native secrets and scoped stdio injection
 
-Status: accepted for MCP-009; native Windows verification passed, macOS/Linux CI pending.
+Status: accepted for MCP-009; native Windows/macOS/Linux verification passed in PR #10.
 
 Use a small Runtime secret broker with opaque, random `sec_` references. Values
 remain in the current user's native store: Windows Credential Manager with Local

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — local audit
+
+- Add bounded SQLite audit with a closed metadata schema, transactional retention and a verifiable hash chain.
+- Add explicit initialization, verification, paginated reads and confirmed pruning. Reject corruption and incompatible schemas without resetting them.
+- Record completed inventory requests and denied calls with `serve --audit-db`; refuse responses/startup when required storage fails.
+- Verify corruption, rotation, competing writers, disk capacity, private files and real CLI/gateway privacy boundaries. No raw payload storage or Platform sync is added.
+
 ## Unreleased — native secret broker
 
 - Store credentials in the current user's native OS store and reference them with opaque IDs in reviewed launch documents.
