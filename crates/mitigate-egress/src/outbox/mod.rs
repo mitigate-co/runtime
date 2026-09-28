@@ -232,7 +232,9 @@ pub enum Error {
     Input,
     /// Missing/unsafe/nonprivate/oversized local file.
     Path,
-    /// SQLite failure, busy/full storage or uncertain commit.
+    /// Another connection holds the required lock past the bounded wait.
+    Busy,
+    /// Other SQLite failure, full storage or uncertain commit.
     Storage,
     /// Unexpected schema, corrupt records or inconsistent state.
     Integrity,
@@ -250,6 +252,7 @@ impl fmt::Display for Error {
         f.write_str(match self {
             Self::Input => "invalid outbox settings; review the configured bounds",
             Self::Path => "outbox file unavailable; inspect its location and permissions",
+            Self::Busy => "outbox is busy; retry from the delivery worker after backoff",
             Self::Storage => "outbox storage unavailable; inspect capacity and access",
             Self::Integrity => "outbox integrity check failed; preserve and inspect the store",
             Self::Partition => "outbox enrollment does not match the selected configuration",
@@ -261,7 +264,12 @@ impl fmt::Display for Error {
 }
 impl std::error::Error for Error {}
 impl From<rusqlite::Error> for Error {
-    fn from(_: rusqlite::Error) -> Self {
-        Self::Storage
+    fn from(error: rusqlite::Error) -> Self {
+        match error.sqlite_error_code() {
+            Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked) => {
+                Self::Busy
+            }
+            _ => Self::Storage,
+        }
     }
 }

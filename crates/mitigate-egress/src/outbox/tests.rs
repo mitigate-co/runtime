@@ -241,9 +241,13 @@ fn write_and_commit_failures_return_no_admission_or_delivery_lease() {
     assert_eq!(store.inspect().unwrap().leased, 0);
     let blocker = rusqlite::Connection::open(fixture.db()).unwrap();
     blocker.execute_batch("BEGIN IMMEDIATE").unwrap();
-    assert_eq!(store.admit(&event('2')), Err(Error::Storage));
+    assert_eq!(store.admit(&event('2')), Err(Error::Busy));
+    assert!(matches!(store.claim(), Err(Error::Busy)));
     blocker.execute_batch("ROLLBACK").unwrap();
-    assert_eq!(store.inspect().unwrap().pending, 1);
+    let report = store.inspect().unwrap();
+    assert_eq!((report.pending, report.leased), (1, 0));
+    assert_eq!(count(&report, Action::Queued), 1);
+    assert_eq!(count(&report, Action::Claimed), 0);
 }
 
 #[test]
@@ -346,23 +350,40 @@ fn concurrent_workers_cannot_claim_the_same_pending_event() {
     store.test_time = None;
     store.admit(&event('1')).unwrap();
     let barrier = Arc::new(Barrier::new(2));
-    let threads: Vec<_> = (0..2)
-        .map(|_| {
-            let path = fixture.db();
+    // Isolate competing claims from connection initialization. Bounded SQLite
+    // contention is a normal retryable outcome, not a duplicate delivery lease.
+    let workers: Vec<_> = (0..2)
+        .map(|_| Outbox::open(&fixture.db(), partition()).unwrap())
+        .collect();
+    let threads: Vec<_> = workers
+        .into_iter()
+        .map(|mut worker| {
             let barrier = Arc::clone(&barrier);
             std::thread::spawn(move || {
-                let mut worker = Outbox::open(&path, partition()).unwrap();
                 barrier.wait();
-                worker.claim().unwrap().is_some()
+                match worker.claim() {
+                    Ok(lease) => lease,
+                    Err(Error::Busy) => None,
+                    Err(error) => panic!("unexpected claim error: {error}"),
+                }
             })
         })
         .collect();
-    let claimed = threads
+    let mut leases: Vec<_> = threads
         .into_iter()
-        .map(|t| usize::from(t.join().unwrap()))
-        .sum::<usize>();
-    assert_eq!(claimed, 1);
-    assert_eq!(store.inspect().unwrap().leased, 1);
+        .filter_map(|t| t.join().unwrap())
+        .collect();
+    assert_eq!(leases.len(), 1);
+    let report = store.inspect().unwrap();
+    assert_eq!(report.leased, 1);
+    assert_eq!(count(&report, Action::Claimed), 1);
+    assert!(store.claim().unwrap().is_none());
+    store
+        .complete(leases.pop().unwrap(), DeliveryOutcome::Accepted)
+        .unwrap();
+    let report = store.inspect().unwrap();
+    assert_eq!((report.pending, report.receipts), (0, 1));
+    assert_eq!(count(&report, Action::Delivered), 1);
 }
 
 #[test]
