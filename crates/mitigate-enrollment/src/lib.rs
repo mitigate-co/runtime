@@ -1,12 +1,13 @@
 //! Optional Platform enrollment authentication, separate from telemetry admission.
 //!
-//! This protocol component performs no network or persistence. It neither enables
-//! sync nor authorizes a tenant: Platform must consume a valid one-use grant. The
-//! eventual caller must pin HTTPS, obtain local consent and store the seed through
-//! the native secret broker before sending. Local MCP operation is independent.
+//! Core protocol types perform no network or persistence. The explicit `storage`
+//! module owns native persistence and exclusive recovery. Neither enables sync
+//! nor authorizes a tenant: Platform must consume a valid one-use grant. A sender
+//! must pin HTTPS and obtain local consent. Local MCP operation is independent.
 
 mod claim;
 mod code;
+pub mod storage;
 #[cfg(test)]
 mod tests;
 

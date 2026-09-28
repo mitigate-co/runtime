@@ -177,5 +177,10 @@ expiry/revocation and possession; Runtime must authenticate HTTPS and retain the
 same identity after an uncertain response. Closed receipt validation is not TLS,
 hardware attestation or ongoing authorization. The pure protocol neither sends
 requests nor enables sync, and bootstrap credentials cannot be admitted as normal
-telemetry. Native persistence and delivery remain separate implementation gates.
+telemetry. Native persistence uses a strictly bound OS record and an immutable
+private-file operation lock; failed writes require reopen/reconciliation. No
+plaintext secret fallback or identity regeneration is allowed. Explicit lock
+release accounts for briefly inherited file descriptions. Parent ACLs, local
+filesystem locks and same-user trust remain assumptions; copying/rolling back
+an anchor or native store is not resisted. HTTPS delivery remains a separate gate.
 See [enrollment boundaries](ENROLLMENT.md) and ADR 0027.

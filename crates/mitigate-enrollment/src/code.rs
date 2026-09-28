@@ -39,6 +39,11 @@ impl EnrollmentCode {
     pub fn grant_id(&self) -> &str {
         &self.grant_id
     }
+    pub(crate) fn to_secret(&self) -> Result<Secret, Error> {
+        let encoded = Zeroizing::new(URL_SAFE_NO_PAD.encode(self.token.as_slice()));
+        Secret::from_bytes(format!("mcp1:{}:{}", self.grant_id, encoded.as_str()).into_bytes())
+            .map_err(|_| Error::Encoding)
+    }
 }
 fn valid_uuid(value: &str) -> bool {
     value.len() == 36
