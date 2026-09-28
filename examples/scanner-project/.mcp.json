@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "files": {
+      "command": "npx",
+      "args": ["--yes", "@example/mcp-files@1.2.3", "/customer/workspace"],
+      "env": {"ACCESS_TOKEN": "${EXAMPLE_TOKEN}"}
+    },
+    "issues": {
+      "type": "http",
+      "url": "https://mcp.example.test/tools",
+      "headers": {"Authorization": "${EXAMPLE_HEADER}"}
+    }
+  }
+}

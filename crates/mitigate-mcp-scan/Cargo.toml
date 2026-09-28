@@ -1,22 +1,17 @@
 [package]
-name = "mitigate-cli"
-description = "Local-first Mitigate MCP command line"
+name = "mitigate-mcp-scan"
+description = "Read-only, bounded MCP configuration discovery"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
-[[bin]]
-name = "mitigate"
-path = "src/main.rs"
-
 [dependencies]
 mitigate-config = { version = "0.1.0", path = "../mitigate-config" }
-mitigate-mcp-scan = { version = "0.1.0", path = "../mitigate-mcp-scan" }
-clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+url.workspace = true
 
 [lints]
 workspace = true

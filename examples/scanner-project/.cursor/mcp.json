@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "review-shell-config": {
+      "command": "sh",
+      "args": ["-c", "this-command-is-never-executed"],
+      "envFile": "never-open-this.env"
+    }
+  }
+}

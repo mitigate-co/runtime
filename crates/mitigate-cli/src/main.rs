@@ -32,6 +32,24 @@ enum Command {
         #[command(subcommand)]
         command: ConfigCommand,
     },
+    /// Discover MCP declarations without running servers or connecting to them.
+    Mcp {
+        #[command(subcommand)]
+        command: McpCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum McpCommand {
+    /// Read Claude Code and Cursor project configurations locally.
+    Scan {
+        /// Project directory; only documented configuration paths are inspected.
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        /// Optional Runtime configuration for scanner resource limits.
+        #[arg(long)]
+        runtime_config: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -90,6 +108,80 @@ fn config_error(error: ConfigError, json: bool) -> io::Result<()> {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Mcp {
+            command:
+                McpCommand::Scan {
+                    root,
+                    runtime_config,
+                },
+        } => {
+            let config = match runtime_config {
+                None => RuntimeConfig::default(),
+                Some(path) => match RuntimeConfig::from_file(&path) {
+                    Ok(config) => config,
+                    Err(error) => {
+                        config_error(error, cli.json)?;
+                        return Ok(ExitCode::from(2));
+                    }
+                },
+            };
+            let report = match mitigate_mcp_scan::scan_project(&root, &config.scan) {
+                Ok(report) => report,
+                Err(error) => {
+                    if cli.json {
+                        write_json(
+                            &ErrorReport {
+                                schema_version: 1,
+                                error: error.code(),
+                                message: error.to_string(),
+                            },
+                            io::stderr().lock(),
+                        )?;
+                    } else {
+                        writeln!(io::stderr().lock(), "{}: {error}", error.code())?;
+                    }
+                    return Ok(ExitCode::from(2));
+                }
+            };
+            if cli.json {
+                write_json(&report, io::stdout().lock())?;
+            } else {
+                let mut output = io::stdout().lock();
+                writeln!(
+                    output,
+                    "{} MCP server declaration(s). No servers started or contacted.",
+                    report.servers.len()
+                )?;
+                for server in &report.servers {
+                    let name: String = server
+                        .server_name
+                        .chars()
+                        .flat_map(char::escape_default)
+                        .collect();
+                    let destination: String = server
+                        .command_or_url
+                        .as_deref()
+                        .unwrap_or("unresolved")
+                        .chars()
+                        .flat_map(char::escape_default)
+                        .collect();
+                    writeln!(
+                        output,
+                        "{}  {name}  {:?}  {destination}",
+                        server.source_path, server.transport
+                    )?;
+                    if !server.risks.is_empty() {
+                        writeln!(output, "  Review: {:?}", server.risks)?;
+                    }
+                }
+                if report.servers.is_empty() {
+                    writeln!(
+                        output,
+                        "Checked .mcp.json and .cursor/mcp.json. Use --root to choose another project."
+                    )?;
+                }
+            }
+        }
         Command::Version => {
             let report = VersionReport {
                 schema_version: 1,

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/mitigate-cli", "crates/mitigate-config"]
+members = ["crates/mitigate-cli", "crates/mitigate-config", "crates/mitigate-mcp-scan"]
 
 [workspace.package]
 version = "0.1.0"
@@ -13,6 +13,7 @@ repository = "https://github.com/mitigate-co/runtime"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"
 clap = { version = "=4.6.7", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
+url = "=2.5.8"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
