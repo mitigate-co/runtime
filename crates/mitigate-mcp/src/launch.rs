@@ -12,8 +12,8 @@ use std::{
 
 /// A reviewed local process declaration. No inline credentials or shell strings.
 ///
-/// Deserialization does not grant execution. Only `enumerate` launches it; its
-/// caller must obtain explicit intent. Debug/Serialize are intentionally absent.
+/// Deserialization does not grant execution. Enumeration and managed connection
+/// callers must obtain explicit intent. Debug/Serialize are intentionally absent.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LaunchConfig {

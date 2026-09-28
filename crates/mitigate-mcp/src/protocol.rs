@@ -1,4 +1,4 @@
-//! One bounded enumeration session. No tool calls, content requests or sampling.
+//! Bounded MCP client state, shared by enumeration and managed upstream sessions.
 
 use crate::{Error, Inventory, Result, Tool};
 use serde_json::{Value, json};
@@ -8,6 +8,8 @@ pub(crate) trait Transport {
     async fn send(&mut self, message: Value) -> Result<()>;
     async fn receive(&mut self) -> Result<Value>;
 }
+
+type ProgressObserver<'a> = &'a mut dyn FnMut(&Value) -> Result<()>;
 
 fn label(value: &Value, limit: usize) -> Result<&str> {
     let text = value.as_str().ok_or(Error::Protocol)?;
@@ -21,18 +23,45 @@ fn label(value: &Value, limit: usize) -> Result<&str> {
     Ok(text)
 }
 
-struct Session<'a, T> {
-    transport: &'a mut T,
+pub(crate) struct Client {
     server_requests: BTreeSet<String>,
     unsolicited: usize,
+    transaction_unsolicited: usize,
+    next_id: u32,
 }
-impl<T: Transport> Session<'_, T> {
-    async fn request(&mut self, id: u32, method: &str, params: Value) -> Result<Value> {
-        self.transport
+impl Client {
+    pub fn next_request_id(&self) -> u32 {
+        self.next_id
+    }
+    pub fn new() -> Self {
+        Self {
+            server_requests: BTreeSet::new(),
+            unsolicited: 0,
+            transaction_unsolicited: 0,
+            next_id: 1,
+        }
+    }
+    pub fn begin_transaction(&mut self) {
+        self.transaction_unsolicited = 0;
+    }
+    pub async fn request(
+        &mut self,
+        transport: &mut impl Transport,
+        method: &str,
+        params: Value,
+        mut progress: Option<ProgressObserver<'_>>,
+    ) -> Result<Value> {
+        let id = self.next_id;
+        self.next_id = self
+            .next_id
+            .checked_add(1)
+            .filter(|id| *id <= 65_536)
+            .ok_or(Error::Limit)?;
+        transport
             .send(json!({"jsonrpc":"2.0","id":id,"method":method,"params":params}))
             .await?;
         for _ in 0..64 {
-            let message = self.transport.receive().await?;
+            let message = transport.receive().await?;
             let fields = message.as_object().ok_or(Error::Protocol)?;
             if message.get("jsonrpc") != Some(&json!("2.0")) {
                 return Err(Error::Protocol);
@@ -47,7 +76,8 @@ impl<T: Transport> Session<'_, T> {
                 }
                 let method = label(method, 128)?;
                 self.unsolicited += 1;
-                if self.unsolicited > 256 {
+                self.transaction_unsolicited += 1;
+                if self.unsolicited > 65_536 || self.transaction_unsolicited > 256 {
                     return Err(Error::Limit);
                 }
                 if let Some(request_id) = message.get("id") {
@@ -60,6 +90,9 @@ impl<T: Transport> Session<'_, T> {
                     }
                     // Incoming request IDs are a separate namespace from ours,
                     // but each must be unique for the entire connection.
+                    if self.server_requests.len() >= 4096 {
+                        return Err(Error::Limit);
+                    }
                     if !self.server_requests.insert(request_id.to_string()) {
                         return Err(Error::Protocol);
                     }
@@ -68,9 +101,13 @@ impl<T: Transport> Session<'_, T> {
                     } else {
                         json!({"jsonrpc":"2.0","id":request_id,"error":{"code":-32601,"message":"Method not supported"}})
                     };
-                    self.transport.send(response).await?;
+                    transport.send(response).await?;
                 } else if method == "notifications/tools/list_changed" {
                     return Err(Error::Changed);
+                } else if method == "notifications/progress"
+                    && let Some(callback) = &mut progress
+                {
+                    callback(&message["params"])?;
                 }
                 // Unsolicited logs/notifications are discarded, never printed.
                 continue;
@@ -145,18 +182,18 @@ fn tool(value: &Value) -> Result<Tool> {
     })
 }
 
-pub(crate) async fn inventory(transport: &mut impl Transport) -> Result<Inventory> {
-    let mut session = Session {
-        transport,
-        server_requests: BTreeSet::new(),
-        unsolicited: 0,
-    };
+pub(crate) async fn initialize(
+    client: &mut Client,
+    transport: &mut impl Transport,
+) -> Result<Inventory> {
     let initialization = json!({
         "protocolVersion": "2025-11-25",
         "capabilities": {},
         "clientInfo": { "name": "mitigate", "version": env!("CARGO_PKG_VERSION") }
     });
-    let init = session.request(1, "initialize", initialization).await?;
+    let init = client
+        .request(transport, "initialize", initialization, None)
+        .await?;
     let version = label(&init["protocolVersion"], 16)?;
     if !["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"].contains(&version) {
         return Err(Error::Version);
@@ -171,31 +208,37 @@ pub(crate) async fn inventory(transport: &mut impl Transport) -> Result<Inventor
     {
         return Err(Error::Protocol);
     }
-    let mut report = Inventory {
+    let report = Inventory {
         protocol_version: version.to_owned(),
         server_name: label(&init["serverInfo"]["name"], 128)?.to_owned(),
         server_version: label(&init["serverInfo"]["version"], 128)?.to_owned(),
         tools_supported: capabilities.contains_key("tools"),
         tools: Vec::new(),
     };
-    session
-        .transport
+    transport
         .send(json!({"jsonrpc":"2.0","method":"notifications/initialized"}))
         .await?;
-    if !report.tools_supported {
-        return Ok(report);
-    }
+    Ok(report)
+}
+
+pub(crate) async fn list_tools(
+    client: &mut Client,
+    transport: &mut impl Transport,
+) -> Result<Vec<Tool>> {
+    let mut definitions = Vec::new();
     let mut cursor = None;
     let mut cursors = BTreeSet::new();
     let mut names = BTreeSet::new();
-    for page in 0..32 {
+    for _ in 0..32 {
         let params = cursor.map_or_else(|| json!({}), |c: String| json!({"cursor":c}));
-        let response = session.request(page + 2, "tools/list", params).await?;
+        let response = client
+            .request(transport, "tools/list", params, None)
+            .await?;
         let tools = response
             .get("tools")
             .and_then(Value::as_array)
             .ok_or(Error::Protocol)?;
-        if report.tools.len() + tools.len() > 512 {
+        if definitions.len() + tools.len() > 512 {
             return Err(Error::Limit);
         }
         for value in tools {
@@ -203,12 +246,12 @@ pub(crate) async fn inventory(transport: &mut impl Transport) -> Result<Inventor
             if !names.insert(tool.name.clone()) {
                 return Err(Error::Protocol);
             }
-            report.tools.push(tool);
+            definitions.push(tool);
         }
         cursor = match response.get("nextCursor") {
             None => {
-                report.tools.sort_by(|a, b| a.name.cmp(&b.name));
-                return Ok(report);
+                definitions.sort_by(|a, b| a.name.cmp(&b.name));
+                return Ok(definitions);
             }
             Some(v) => {
                 let next = label(v, 1024)?.to_owned();
@@ -220,4 +263,13 @@ pub(crate) async fn inventory(transport: &mut impl Transport) -> Result<Inventor
         };
     }
     Err(Error::Limit)
+}
+
+pub(crate) async fn inventory(transport: &mut impl Transport) -> Result<Inventory> {
+    let mut client = Client::new();
+    let mut report = initialize(&mut client, transport).await?;
+    if report.tools_supported {
+        report.tools = list_tools(&mut client, transport).await?;
+    }
+    Ok(report)
 }
