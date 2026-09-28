@@ -1,0 +1,10 @@
+/target/
+/.data/
+/node_modules/
+/dist/
+.env
+.env.*
+*.log
+*.pem
+*.key
+*.pfx
