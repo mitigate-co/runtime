@@ -97,6 +97,15 @@ pub(super) fn now() -> Result<u64, Fault> {
     }
     Ok(value as u64)
 }
+fn approval_failure(error: approvals::Error) -> Fault {
+    // The closed library code never contains references, paths or SQL diagnostics.
+    eprintln!("Mitigate: governance approval failure: {}", error.code());
+    Fault::GovernanceUnavailable
+}
+fn control_failure(error: mitigate_policy::controls::Error) -> Fault {
+    eprintln!("Mitigate: governance control failure: {}", error.code());
+    Fault::GovernanceUnavailable
+}
 impl State {
     pub fn open(config: &EnforcementConfig) -> Result<Self, Fault> {
         let policy_store = PolicyStore::open(&config.policy_db, config.authority()?)
@@ -234,7 +243,7 @@ impl State {
             if let Some(reference) = &call.detail.approval_ref {
                 self.approvals
                     .cancel(reference, Cancellation::ContextChanged, SystemClock)
-                    .map_err(|_| Fault::GovernanceUnavailable)?;
+                    .map_err(approval_failure)?;
             }
             call.detail.decision = Decision::Deny;
             return Err(Fault::Denied);
@@ -307,7 +316,7 @@ impl State {
                 state
                     .controls
                     .preview(&call.controls()?, SystemClock)
-                    .map_err(|_| Fault::GovernanceUnavailable)?,
+                    .map_err(control_failure)?,
             )?;
             if decision != PolicyDecision::RequireApproval {
                 return Ok(false);
@@ -316,7 +325,7 @@ impl State {
             let record = state
                 .approvals
                 .request(binding.clone(), SystemClock, state.approval_timeout_ms)
-                .map_err(|_| Fault::GovernanceUnavailable)?;
+                .map_err(approval_failure)?;
             call.detail.approval_ref = Some(record.approval_ref);
             call.binding = Some(binding);
             call.context.phase = CallPhase::ApprovalPending;
@@ -335,7 +344,7 @@ impl State {
                 state
                     .controls
                     .preview(&call.controls()?, SystemClock)
-                    .map_err(|_| Fault::GovernanceUnavailable)?,
+                    .map_err(control_failure)?,
             )?;
             let reference = call
                 .detail
@@ -345,7 +354,7 @@ impl State {
             let record = state
                 .approvals
                 .get(reference, SystemClock)
-                .map_err(|_| Fault::GovernanceUnavailable)?;
+                .map_err(approval_failure)?;
             if let Some(decision) = record.decisions.last() {
                 call.context.approval_actor = Some(ApprovalActor {
                     operator_ref: decision.operator_ref.clone(),
@@ -380,7 +389,7 @@ impl State {
                 state
                     .controls
                     .admit(&call.controls()?, SystemClock)
-                    .map_err(|_| Fault::GovernanceUnavailable)?,
+                    .map_err(control_failure)?,
             )?;
             if let Some(binding) = &call.binding {
                 let reference = call
@@ -391,7 +400,7 @@ impl State {
                 match state
                     .approvals
                     .consume(reference, binding, SystemClock)
-                    .map_err(|_| Fault::GovernanceUnavailable)?
+                    .map_err(approval_failure)?
                 {
                     Consumption::Ready(permit) => {
                         call.context.approval_actor = Some(ApprovalActor {
@@ -404,7 +413,7 @@ impl State {
                         let record = state
                             .approvals
                             .get(reference, SystemClock)
-                            .map_err(|_| Fault::GovernanceUnavailable)?;
+                            .map_err(approval_failure)?;
                         if let Some(decision) = record.decisions.last() {
                             call.context.approval_actor = Some(ApprovalActor {
                                 operator_ref: decision.operator_ref.clone(),
@@ -441,7 +450,7 @@ impl State {
                 if let Some(reference) = &call.detail.approval_ref {
                     self.approvals
                         .cancel(reference, Cancellation::SessionEnded, SystemClock)
-                        .map_err(|_| Fault::GovernanceUnavailable)?;
+                        .map_err(approval_failure)?;
                 }
                 call.context.phase = CallPhase::Decision;
                 call.detail.result_class = ResultClass::NotInvoked;
