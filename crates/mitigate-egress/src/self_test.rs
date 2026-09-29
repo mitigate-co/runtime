@@ -46,19 +46,19 @@ pub enum Error {
     Workspace,
     /// Synthetic serialization/reference generation or queue setup failed.
     Setup,
-    /// Bounded local storage cannot complete the probe.
-    Storage,
+    /// Bounded storage failed; retain only its closed operational category.
+    Storage(crate::outbox::Error),
     /// The owned fixture directory could not be removed.
     Cleanup,
 }
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::Workspace => "privacy test workspace unavailable; choose a writable --work-dir",
-            Self::Setup => "privacy test setup failed; keep optional sync disabled and inspect this installation",
-            Self::Storage => "privacy test storage unavailable; check free space and access, then retry",
-            Self::Cleanup => "privacy test cleanup failed; inspect temporary storage before retrying",
-        })
+        match self {
+            Self::Workspace => f.write_str("privacy test workspace unavailable; choose a writable --work-dir"),
+            Self::Setup => f.write_str("privacy test setup failed; keep optional sync disabled and inspect this installation"),
+            Self::Storage(cause) => write!(f, "privacy test could not complete: {cause}"),
+            Self::Cleanup => f.write_str("privacy test cleanup failed; inspect temporary storage before retrying"),
+        }
     }
 }
 impl std::error::Error for Error {}
@@ -135,10 +135,15 @@ const CONTENT: &[(&str, &str)] = &[
 fn encode(value: &Value) -> Result<Vec<u8>, Error> {
     serde_json::to_vec(value).map_err(|_| Error::Setup)
 }
+fn storage_failure(error: crate::outbox::Error) -> Error {
+    // Preserve the closed cause so clock/budget failures are not mislabeled as
+    // disk capacity problems. No path, candidate or SQLite diagnostic is retained.
+    Error::Storage(error)
+}
 fn probe(store: &mut Outbox, check: &mut Check, bytes: &[u8]) -> Result<(), Error> {
     check.attempted += 1;
     if matches!(
-        store.admit(bytes).map_err(|_| Error::Storage)?,
+        store.admit(bytes).map_err(storage_failure)?,
         Admission::Rejected(_)
     ) {
         check.rejected += 1;
@@ -167,11 +172,10 @@ fn exercise(path: &Path) -> Result<Report, Error> {
     safe["runtime_ref"] = json!(partition.runtime_ref);
     safe["event_id"] = json!(SyncRef::fresh().map_err(|_| Error::Setup)?);
     let bytes = encode(&safe)?;
-    let mut store =
-        Outbox::create(path, partition, Limits::default()).map_err(|_| Error::Storage)?;
+    let mut store = Outbox::create(path, partition, Limits::default()).map_err(storage_failure)?;
     let positive_control = CheckedEvent::from_bytes(&bytes).is_ok()
-        && store.admit(&bytes).map_err(|_| Error::Storage)? == Admission::Queued
-        && store.admit(&bytes).map_err(|_| Error::Storage)? == Admission::Duplicate;
+        && store.admit(&bytes).map_err(storage_failure)? == Admission::Queued
+        && store.admit(&bytes).map_err(storage_failure)? == Admission::Duplicate;
     let long_text = "synthetic_document_canary ".repeat(80);
     let mut checks = Vec::new();
     for &(category, content) in CONTENT
@@ -240,7 +244,7 @@ fn exercise(path: &Path) -> Result<Report, Error> {
         &vec![b' '; crate::MAX_EVENT_BYTES + 1],
     )?;
     checks.push(malformed);
-    let report = store.inspect().map_err(|_| Error::Storage)?;
+    let report = store.inspect().map_err(storage_failure)?;
     let rejected: u64 = checks.iter().map(|c| u64::from(c.attempted)).sum();
     let queue_isolation = report.pending == 1
         && report.receipts == 0
@@ -249,7 +253,7 @@ fn exercise(path: &Path) -> Result<Report, Error> {
             .iter()
             .any(|c| c.action == Action::PrivacyRejected && c.totals.events == rejected);
     drop(store);
-    let bytes = fs::read(path).map_err(|_| Error::Storage)?;
+    let bytes = fs::read(path).map_err(|_| Error::Storage(crate::outbox::Error::Storage))?;
     let persisted_canaries_absent = CONTENT
         .iter()
         .map(|(_, c)| *c)
@@ -279,6 +283,20 @@ fn exercise(path: &Path) -> Result<Report, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn failed_probe_keeps_a_closed_storage_cause_without_echoing_its_path() {
+        let workspace = Workspace::create(&std::env::temp_dir()).unwrap();
+        let path = workspace
+            .path
+            .join("absent-parent")
+            .join("private-path-canary");
+        let failure = exercise(&path).err().unwrap();
+        assert_eq!(failure, Error::Storage(crate::outbox::Error::Path));
+        let text = format!("{failure} {failure:?}");
+        assert!(!text.contains("private-path-canary"));
+        assert!(!text.contains(path.to_str().unwrap()));
+        assert!(!path.exists());
+    }
     #[test]
     fn self_test_checks_real_admission_and_cleans_only_its_owned_workspace() {
         let workspace = Workspace::create(&std::env::temp_dir()).unwrap();

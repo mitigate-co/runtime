@@ -2,8 +2,8 @@
 
 These local commands need no Platform account, network connection or credentials.
 They report the installed implementation, not certification or proof of an entire
-deployment's behavior. Enrollment, authenticated signing and a sender are separate
-MCP-018 work; this build has no configured Platform destination.
+deployment's behavior. These commands do not select a sync profile or contact its
+Platform destination. Enrollment and optional sync require separate explicit actions.
 
 ## Run the privacy self-test
 
@@ -36,6 +36,17 @@ Exit 0 means all checks passed; exit 1 means a privacy assertion failed; exit 2
 means the probe could not complete, including setup/storage/cleanup errors. Keep
 optional synchronization disabled when checks fail. Correct storage/toolchain
 issues and rerun; an unavailable test is not a privacy pass.
+
+Operational errors preserve the outbox's closed category, distinguishing clock,
+work-budget, lock, integrity and storage failures without exposing paths, rejected
+content or SQLite diagnostics. The JSON error code remains
+`privacy_test_unavailable` and success-report schema stays version 1. The Rust
+`self_test::Error::Storage` variant now carries that bounded outbox error.
+
+Intermittent local storage failures are tracked in
+[Runtime issue #36](https://github.com/mitigate-co/runtime/issues/36). Retaining
+the safe category improves diagnosis; it does not establish or fix the cause.
+The investigation remains a hardening and installation-verification release gate.
 
 ## Inspect this build's contract
 
