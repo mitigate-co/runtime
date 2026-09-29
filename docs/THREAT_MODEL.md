@@ -289,3 +289,13 @@ exact previous mode on normal completion/cancellation and drains rejected paste
 input before restoring echo. It creates no credential if restoration fails. A
 forced kill or OS/console failure can prevent restoration; closing that terminal
 is then required. No protection against a hostile terminal host is claimed.
+
+Release-file authentication delegates signature/certificate/transparency checks
+to a trusted GitHub CLI with fixed Runtime repository/workflow/issuer and exact
+tag/source/signer identity. Bounded input files are copied to private temporary
+storage before verification; consumers may use only that snapshot. No package
+bytes are extracted or executed by the authenticator. Original-path replacement,
+unknown identity and unavailable verification fail closed. This is separate from
+source CI gates, Apple notarization, safe installation and rollback. A compromised
+local host or publisher workflow remains outside this guarantee. See
+[release authentication](RELEASE_AUTHENTICATION.md) and ADR 0043.
