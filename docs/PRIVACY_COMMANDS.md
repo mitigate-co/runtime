@@ -38,10 +38,13 @@ optional synchronization disabled when checks fail. Correct storage/toolchain
 issues and rerun; an unavailable test is not a privacy pass.
 
 Operational errors preserve the outbox's closed category, distinguishing clock,
-work-budget, lock, integrity and storage failures without exposing paths, rejected
-content or SQLite diagnostics. The JSON error code remains
+work-budget, SQLite interruption, lock, integrity and storage failures without
+exposing paths, rejected content or SQLite diagnostics. The JSON error code remains
 `privacy_test_unavailable` and success-report schema stays version 1. The Rust
 `self_test::Error::Storage` variant now carries that bounded outbox error.
+SQLite's interrupted-operation result is retained as `outbox::Error::Interrupted`
+instead of generic storage unavailability. This covers progress-handler stops
+without asserting that a particular interruption was a disk or clock problem.
 
 Intermittent local storage failures are tracked in
 [Runtime issue #36](https://github.com/mitigate-co/runtime/issues/36). Retaining
