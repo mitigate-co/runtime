@@ -55,7 +55,8 @@ does not replace native signature verification or prove OS compatibility.
 The generated cask is trusted code and must be reviewed before Homebrew loads it.
 For a draft made from accepted artifacts, create an explicitly owned local test
 tap and copy the reviewed `mitigate.rb` into its `Casks` directory. Use `brew
-tap-new` and `brew --repository` to select that directory. Do not disable
+tap-new` and `brew --repository` to select that directory, then create `Casks`
+inside the new tap if absent (`tap-new` scaffolds `Formula`). Do not disable
 Homebrew's path or trust protection to load arbitrary Ruby files. On versions
 with explicit package trust, review the cask and use `brew trust --cask` for that
 single fully qualified cask.

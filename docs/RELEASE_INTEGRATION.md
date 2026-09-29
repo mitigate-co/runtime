@@ -25,7 +25,9 @@ contains their changes. Their branches, commits, CI results and review diffs rem
 available. Do not merge the superseded series again or bypass required checks.
 
 Conflict resolution retains the current inventory/corpus/failure evidence and
-combines the documentation for the release and diagnostics slices. Runtime payload,
+combines the documentation for the release and diagnostics slices. The integration
+also creates the owned test tap's `Casks` directory; Homebrew's `tap-new` scaffolds
+only `Formula`, so the earlier fixture's directory assumption was invalid. Runtime payload,
 authorization, clock, retention, consent and storage contracts are unchanged.
 The new diagnostics command reads no customer state by default and never uploads.
 

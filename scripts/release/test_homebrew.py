@@ -273,7 +273,8 @@ class CaskTests(unittest.TestCase):
         self.addCleanup(brew, "untap", tap)
         tap_root = Path(brew("--repository", tap).decode().strip())
         cask = tap_root / "Casks" / "mitigate.rb"
-        self.assertTrue(cask.parent.is_dir())
+        # tap-new scaffolds Formula, not Casks. This is our new isolated tap.
+        cask.parent.mkdir(exist_ok=True)
         with cask.open("xb") as output:
             output.write(self.output.read_bytes())
         full_name = tap + "/mitigate"
