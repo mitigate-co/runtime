@@ -2,8 +2,9 @@
 
 `mitigate-egress` validates the first optional Platform event contract. Its
 [customer-local outbox](OUTBOX.md) records admission and retains validated events.
-There is no sender or enrollment integration yet; validating a candidate does not
-authorize delivery. Local audit/snapshot exports are not accepted events.
+The [signing contract](SIGNED_EVENTS.md) accepts only a committed outbox lease;
+there is no active sender yet. Validating or signing a candidate does not authorize
+delivery. Local audit/snapshot exports are not accepted events.
 See [ADR 0024](decisions/0024-closed-events-before-durable-sync.md).
 
 ## Version 1: `mcp_tool_decision`

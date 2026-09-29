@@ -191,6 +191,16 @@ No generic client or insecure override is exposed. Delivery does not establish
 durable confirmation or sync consent. See [transport limits](ENROLLMENT_HTTPS.md).
 See [enrollment boundaries](ENROLLMENT.md) and ADR 0027.
 
+Optional event signatures require a journaled outbox lease and bind its canonical
+checked body, exact origin, method, endpoint and Runtime/enrollment/event references.
+Receipts must echo the body digest and all identities. This prevents unnoticed
+body substitution or moving a proof between audiences, not replay to the original
+receiver. That receiver must enforce current authority, revocation and durable
+deduplication. The sender must recheck consent and current lease state, authenticate
+HTTPS and cancel on opt-out; an already owned lease can survive queue purge in
+memory. Pure signing or receipt parsing is not authorization or queue completion.
+See [signed events](SIGNED_EVENTS.md) and ADR 0031.
+
 The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
 code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local
