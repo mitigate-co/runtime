@@ -8,6 +8,9 @@ No supported release binaries are published yet. Start with the
 [tested source quickstart](docs/QUICKSTART.md). The [implementation status](docs/IMPLEMENTATION.md)
 records verified scope and remaining production gates.
 
+For a local problem, use the [support report and recovery instructions](docs/SUPPORT.md).
+Reports are checked before export and shared only when you choose.
+
 ## Run from source
 
 Install Rust through rustup and a native C build toolchain (Visual Studio C++ build

@@ -1,0 +1,56 @@
+name: Runtime feedback
+description: Report a non-sensitive problem using a synthetic reproduction.
+title: "[Runtime] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities use [private reporting](https://github.com/mitigate-co/runtime/security/advisories/new).
+        Exclude secrets, customer content, private endpoints, raw logs and database copies.
+        `mitigate diagnostics` produces a local report; review it before sharing.
+  - type: input
+    id: version
+    attributes:
+      label: Runtime version or commit
+      description: Use `mitigate version` or the source commit.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Scan and inventory
+        - Local governance
+        - Credentials
+        - Optional sync
+        - Installation
+        - Diagnostics
+        - Documentation
+    validations:
+      required: true
+  - type: dropdown
+    id: operating_system
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Synthetic reproduction and outcome
+      description: Include steps, expected/observed results and fixed error codes. Replace private details before submitting. A reviewed diagnostics report is optional.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Review before sharing
+      options:
+        - label: I checked this report for secrets and customer content; it is not an exploitable vulnerability report.
+          required: true

@@ -43,6 +43,15 @@ Mitigation: executable + argv arrays, no shell interpolation, path checks, tests
 
 Mitigation: OS secret store, narrow child env, no secret logs/sync, redaction/egress guards.
 
+The explicit [support report](DIAGNOSTICS.md) has a separate exact field/type/value
+allowlist before file or JSON output, capped at 4 KiB. It collects compiled version,
+coarse platform, optional bounded configuration limits and an optional synthetic
+storage result. It never opens native credentials, policy/audit/enrollment stores,
+logs or workload files automatically; no upload path exists. New collector fields
+are refused until the export contract is reviewed. File creation refuses existing
+targets; callers must choose a trusted parent directory. Same-user/root filesystem
+tampering and human-written issue text remain outside this report's guarantee.
+
 ### Tool poisoning/schema drift
 
 Mitigation: normalized fingerprints, change alerts, reclassification, configurable reapproval.

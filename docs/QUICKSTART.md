@@ -71,6 +71,7 @@ authority databases or disable checks to obtain a passing result. The
 | Control calls from an MCP client | [Configure governed calls](ENFORCEMENT.md), including local policy, grants, launch review, approvals, controls and audit. Inventory-only mode refuses calls. |
 | Share selected metadata with an organization | [Enroll and enable optional sync](SYNC_CONTROLS.md). Enrollment alone does not start capture or delivery. |
 | Report a vulnerability | Use the [private reporting path](../SECURITY.md); include a synthetic reproduction. |
+| Diagnose a local problem | [Collect a checked support report](DIAGNOSTICS.md) and follow the [recovery runbook](SUPPORT.md). Sharing is manual. |
 
 Local reports can contain customer-controlled names and endpoint origins. Keep
 scan results, snapshots and launch files local; they are not the closed Platform
