@@ -7,6 +7,10 @@ Before calling, the embedding application must obtain explicit user intent and
 persist the pending identity, key and code in native storage. Keep the enrollment
 operation lock until its receipt is confirmed. Enrollment does not enable sync.
 
+The separate [event exchange](EVENT_HTTPS.md) reuses the same private HTTPS policy
+and bounded JSON reader. Bootstrap and event success/status validation remain
+protocol-specific; their public APIs cannot send arbitrary HTTP requests.
+
 ## Connection and response policy
 
 - HTTPS only, with rustls 1.2/1.3 and the bundled Mozilla/WebPKI trust roots.

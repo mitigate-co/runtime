@@ -1,4 +1,5 @@
 //! Opt-in synthetic native-store fixture. No network or customer credentials.
+use mitigate_egress::outbox::{Admission, Limits, Outbox, Partition};
 use mitigate_enrollment::{
     EnrollmentCode, PlatformOrigin,
     storage::{EnrollmentStore, Status},
@@ -24,6 +25,7 @@ impl Drop for Cleanup {
             return;
         }
         let _ = fs::remove_file(&self.path);
+        let _ = fs::remove_file(self.dir.join("outbox.sqlite"));
         let _ = fs::remove_dir(&self.dir);
     }
 }
@@ -71,6 +73,29 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     )?)?;
     let pending = EnrollmentStore::create(&cleanup.path, cleanup.origin.clone(), code)?;
     require(pending.status() == Status::Pending)?;
+    let mut outbox = Outbox::create(
+        &cleanup.dir.join("outbox.sqlite"),
+        Partition {
+            runtime_ref: pending.identity().runtime_ref().clone(),
+            enrollment_ref: pending.identity().enrollment_ref().clone(),
+        },
+        Limits::default(),
+    )?;
+    let mut event: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../examples/egress/decision.json"))?;
+    event["runtime_ref"] = serde_json::json!(pending.identity().runtime_ref());
+    require(outbox.admit(&serde_json::to_vec(&event)?)? == Admission::Queued)?;
+    let lease = outbox.claim()?.ok_or("missing synthetic event")?;
+    require(
+        pending.sign_event(&lease).err() == Some(mitigate_enrollment::storage::Error::Pending),
+    )?;
+    #[cfg(feature = "https")]
+    require(
+        mitigate_enrollment::event_https::submit(&pending, &lease).err()
+            == Some(mitigate_enrollment::event_https::Error::Enrollment(
+                mitigate_enrollment::storage::Error::Pending,
+            )),
+    )?;
     let first = pending.claim()?;
     drop(pending);
     if let Some(cli) = &cli {
@@ -85,6 +110,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }}))?;
     let confirmed = restored.confirm(&receipt)?;
     require(confirmed.claim().is_err())?;
+    let signed = confirmed.sign_event(&lease)?;
+    require(signed.origin().as_str() == cleanup.origin.as_str())?;
     drop(confirmed);
     let restored = EnrollmentStore::open(&cleanup.path, &cleanup.origin)?;
     require(
@@ -93,6 +120,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 enrolled_at_ms: 1790614800000,
             },
     )?;
+    require(restored.sign_event(&lease)?.as_bytes() == signed.as_bytes())?;
+    require(outbox.inspect()?.pending == 1)?;
     drop(restored);
     if let Some(cli) = &cli {
         check_cli(cli, &cleanup, "status", "confirmed")?;
@@ -100,6 +129,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         // remains local instead of trying to resolve or contact Platform again.
         check_cli(cli, &cleanup, "retry", "confirmed")?;
     }
+    outbox.purge()?;
+    drop(outbox);
     EnrollmentStore::forget(&cleanup.path, &cleanup.origin)?;
     require(
         EnrollmentStore::open(&cleanup.path, &cleanup.origin).err()
@@ -107,7 +138,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     EnrollmentStore::forget(&cleanup.path, &cleanup.origin)?;
     println!(
-        "Native enrollment verified: pending restart, identical proof, confirmed restart and exact deletion. No network requests."
+        "Native enrollment verified: pending restart, identical proof, confirmed signing/restart and exact deletion. No network requests."
     );
     Ok(())
 }

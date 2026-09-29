@@ -2,19 +2,25 @@
 //!
 //! Core protocol types perform no I/O. The `storage` module owns native persistence
 //! and exclusive recovery. The optional `https` feature provides one explicit
-//! authenticated bootstrap request. Neither enables sync nor authorizes
-//! a tenant: Platform must consume a valid one-use grant. The caller must obtain
-//! local consent and durably store pending credentials before sending. Local MCP
-//! operation is independent.
+//! authenticated bootstrap request or confirmed signed event exchange. Neither
+//! starts background sync nor grants tenant authority. Platform must validate the
+//! enrollment grant and ongoing access. The caller owns local consent and durable
+//! credential/queue lifecycle. Local MCP operation is independent.
 
 mod claim;
 mod code;
 pub mod event;
 #[cfg(feature = "https")]
+pub mod event_https;
+#[cfg(feature = "https")]
 pub mod https;
 pub mod storage;
 #[cfg(test)]
 mod tests;
+#[cfg(all(test, feature = "https"))]
+mod tls_fixture;
+#[cfg(feature = "https")]
+mod transport;
 
 pub use claim::{EnrollmentClaim, EnrollmentKey, EnrollmentReceipt};
 pub use code::EnrollmentCode;

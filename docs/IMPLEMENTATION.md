@@ -189,3 +189,23 @@ See [signed events](SIGNED_EVENTS.md) and ADR 0031; this does not yet activate a
 sender or compose confirmed native credentials with delivery.
 The full Linux workspace/all-feature suite passed 275 test cases, with no failures;
 the lock helper is invoked by its parent test. The staged secret scan found no leaks.
+
+Native event signing now requires confirmed local enrollment and uses the restored
+key, identity and pinned origin under the existing operation lock. Pending state
+and another enrollment's queue are refused. Interrupted confirmation tests require
+reopening to reconcile actual native state before signing. All 32 enrollment
+tests and four compile-fail checks passed on Windows/Linux, plus strict workspace
+Clippy. Real Windows Credential Manager and isolated Linux Secret Service fixtures
+passed identical-signature recovery and exact credential/queue cleanup without
+network requests. Event HTTPS, consent coordination and hosted ingest remain open.
+
+Signed-event protocol PR #32 passed both complete three-OS/security CI runs before
+merge at `508a5c9`. The explicit HTTPS exchange now borrows confirmed native
+enrollment, signs the checked lease and returns only an exact authenticated receipt.
+It shares the private bootstrap TLS policy/JSON reader without new dependencies.
+All 38 enrollment/transport tests plus four compile-fail checks passed on Windows
+and Linux; the separate lock helper runs through its parent. Default-feature tests,
+strict workspace Clippy and the Linux CLI regression suite also passed. Real
+Windows and isolated Linux native demonstrations verify pending submission refusal
+without a network request. See [event HTTPS](EVENT_HTTPS.md) and ADR 0032. Consent,
+lease/shutdown coordination and hosted ingest remain required before continuous sync.

@@ -201,6 +201,20 @@ HTTPS and cancel on opt-out; an already owned lease can survive queue purge in
 memory. Pure signing or receipt parsing is not authorization or queue completion.
 See [signed events](SIGNED_EVENTS.md) and ADR 0031.
 
+The native signing method requires a durably restored confirmed record and never
+accepts caller-supplied replacement key, identity or origin. Pending or uncertain
+confirmation cannot release a signature through that method; uncertain writes
+require reopening first. The enrollment operation lock remains held by its owner.
+This is a local lifecycle guarantee, not evidence of current remote authority.
+
+The explicit event transport keeps that owner borrowed during the verified HTTPS
+request, classifies statuses without reading error bodies and accepts only a
+bounded exact-event acknowledgment. It has no raw HTTP agent, proxy override or
+automatic retry. It also has no mid-flight cancellation handle: the owning worker
+must coordinate outstanding requests before confirming opt-out or clearing state.
+No continuous sync UI/CLI is enabled by this transport component. See
+[event HTTPS limits](EVENT_HTTPS.md) and ADR 0032.
+
 The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
 code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local

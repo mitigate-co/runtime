@@ -37,6 +37,10 @@ pub enum Error {
     Confirmed,
     /// Receipt does not confirm the current pending identity.
     Receipt,
+    /// Event signing requires a durably confirmed enrollment receipt.
+    Pending,
+    /// The outbox lease belongs to a different Runtime or enrollment.
+    Scope,
 }
 impl Error {
     /// Stable local diagnostic category; no path, credential or provider details.
@@ -52,6 +56,8 @@ impl Error {
             Self::Randomness => "enrollment_randomness",
             Self::Confirmed => "enrollment_confirmed",
             Self::Receipt => "enrollment_receipt",
+            Self::Pending => "enrollment_pending",
+            Self::Scope => "enrollment_scope",
         }
     }
 }
@@ -68,6 +74,8 @@ impl fmt::Display for Error {
             Self::Randomness => "Secure enrollment identity generation is unavailable.",
             Self::Confirmed => "This Runtime is already enrolled. Check its status instead of sending another code.",
             Self::Receipt => "Platform enrollment was not confirmed. Retry using the same pending enrollment.",
+            Self::Pending => "Enrollment is still pending. Retry it before enabling sync.",
+            Self::Scope => "The queued event belongs to another enrollment. Pause sync and check its configuration.",
         })
     }
 }
@@ -122,6 +130,16 @@ impl EnrollmentStore {
     /// Keep this store locked until the request and receipt handling finish.
     pub fn claim(&self) -> Result<EnrollmentClaim, Error> {
         self.0.claim()
+    }
+    /// Sign a checked lease using only the confirmed native key, identity and
+    /// pinned origin. Keep this store locked through delivery. Local confirmation
+    /// does not establish current remote authority, consent or lease validity.
+    /// No network, credential mutation or automatic sync activation occurs here.
+    pub fn sign_event(
+        &self,
+        lease: &mitigate_egress::outbox::Lease,
+    ) -> Result<crate::event::SignedEvent, Error> {
+        self.0.sign_event(lease)
     }
     /// After authenticated HTTPS, consume a matching receipt, remove the bootstrap
     /// token and verify native read-back. Failure consumes this session: reopen
@@ -215,6 +233,21 @@ impl<V: Vault> Session<V> {
         self.record.phase = Phase::Confirmed(receipt.enrolled_at_ms());
         persist(&self.anchor, &self.record, &self.vault)?;
         Ok(self)
+    }
+    fn sign_event(
+        &self,
+        lease: &mitigate_egress::outbox::Lease,
+    ) -> Result<crate::event::SignedEvent, Error> {
+        if !matches!(self.record.phase, Phase::Confirmed(_)) {
+            return Err(Error::Pending);
+        }
+        self.record
+            .key
+            .sign_event(&self.anchor.origin, &self.record.identity, lease)
+            .map_err(|error| match error {
+                crate::event::Error::Scope => Error::Scope,
+                _ => Error::Integrity,
+            })
     }
 }
 fn persist(anchor: &Anchor, record: &Record, vault: &impl Vault) -> Result<(), Error> {

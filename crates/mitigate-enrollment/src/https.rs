@@ -1,8 +1,9 @@
 //! Explicit bootstrap exchange, separate from Zero-Content event transmission.
 //! No redirects, ambient proxy, cookies, compression, retries or credential logs.
+use crate::transport::{self, config};
 use crate::{EnrollmentClaim, EnrollmentReceipt, MAX_ENROLLMENT_BYTES};
-use std::{fmt, io::Read, time::Duration};
-use ureq::{Agent, Body, config::ConfigBuilder, http::Response, typestate::AgentScope};
+use std::fmt;
+use ureq::{Agent, Body, http::Response};
 use zeroize::Zeroizing;
 
 #[cfg(test)]
@@ -83,31 +84,6 @@ pub fn submit(claim: &EnrollmentClaim) -> Result<HttpsReceipt, Error> {
     exchange(&config().build().into(), claim)
 }
 
-fn config() -> ConfigBuilder<AgentScope> {
-    Agent::config_builder()
-        .https_only(true)
-        .proxy(None)
-        .max_redirects(0)
-        .http_status_as_error(false)
-        .user_agent("")
-        .accept("application/json")
-        .accept_encoding("identity")
-        .max_idle_connections(0)
-        .max_idle_connections_per_host(0)
-        // The parser must be able to observe the header cap plus a byte before
-        // the fixed input buffer fills, otherwise an oversize looks like EOF.
-        .input_buffer_size(16384)
-        .output_buffer_size(2048)
-        .max_response_header_size(8192)
-        .timeout_global(Some(Duration::from_secs(20)))
-        .timeout_resolve(Some(Duration::from_secs(5)))
-        .timeout_connect(Some(Duration::from_secs(5)))
-        .timeout_send_request(Some(Duration::from_secs(5)))
-        .timeout_send_body(Some(Duration::from_secs(5)))
-        .timeout_recv_response(Some(Duration::from_secs(5)))
-        .timeout_recv_body(Some(Duration::from_secs(5)))
-}
-
 fn exchange(agent: &Agent, claim: &EnrollmentClaim) -> Result<HttpsReceipt, Error> {
     let destination = format!("{}/api/v1/runtime/enroll", claim.origin().as_str());
     let response = agent
@@ -116,14 +92,11 @@ fn exchange(agent: &Agent, claim: &EnrollmentClaim) -> Result<HttpsReceipt, Erro
         .header("Cache-Control", "no-store")
         .header("Connection", "close")
         .send(claim.as_bytes())
-        .map_err(transport_error)?;
+        .map_err(|error| transport_failure(transport::failure(error)))?;
     read_response(response, claim)
 }
 
-fn read_response(
-    mut response: Response<Body>,
-    claim: &EnrollmentClaim,
-) -> Result<HttpsReceipt, Error> {
+fn read_response(response: Response<Body>, claim: &EnrollmentClaim) -> Result<HttpsReceipt, Error> {
     // Do not read error/redirect bodies, copy arbitrary Retry-After/Location text,
     // or turn a returned page into a user-visible provider diagnostic.
     match response.status().as_u16() {
@@ -134,49 +107,15 @@ fn read_response(
         500..=599 => return Err(Error::Unavailable),
         _ => return Err(Error::Response),
     }
-    let headers = response.headers();
-    let mut types = headers.get_all("content-type").iter();
-    let media_type = types.next().ok_or(Error::Response)?;
-    if types.next().is_some()
-        || !matches!(
-            media_type.to_str(),
-            Ok("application/json" | "application/json; charset=utf-8")
-        )
-        || headers.contains_key("content-encoding")
-        || headers.contains_key("set-cookie")
-    {
-        return Err(Error::Response);
-    }
-    if let Some(length) = headers.get("content-length") {
-        let length = length
-            .to_str()
-            .map_err(|_| Error::Response)?
-            .parse::<usize>()
-            .map_err(|_| Error::Response)?;
-        if length > MAX_ENROLLMENT_BYTES {
-            return Err(Error::Response);
-        }
-    }
-    // The read bound also applies to chunked and absent/lying Content-Length.
-    // A malicious authenticated endpoint may reflect credentials; the buffer is
-    // zeroized on every exit, including partial reads and parse failure.
-    let mut bytes = Zeroizing::new(Vec::with_capacity(MAX_ENROLLMENT_BYTES + 1));
-    response
-        .body_mut()
-        .as_reader()
-        .take((MAX_ENROLLMENT_BYTES + 1) as u64)
-        .read_to_end(&mut bytes)
-        .map_err(|e| transport_error(e.into()))?;
+    let bytes = transport::read_json(response, MAX_ENROLLMENT_BYTES).map_err(transport_failure)?;
     let receipt = claim.verify_receipt(&bytes).map_err(|_| Error::Response)?;
     Ok(HttpsReceipt { bytes, receipt })
 }
 
-fn transport_error(error: ureq::Error) -> Error {
+fn transport_failure(error: transport::Error) -> Error {
     match error {
-        ureq::Error::Timeout(_) => Error::Timeout,
-        ureq::Error::LargeResponseHeader(_, _)
-        | ureq::Error::Protocol(_)
-        | ureq::Error::BodyExceedsLimit(_) => Error::Response,
-        _ => Error::Connection,
+        transport::Error::Connection => Error::Connection,
+        transport::Error::Timeout => Error::Timeout,
+        transport::Error::Response => Error::Response,
     }
 }

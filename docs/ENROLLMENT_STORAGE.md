@@ -1,7 +1,8 @@
 # Enrollment storage and recovery
 
 `EnrollmentStore` owns one optional enrollment's native credentials and local
-operation lock. It exposes create, open, pending claim, confirm, status and forget.
+operation lock. It exposes create, open, pending claim, confirm, status, checked
+event signing and forget.
 No network transport, sync consent, outbox producer or CLI command is included in
 this component. Local MCP operation remains independent of it.
 
@@ -55,6 +56,18 @@ but no claim has been released; explicit recovery is required.
 Runtime is online, authorized after revocation, assigned a human identity or
 transmitting telemetry. The timestamp cannot control local policy/clock authority.
 
+`sign_event` requires that confirmed local state and a committed outbox lease for
+the same Runtime/enrollment pair. It uses only the key, references and origin
+restored from the native record/anchor; callers cannot supply replacement signing
+material or a different destination. Pending state returns `enrollment_pending`;
+a wrong queue returns `enrollment_scope`, without modifying either store. Failed
+confirmation consumes the owner, so signing requires reopening and reconciling
+the actual native state first. Keep the owner locked through event delivery.
+
+The method does not check current remote revocation, consent or lease validity,
+perform HTTPS, complete a queue entry or enable sync. Those remain the sender's
+responsibilities. See [the signed event protocol](SIGNED_EVENTS.md).
+
 ## Concurrency and native prompts
 
 An exclusive nonblocking [standard-library file lock](https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock)
@@ -104,6 +117,8 @@ Fault-injection tests cover interrupted writes before/after native commit,
 incorrect read-back, idempotent deletion, failed deletion, exact identity recovery,
 token removal, wrong-origin refusal before lookup, cross-process contention,
 duplicate-handle lock release, malformed/swapped records and unsafe anchor paths.
+Signing tests additionally cover pending refusal, exact confirmed-key recovery,
+wrong-enrollment refusal and reconciliation after uncertain native confirmation.
 The explicitly ignored subprocess helper is invoked by the parent lock test; it
 is not a skipped security assertion. Linux/Windows crate suites and compile-fail
 checks passed locally; actual Windows native round-trip passed and deleted its
@@ -116,8 +131,10 @@ cargo run -p mitigate-enrollment --example native_lifecycle --locked -- --allow-
 ```
 
 It creates a unique temporary anchor and synthetic native credential, reopens
-pending and confirmed states, verifies the identical proof and deletes its exact
-entry. It performs no network requests and prints no key, code or claim. Cleanup
+pending and confirmed states, refuses pending event signing and verifies identical
+bootstrap proofs and confirmed event signatures after restart. It purges its
+synthetic queue and deletes its exact native entry. It performs no network
+requests and prints no key, code, claim or signed event. Cleanup
 is attempted on failure; a fixed warning leaves the anchor if deletion cannot be
 confirmed. CI uses temporary isolated macOS/Linux stores and an exact temporary
 Windows entry. Do not point an isolated test keyring at user data.
