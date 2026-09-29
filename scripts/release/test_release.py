@@ -2,11 +2,13 @@
 
 import copy
 import json
+import os
 from pathlib import Path
 import stat
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 import warnings
 import zipfile
 
@@ -33,6 +35,11 @@ class CandidateTests(unittest.TestCase):
                 verify_compiler(compiler, TARGET, "1.98.1", {name: "override"})
 
     def setUp(self):
+        # A caller's worktree override must never redirect fixture Git mutations.
+        git_environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+        isolated = patch.dict(os.environ, git_environment, clear=True)
+        isolated.start()
+        self.addCleanup(isolated.stop)
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
@@ -141,7 +148,9 @@ class CandidateTests(unittest.TestCase):
             return subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True)
         git("init")
         git("add", ".")
-        git("-c", "user.name=Synthetic", "-c", "user.email=synthetic@example.invalid", "commit", "-m", "fixture")
+        git("-c", "user.name=Synthetic", "-c", "user.email=synthetic@example.invalid",
+            "-c", "commit.gpgsign=false", "-c", "core.hooksPath=" + str(self.root / "no-hooks"),
+            "commit", "-m", "fixture")
         self.assertRegex(source_revision(self.root), r"^[0-9a-f]{40}$")
         self.path.write_text("changed")
         with self.assertRaises(ValueError):
