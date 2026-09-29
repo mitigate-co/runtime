@@ -217,6 +217,25 @@ class SigningGateTests(unittest.TestCase):
         self.assertTrue(report["signing_prerequisites_met"])
         self.assertNotIn("private-token-canary", json.dumps(report))
 
+    def test_signing_recheck_requires_the_explicit_sign_job_context(self):
+        context = dict(self.context, GITHUB_JOB="sign")
+        report = gate.signing_gate(self.root, COMMIT, TAG, self.evidence.get, context)
+        self.assertFalse(report["signing_prerequisites_met"])
+        report = gate.signing_gate(
+            self.root, COMMIT, TAG, self.evidence.get, context, job="sign"
+        )
+        self.assertTrue(report["signing_prerequisites_met"])
+        for name in ("build", "accept", "arbitrary"):
+            report = gate.signing_gate(
+                self.root,
+                COMMIT,
+                TAG,
+                self.evidence.get,
+                dict(context, GITHUB_JOB=name),
+                job=name,
+            )
+            self.assertFalse(report["signing_prerequisites_met"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -122,11 +122,11 @@ def protected_environment(environment, policies):
     return branches[0].get("type") == "tag" and branches[0].get("name") == "v*"
 
 
-def signing_gate(root, commit, tag, read=github, environment=None):
+def signing_gate(root, commit, tag, read=github, environment=None, *, job="preflight"):
     require(expected_source(commit, tag) and len(tag) <= 64, "invalid_source")
     environment = os.environ if environment is None else environment
     try:
-        workflow_context(commit, tag, environment, job="preflight")
+        workflow_context(commit, tag, environment, job=job)
         context_valid = True
     except VerificationError:
         context_valid = False

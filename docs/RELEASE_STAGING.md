@@ -30,6 +30,11 @@ to the prepared runner Keychain) and `--apple-notary-profile` (reference to stor
 notary credentials). The tool does not accept passwords, API keys or private keys
 as arguments and does not search a developer's Keychain for a convenient identity.
 
+The protected job will use [ephemeral credential setup](APPLE_SIGNING_RUNNER.md)
+through `scripts/release/ci_stage.py`. That wrapper rechecks signing prerequisites,
+isolates credential inputs and requires successful native Keychain cleanup before
+returning success. The lower-level staging helper itself performs no key import.
+
 ## Build and verification order
 
 The workflow must first build and smoke-test all four native candidates in

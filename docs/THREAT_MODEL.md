@@ -329,3 +329,11 @@ observed source/CI/workflow and environment protections. Issue closure, retries
 or a later success cannot clear a source-controlled unresolved failure. GitHub
 approval enforcement and repository administrators remain trusted. Configuration
 checks and saved JSON reports are not signing/publication authority; see ADR 0046.
+
+[Apple signing credentials](APPLE_SIGNING_RUNNER.md) are confined to an explicitly
+protected ephemeral signing runner. The wrapper removes credential inputs before
+child processes can inherit them, rechecks release prerequisites and uses only a
+new owned Keychain. Private import files are removed before staging; native
+Keychain cleanup is required before success. Process argv/memory inspection and
+hard-kill cleanup remain trusted-host limitations. No compiler or candidate
+execution is permitted on that runner, and no real keys are configured here.
