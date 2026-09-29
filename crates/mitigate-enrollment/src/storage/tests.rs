@@ -1,5 +1,6 @@
 use super::*;
 mod signing;
+mod sync;
 use std::{
     cell::{Cell, RefCell},
     collections::BTreeMap,

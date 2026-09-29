@@ -197,6 +197,15 @@ preflight. The explicit `deliver_next` runner composes one attempt with local
 completion, fixed retry categories and authority-induced pause. It cannot enable
 or resume consent. Coordinated opt-out remains required before continuous sync.
 
+Explicit [sync controls](SYNC_CONTROLS.md) create a separate bounded private
+profile only on local consent. It stores original enrollment/queue paths, origin,
+opaque anchor reference and queue partition; no secret value or workload content.
+These local paths never enter events or command reports. Pause persists withdrawal
+before waiting for the original enrollment owner and reasserts it under that lock.
+Purge happens only after drain. Neither operation needs native credential access.
+Resume/send still restore and verify the exact confirmed native binding. No
+background producer or automatic network loop is activated.
+
 The optional [HTTPS transport](ENROLLMENT_HTTPS.md) explicitly sends the bootstrap
 claim to its signed audience with certificate verification, no redirects or
 ambient proxies, bounded deadlines/response and fixed errors. Dependency `log`

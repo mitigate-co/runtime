@@ -24,7 +24,7 @@ struct Report {
     enrollment_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     enrolled_at_ms: Option<u64>,
-    sync_enabled: bool,
+    sync_status: &'static str,
 }
 struct Failure {
     code: &'static str,
@@ -112,12 +112,12 @@ fn report(store: &EnrollmentStore) -> Report {
         Status::Confirmed { enrolled_at_ms } => ("confirmed", Some(enrolled_at_ms)),
     };
     Report {
-        schema_version: 1,
+        schema_version: 2,
         status,
         runtime_ref: Some(store.identity().runtime_ref().as_str().to_owned()),
         enrollment_ref: Some(store.identity().enrollment_ref().as_str().to_owned()),
         enrolled_at_ms,
-        sync_enabled: false,
+        sync_status: "not_checked",
     }
 }
 fn submit(store: EnrollmentStore) -> Result<Report, Failure> {
@@ -176,12 +176,12 @@ fn execute(command: EnrollmentCommand, machine: bool) -> Result<Report, Failure>
         } => {
             EnrollmentStore::forget(&state, &origin(&platform)?)?;
             Ok(Report {
-                schema_version: 1,
+                schema_version: 2,
                 status: "forgotten",
                 runtime_ref: None,
                 enrollment_ref: None,
                 enrolled_at_ms: None,
-                sync_enabled: false,
+                sync_status: "not_checked",
             })
         }
     }
@@ -196,7 +196,8 @@ pub(crate) fn run(command: EnrollmentCommand, machine: bool) -> io::Result<ExitC
                     io::stdout().lock(),
                     "{}",
                     match report.status {
-                        "confirmed" => "Enrollment confirmed locally. Sync is off.",
+                        "confirmed" =>
+                            "Enrollment confirmed locally. Use sync status to check optional delivery.",
                         "pending" =>
                             "Enrollment pending. Run enroll retry with the same Platform and state file.",
                         _ =>

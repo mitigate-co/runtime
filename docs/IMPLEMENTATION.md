@@ -228,3 +228,27 @@ The full Linux workspace/all-feature suite passed 293 test cases, including
 compile-fail contracts, without failures.
 The isolated Linux Secret Service fixture and actual enrollment CLI lifecycle
 passed; native fixtures also reject mismatched queue scope before claiming.
+
+Explicit sync controls now bind a new private queue to the original confirmed
+native enrollment. Enrollment remains separate from consent. Status is local;
+resume verifies the native binding; send attempts at most one queued event.
+Pause first persists withdrawal, then drains the original owner lock and
+reasserts pause before reporting completion. Purge follows that sequence without
+requiring credential-store access. No automatic producer or worker is activated.
+See [sync controls](SYNC_CONTROLS.md) and ADR 0034. Enrollment and egress CLI
+reports advance to version 2 so they no longer claim unknown sync state is off.
+The prerequisite delivery composition passed both complete three-OS/security CI
+runs before PR #34 merged at `49e6af9`.
+
+The full Linux workspace/all-feature suite passed 301 cases, including the new
+actual CLI contracts and compile-fail checks; strict workspace Clippy and
+formatting passed. Default-feature enrollment passed 29 tests plus four
+compile-fail checks. The native lock helper is executed through its parent.
+Windows passed 50 enrollment tests and four compile-fail checks. Synthetic
+Windows and isolated Linux native-store demonstrations verified consent,
+resume, pause/drain, purge, paused send and exact credential deletion; Linux also
+exercised those operations through the actual CLI without external requests.
+An earlier Linux privacy-probe test reported storage unavailable once; the
+targeted rerun, full workspace run and ten additional probes passed without a
+reproduction. Its cause remains unconfirmed; no storage limit or assertion was
+relaxed. Three-OS CI remains the merge gate.

@@ -224,6 +224,15 @@ the same event, while authority refusal/redirect pauses delivery. This is not a
 network-spanning transaction: scheduler suspension and an opt-out racing an already
 started exchange remain the owner's shutdown responsibility. See ADR 0033.
 
+The sync profile/CLI now coordinates one-attempt delivery and opt-out through the
+original native owner lock. Withdrawal commits before waiting for that lock;
+pause/purge reassert withdrawal under it before confirming drain. Missing native
+credentials do not block shutdown. A timeout reports incomplete drain and preserves
+the paused queue. Original anchor/ref/partition checks prevent accidental rebinding;
+same-user file tampering/anchor copies and rollback remain outside the guarantee.
+No continuous worker exists; future senders must preserve this ownership contract.
+See [controls](SYNC_CONTROLS.md) and ADR 0034.
+
 The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
 code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local

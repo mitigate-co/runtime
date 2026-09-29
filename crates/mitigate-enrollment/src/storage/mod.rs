@@ -4,6 +4,7 @@
 mod anchor;
 mod native;
 mod record;
+pub mod sync;
 #[cfg(test)]
 mod tests;
 
