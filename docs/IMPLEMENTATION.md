@@ -209,3 +209,22 @@ strict workspace Clippy and the Linux CLI regression suite also passed. Real
 Windows and isolated Linux native demonstrations verify pending submission refusal
 without a network request. See [event HTTPS](EVENT_HTTPS.md) and ADR 0032. Consent,
 lease/shutdown coordination and hosted ingest remain required before continuous sync.
+
+Event transport PR #33 passed both complete three-OS/security CI runs before
+merge at `7efa002`. The next composition rechecks committed pause state, exact
+lease ownership and remaining lease/retention time before HTTPS. Its explicit
+one-attempt runner records only fixed outcomes: exact accepted receipt, permanent
+refusal, retained retry or authority-induced pause. Local completion failure
+cannot report acceptance. No producer, consent activation or continuous worker is
+enabled. See [event delivery](EVENT_HTTPS.md) and ADR 0033.
+
+Windows passed 30 outbox/egress tests, 44 enrollment/transport tests and five
+compile-fail checks. The separate native lock helper runs through its parent.
+Default-feature enrollment tests and the real synthetic Windows credential-store
+demonstration passed. Strict Linux workspace Clippy, the advisory audit and
+all-feature dependency/license/source checks passed without dependency changes.
+Coordinated shutdown, explicit user controls and fleet composition remain open.
+The full Linux workspace/all-feature suite passed 293 test cases, including
+compile-fail contracts, without failures.
+The isolated Linux Secret Service fixture and actual enrollment CLI lifecycle
+passed; native fixtures also reject mismatched queue scope before claiming.

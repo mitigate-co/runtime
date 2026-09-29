@@ -215,6 +215,15 @@ must coordinate outstanding requests before confirming opt-out or clearing state
 No continuous sync UI/CLI is enabled by this transport component. See
 [event HTTPS limits](EVENT_HTTPS.md) and ADR 0032.
 
+The transport now rechecks the exact committed lease and unpaused outbox before
+I/O, reserving the bounded exchange plus completion time within lease and retention.
+Purged/replaced claims, insufficient time, rollback and failed preflight commits
+cannot send. The one-attempt runner never reports acceptance unless the exact
+authenticated receipt and local completion both succeed. Uncertain outcomes retain
+the same event, while authority refusal/redirect pauses delivery. This is not a
+network-spanning transaction: scheduler suspension and an opt-out racing an already
+started exchange remain the owner's shutdown responsibility. See ADR 0033.
+
 The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
 code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local

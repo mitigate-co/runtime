@@ -130,9 +130,11 @@ async fn approvals(binary: &Path, root: &Path) {
         .await;
     assert_eq!(client.read().await["result"], json!({}));
     project.decide(&pending, Choice::Approve);
+    let response = client.result(3).await.0;
     assert_eq!(
-        client.result(3).await.0["result"]["structuredContent"]["ok"],
-        true
+        response["result"]["structuredContent"]["ok"], true,
+        "synthetic approval call failed with code {}",
+        response["error"]["code"]
     );
     assert_eq!(
         ApprovalStore::open(&project.path("approvals.sqlite"))

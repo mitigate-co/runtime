@@ -4,6 +4,8 @@ use std::{io::Read, time::Duration};
 use ureq::{Agent, Body, config::ConfigBuilder, http::Response, typestate::AgentScope};
 use zeroize::Zeroizing;
 
+pub(super) const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(20);
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Error {
     Connection,
@@ -26,7 +28,7 @@ pub(super) fn config() -> ConfigBuilder<AgentScope> {
         .input_buffer_size(16384)
         .output_buffer_size(2048)
         .max_response_header_size(8192)
-        .timeout_global(Some(Duration::from_secs(20)))
+        .timeout_global(Some(EXCHANGE_TIMEOUT))
         .timeout_resolve(Some(Duration::from_secs(5)))
         .timeout_connect(Some(Duration::from_secs(5)))
         .timeout_send_request(Some(Duration::from_secs(5)))

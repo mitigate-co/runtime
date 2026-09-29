@@ -7,7 +7,7 @@ use std::{
     net::{TcpListener, TcpStream},
     sync::{Arc, mpsc},
     thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    time::Duration,
 };
 use ureq::{
     Agent,
@@ -17,7 +17,8 @@ use ureq::{
 pub(crate) struct Fixture {
     pub(crate) origin: PlatformOrigin,
     pub(crate) agent: Agent,
-    server: JoinHandle<io::Result<Vec<u8>>>,
+    server: Option<JoinHandle<io::Result<Vec<u8>>>>,
+    stop: mpsc::Sender<()>,
 }
 impl Fixture {
     pub(crate) fn start(response: Vec<u8>) -> Self {
@@ -59,13 +60,18 @@ impl Fixture {
             listener.local_addr().unwrap().port()
         ))
         .unwrap();
+        let (stop, stopped) = mpsc::channel();
         let server = thread::spawn(move || {
-            let deadline = Instant::now() + Duration::from_secs(5);
+            // Fixture setup can perform durable queue I/O before the client
+            // connects. Its duration must not consume the listener's lifetime.
+            // The owner stops/joins this listener on finish or panic; accepted
+            // sockets and the production client retain their real deadlines.
             let stream = loop {
                 match listener.accept() {
                     Ok((stream, _)) => break stream,
                     Err(e)
-                        if e.kind() == io::ErrorKind::WouldBlock && Instant::now() < deadline =>
+                        if e.kind() == io::ErrorKind::WouldBlock
+                            && matches!(stopped.try_recv(), Err(mpsc::TryRecvError::Empty)) =>
                     {
                         thread::sleep(Duration::from_millis(2));
                     }
@@ -92,11 +98,25 @@ impl Fixture {
         Self {
             origin,
             agent,
-            server,
+            server: Some(server),
+            stop,
         }
     }
-    pub(crate) fn finish(self) -> io::Result<Vec<u8>> {
-        self.server.join().expect("fixture server did not panic")
+    pub(crate) fn finish(mut self) -> io::Result<Vec<u8>> {
+        let _ = self.stop.send(());
+        self.server
+            .take()
+            .unwrap()
+            .join()
+            .expect("fixture server did not panic")
+    }
+}
+impl Drop for Fixture {
+    fn drop(&mut self) {
+        let _ = self.stop.send(());
+        if let Some(server) = self.server.take() {
+            let _ = server.join();
+        }
     }
 }
 

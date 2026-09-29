@@ -26,6 +26,7 @@ impl Drop for Cleanup {
         }
         let _ = fs::remove_file(&self.path);
         let _ = fs::remove_file(self.dir.join("outbox.sqlite"));
+        let _ = fs::remove_file(self.dir.join("foreign.sqlite"));
         let _ = fs::remove_dir(&self.dir);
     }
 }
@@ -85,13 +86,23 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         serde_json::from_slice(include_bytes!("../../../examples/egress/decision.json"))?;
     event["runtime_ref"] = serde_json::json!(pending.identity().runtime_ref());
     require(outbox.admit(&serde_json::to_vec(&event)?)? == Admission::Queued)?;
+    #[cfg(feature = "https")]
+    {
+        require(
+            mitigate_enrollment::event_https::deliver_next(&pending, &mut outbox).err()
+                == Some(mitigate_enrollment::event_https::Error::Enrollment(
+                    mitigate_enrollment::storage::Error::Pending,
+                )),
+        )?;
+        require(outbox.inspect()?.leased == 0)?;
+    }
     let lease = outbox.claim()?.ok_or("missing synthetic event")?;
     require(
         pending.sign_event(&lease).err() == Some(mitigate_enrollment::storage::Error::Pending),
     )?;
     #[cfg(feature = "https")]
     require(
-        mitigate_enrollment::event_https::submit(&pending, &lease).err()
+        mitigate_enrollment::event_https::submit(&pending, &mut outbox, &lease).err()
             == Some(mitigate_enrollment::event_https::Error::Enrollment(
                 mitigate_enrollment::storage::Error::Pending,
             )),
@@ -110,6 +121,38 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }}))?;
     let confirmed = restored.confirm(&receipt)?;
     require(confirmed.claim().is_err())?;
+    #[cfg(feature = "https")]
+    {
+        let mut foreign = Outbox::create(
+            &cleanup.dir.join("foreign.sqlite"),
+            Partition {
+                runtime_ref: confirmed.identity().runtime_ref().clone(),
+                enrollment_ref: mitigate_egress::SyncRef::fresh()?,
+            },
+            Limits::default(),
+        )?;
+        require(foreign.admit(&serde_json::to_vec(&event)?)? == Admission::Queued)?;
+        require(
+            mitigate_enrollment::event_https::deliver_next(&confirmed, &mut foreign).err()
+                == Some(mitigate_enrollment::event_https::Error::Enrollment(
+                    mitigate_enrollment::storage::Error::Scope,
+                )),
+        )?;
+        require(foreign.inspect()?.leased == 0)?;
+        outbox.purge()?;
+        outbox.set_paused(false)?;
+        require(outbox.admit(&serde_json::to_vec(&event)?)? == Admission::Queued)?;
+        let current = outbox.claim()?.ok_or("missing synthetic event")?;
+        outbox.set_paused(true)?;
+        require(
+            mitigate_enrollment::event_https::submit(&confirmed, &mut outbox, &current).err()
+                == Some(mitigate_enrollment::event_https::Error::NotReady),
+        )?;
+        require(
+            mitigate_enrollment::event_https::deliver_next(&confirmed, &mut outbox)?
+                == mitigate_enrollment::event_https::Delivery::Idle,
+        )?;
+    }
     let signed = confirmed.sign_event(&lease)?;
     require(signed.origin().as_str() == cleanup.origin.as_str())?;
     drop(confirmed);
