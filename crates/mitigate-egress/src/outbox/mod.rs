@@ -236,6 +236,8 @@ pub enum Error {
     Busy,
     /// Other SQLite failure, full storage or uncertain commit.
     Storage,
+    /// SQLite stopped an operation, including progress-handler budget withdrawal.
+    Interrupted,
     /// Unexpected schema, corrupt records or inconsistent state.
     Integrity,
     /// Wrong independently supplied enrollment scope.
@@ -254,6 +256,9 @@ impl fmt::Display for Error {
             Self::Path => "outbox file unavailable; inspect its location and permissions",
             Self::Busy => "outbox is busy; retry from the delivery worker after backoff",
             Self::Storage => "outbox storage unavailable; inspect capacity and access",
+            Self::Interrupted => {
+                "outbox operation interrupted; inspect local storage health and retry"
+            }
             Self::Integrity => "outbox integrity check failed; preserve and inspect the store",
             Self::Partition => "outbox enrollment does not match the selected configuration",
             Self::Clock => "outbox clock check failed; correct the local OS clock",
@@ -269,6 +274,7 @@ impl From<rusqlite::Error> for Error {
             Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked) => {
                 Self::Busy
             }
+            Some(rusqlite::ErrorCode::OperationInterrupted) => Self::Interrupted,
             _ => Self::Storage,
         }
     }

@@ -63,6 +63,46 @@ fn count(report: &Report, action: Action) -> u64 {
 }
 
 #[test]
+fn sqlite_interruption_keeps_a_closed_cause_and_preserves_committed_events() {
+    let fixture = Fixture::new();
+    let mut store = fixture.store(Limits::default());
+    assert_eq!(store.admit(&event('1')), Ok(Admission::Queued));
+    // Exercise SQLite's actual interruption path deterministically, without
+    // hoping to exceed a wall-clock deadline on a busy machine.
+    store
+        .connection()
+        .progress_handler(1, Some(|| true))
+        .unwrap();
+    let sqlite = store
+        .connection()
+        .execute("DELETE FROM events", [])
+        .unwrap_err();
+    assert_eq!(
+        sqlite.sqlite_error_code(),
+        Some(rusqlite::ErrorCode::OperationInterrupted)
+    );
+    let failure = Error::from(sqlite);
+    assert_eq!(failure, Error::Interrupted);
+    let diagnostic = crate::self_test::Error::Storage(failure).to_string();
+    assert!(diagnostic.contains("operation interrupted"));
+    assert!(!diagnostic.contains(fixture.db().to_str().unwrap()));
+    store
+        .connection()
+        .progress_handler(0, None::<fn() -> bool>)
+        .unwrap();
+    drop(store);
+    let mut recovered = Outbox::open(&fixture.db(), partition()).unwrap();
+    recovered.test_time = Some(1000);
+    let report = recovered.inspect().unwrap();
+    assert_eq!((report.pending, report.receipts), (1, 0));
+    let lease = recovered.claim().unwrap().unwrap();
+    assert_eq!(
+        lease.event().as_bytes(),
+        CheckedEvent::from_bytes(&event('1')).unwrap().as_bytes()
+    );
+}
+
+#[test]
 fn durable_admission_and_receipts_preserve_idempotent_exact_bytes() {
     let fixture = Fixture::new();
     let mut store = fixture.store(Limits::default());
