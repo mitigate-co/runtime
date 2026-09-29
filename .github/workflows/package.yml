@@ -1,0 +1,37 @@
+name: Package candidates
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0, MIT
+        with:
+          python-version: '3.13.14'
+      - run: python scripts/release/test_release.py
+      - name: Build native unsigned candidate
+        run: python scripts/release/package.py --target ${{ matrix.target }} --output dist/candidate
+      - name: Exercise the extracted executable with fresh synthetic state
+        run: python scripts/release/smoke.py dist/candidate --target ${{ matrix.target }} --commit ${{ github.sha }}
+      # Test candidates only. No release credentials, OIDC token or signing authority.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, MIT
+        with:
+          name: unsigned-candidate-${{ matrix.target }}
+          path: dist/candidate/*
+          if-no-files-found: error
+          retention-days: 7
