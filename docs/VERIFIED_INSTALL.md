@@ -133,3 +133,7 @@ an unsigned candidate with a malformed bundle without creating the destination.
 
 Source gates, current security failures, release signing/notarization and clean
 machine install/use evidence remain separate acceptance requirements.
+
+For reviewed package-manager distribution, see [Homebrew](HOMEBREW.md).
+See [platform coverage](SUPPORTED_PLATFORMS.md) and
+[upgrade/rollback limits](UPGRADE_AND_ROLLBACK.md) before changing an existing deployment.

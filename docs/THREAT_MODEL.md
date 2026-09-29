@@ -349,3 +349,14 @@ failure policies remain signing gates. No repository-write permission or release
 publication step is granted. GitHub, pinned actions, trusted release source and
 native hosted tools remain the provider trust boundary; synthetic tests do not
 prove genuine Apple/Sigstore success. See [release pipeline](RELEASE_PIPELINE.md).
+
+## Homebrew draft trust transition
+
+A macOS-only generator verifies both Apple archives and all publisher sidecars
+before writing a cask with fixed release origins and authenticated archive hashes.
+It verifies Developer ID/team/notarization and parses only bounded minimum-OS/CPU
+facts; no fixture/downloaded binary is executed. Both targets must succeed.
+Homebrew then relies on the reviewed protected tap digest and native Apple trust.
+No tap mutation, installer script, service, migration or customer-state deletion
+is generated. Package acceptance and state-compatible rollback remain independent
+release decisions. See [Homebrew](HOMEBREW.md).

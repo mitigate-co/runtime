@@ -9,21 +9,25 @@ import tempfile
 from authenticate import MAX_BUNDLE, VerificationError, authenticated_snapshot, snapshot
 from install import native_target, write_new
 from install_contract import MAX_MANIFEST, checked_files, require, validate_manifest
+from package import TARGETS
 from preflight import expected_source
 from signing_gate import signing_gate
 from stage_release import Parser, workflow_context
 
 
 @contextmanager
-def verified_release(directory, bundle, commit, tag):
+def verified_release(directory, bundle, commit, tag, *, target=None):
     """Yield private authenticated assets, valid only inside this context.
 
     Each asset needs publisher authentication. Checksums and the external SBOM
     must also agree with the installer's closed archive/manifest contract.
     Never execute downloaded code as part of this verification.
+    An explicit supported target permits cross-architecture package review;
+    installation still independently requires its actual native target.
     """
     require(expected_source(commit, tag) and len(tag) <= 64, "invalid_source")
-    target = native_target()
+    target = native_target() if target is None else target
+    require(target in TARGETS, "unsupported_platform")
     prefix = f"mitigate-{tag[1:]}-{target}"
     with ExitStack() as stack:
         temporary = Path(stack.enter_context(tempfile.TemporaryDirectory()))

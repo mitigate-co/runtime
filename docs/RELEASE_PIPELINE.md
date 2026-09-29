@@ -92,7 +92,8 @@ of the hosted-runner trust boundary. Unsupported verifier flags fail closed.
 Synthetic tests prove ordering, rejection paths, byte consistency and fresh
 installation composition; they mock publisher/native signatures and never run
 fixture bytes. Actual signed/notarized artifacts, clean-user acceptance,
-Homebrew/install ergonomics, support/rollback decisions and protected publication
+[Homebrew draft acceptance](HOMEBREW.md), [support coverage](SUPPORTED_PLATFORMS.md),
+[rollback decisions](UPGRADE_AND_ROLLBACK.md) and protected publication
 remain release work. This workflow introduces no Runtime data-path migration.
 Rollback is to leave manual dispatch disabled; do not re-use artifacts from a
 failed run or rerun failed security checks until green.
