@@ -212,6 +212,15 @@ impl Client {
         Self::start_sync(binary, project, known, None)
     }
     fn start_sync(binary: &Path, project: &Project, known: bool, sync: Option<&Path>) -> Self {
+        Self::start_capture(binary, project, known, sync, false)
+    }
+    fn start_capture(
+        binary: &Path,
+        project: &Project,
+        known: bool,
+        sync: Option<&Path>,
+        inventory: bool,
+    ) -> Self {
         let mut command = tokio::process::Command::new(binary);
         command
             .args(["mcp", "serve", "--allow-exec", "--launch-config"])
@@ -225,6 +234,9 @@ impl Client {
         }
         if let Some(sync) = sync {
             command.arg("--sync-profile").arg(sync);
+        }
+        if inventory {
+            command.arg("--sync-inventory");
         }
         let mut child = command
             .stdin(Stdio::piped())

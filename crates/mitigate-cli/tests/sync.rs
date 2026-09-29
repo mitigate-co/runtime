@@ -121,3 +121,27 @@ fn invalid_sync_requests_never_echo_input_or_create_partial_state() {
         assert!(!missing.exists());
     }
 }
+
+#[test]
+fn inventory_capture_requires_an_explicit_sync_profile() {
+    let output = Command::new(env!("CARGO_BIN_EXE_mitigate"))
+        .args([
+            "mcp",
+            "serve",
+            "--sync-inventory",
+            "--inventory-only",
+            "--allow-exec",
+            "--launch-config",
+            "inventory-private-canary",
+        ])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    assert!(
+        !String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("inventory-private-canary")
+    );
+}

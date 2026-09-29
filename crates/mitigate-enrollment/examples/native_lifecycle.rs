@@ -239,6 +239,36 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .output()?;
         if !output.status.success() {
             // This child has synthetic fixtures only; do not expose its raw diagnostics.
+            eprintln!("Native fixture stage: gateway_capture.");
+            for line in String::from_utf8_lossy(&output.stderr).lines().take(64) {
+                for category in [
+                    "assertion",
+                    "workspace",
+                    "setup",
+                    "cleanup",
+                    "storage_clock",
+                    "storage_budget",
+                    "storage",
+                ] {
+                    if line == format!("Synthetic capture privacy category: {category}.") {
+                        eprintln!("Synthetic capture privacy category: {category}.");
+                    }
+                }
+                if let Some((_, location)) = line.split_once("panicked at ") {
+                    for file in ["sync.rs", "mod.rs"] {
+                        let prefix = format!("fixtures/mcp-server/src/governance_contract/{file}:");
+                        if let Some(position) = location.strip_prefix(&prefix) {
+                            let position = position.trim_end_matches(':');
+                            if position.len() <= 16
+                                && !position.is_empty()
+                                && position.bytes().all(|b| b.is_ascii_digit() || b == b':')
+                            {
+                                eprintln!("Synthetic capture assertion: {file}:{position}.");
+                            }
+                        }
+                    }
+                }
+            }
             return Err("actual CLI sync-capture fixture failed".into());
         }
         require(sync.inspect()?.paused && sync.inspect()?.pending == 0)?;

@@ -288,6 +288,9 @@ pub(crate) enum McpCommand {
         /// Capture safe metadata into an existing consented sync queue.
         #[arg(long, requires = "enforce")]
         sync_profile: Option<PathBuf>,
+        /// Also capture freshly listed inventory; requires a v2-capable receiver.
+        #[arg(long, requires = "sync_profile")]
+        sync_inventory: bool,
         /// Explicit local caller mapping; omitted attribution remains unknown.
         #[arg(long)]
         profile: Option<PathBuf>,
