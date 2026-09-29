@@ -24,7 +24,8 @@ Updated 2026-09-29. Follow the canonical ordered work packages. This file report
 | MCP-018 — Optional Platform sync | Runtime inventory producer merged | PR #47 at `48f993b` passed three-OS/security CI for explicit fresh inventory capture. Hosted composition and release acceptance are separate gates. |
 | MCP-019 — Reputation/index | Hosted implementation belongs to Platform | No private cohort/publication logic is added to Runtime. See the private repository's implementation evidence. |
 | MCP-020 — Release engineering | Native candidate packaging under verification | Clean-commit builds, target-filtered SPDX, dependency notices, checksums and fresh-state archive smoke tests. Signed publication, notarization and verified installation remain release gates. |
-| MCP-021 through MCP-024 | Remaining acceptance work | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
+| MCP-021 — Adversarial hardening | Deterministic input corpus merged | Exact parser boundaries, complete hostile event controls, decoded duplicates and 6,144 bounded mutations. Signature, process/log review and unresolved failure evidence remain separate gates. See [adversarial testing](ADVERSARIAL_TESTING.md). |
+| MCP-022 through MCP-024 | Remaining acceptance work | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
 
