@@ -111,5 +111,7 @@ all transcript fields, every event field/fact, the final LF and the signature fa
 CI runs the fixture on Windows, macOS and Linux.
 
 The explicit [HTTPS exchange](EVENT_HTTPS.md) requires that confirmed native owner
-and returns a transport-authenticated bound receipt. Consent/lease coordination,
-an automatic gateway producer and the hosted receiver remain separate requirements.
+and returns a transport-authenticated bound receipt. [Delivery](SYNC_CONTROLS.md)
+composes consent and lease checks; [gateway capture](SYNC_CAPTURE.md) is separately
+enabled and never starts the sender. Hosted receiver acceptance belongs to private
+Platform and cannot be established by Runtime signature tests alone.

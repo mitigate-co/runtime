@@ -1,6 +1,6 @@
 # Fingerprints, snapshots and diff
 
-Snapshot files are opt-in local change records. They are not authorization, signatures, trusted provenance or approved Platform telemetry. Tool labels can be sensitive. Content-derived hashes are not anonymization: predictable definitions may be guessed. Keep snapshots inside your customer boundary; later optional sync must use its separate privacy contract and guard.
+Snapshot files are opt-in local change records. They are not authorization, signatures, trusted provenance or approved Platform telemetry. Tool labels can be sensitive. Content-derived hashes are not anonymization: predictable definitions may be guessed. Keep snapshots inside your customer boundary. [Optional sync capture](SYNC_CAPTURE.md) uses a separate closed privacy contract and random references; it does not upload snapshots.
 
 ## Demonstrate locally
 
@@ -36,7 +36,7 @@ Snapshots are unsigned and can be replaced by someone with filesystem access. A 
 
 Diff reports server-identity/facts/capability changes and sorted added, removed and changed tools. Changed tools identify input schema, output schema, description and identity independently. An added/removed tool has no comparable previous/current schema, so its per-field change flags are false. A server-version-only edit changes server facts without falsely changing each tool schema. A renamed tool appears as removal plus addition.
 
-Exit 0 means comparison completed, whether or not differences exist; exit 2 means invalid/unavailable input. JSON goes to stdout on success and fixed errors go to stderr. There is no reapproval, reclassification or enforcement action yet; those use these facts in later packages.
+By default, exit 0 means comparison completed, whether or not differences exist. Add `--fail-on-change` to return exit 3 when differences are found; the comparison report is still printed. Exit 2 means invalid/unavailable input. JSON reports go to stdout and fixed errors go to stderr. This offline comparison does not change approvals, classification or policy. The [governed gateway](ENFORCEMENT.md) independently binds authority to reviewed tool and schema fingerprints and refuses changed definitions until they are reviewed.
 
 Discovery v2's `config_fingerprint` has a deliberately different scope: it covers only the normalized redacted summary. It does not detect changes to omitted secret, argument or URL values and cannot attest exact execution configuration.
 

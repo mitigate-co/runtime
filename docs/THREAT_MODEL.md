@@ -84,13 +84,13 @@ installation and macOS notarization remain required before distribution.
 
 Mitigation: source attribution, confidence/provenance, separation of observed facts vs analyst classification, no unsourced definitive accusations.
 
-## Implemented boundaries through MCP-005
+## Discovery and inspection boundaries
 
-This section records current controls; the priority mitigations above also include later production packages. Discovery only reads two bounded project config sources and never executes commands or reads credential references. Explicit stdio inspection requires a separate reviewed launch file and execution intent. It clears ambient environment inheritance, bounds protocol parsing and terminates the OS job/process group on normal completion, failure and cancellation. It runs with the caller's privileges and is not a sandbox.
+Discovery only reads two bounded project config sources and never executes commands or reads credential references. Explicit stdio inspection requires a separate reviewed launch file and execution intent. It clears ambient environment inheritance, bounds protocol parsing and terminates the OS job/process group on normal completion, failure and cancellation. It runs with the caller's privileges and is not a sandbox.
 
-Local snapshots separate identity, schema, description and server-fact changes. They are unsigned change detectors, not authenticated approval input or anonymized telemetry. Discovery summary fingerprints omit secret and argument values and cannot bind exact gateway execution. Classification ignores instructions in descriptions and retains unknown/open-schema risk. Explicit administrator overrides bind current fingerprints and fail on drift while preserving inferred risk evidence. A same-user process that can replace policy/config/executable files is outside this local file boundary. No Platform egress path or enforcement gateway is claimed by these packages.
+Local snapshots separate identity, schema, description and server-fact changes. They are unsigned change detectors, not authenticated approval input or anonymized telemetry. Discovery summary fingerprints omit secret and argument values and cannot bind exact gateway execution. Classification ignores instructions in descriptions and retains unknown/open-schema risk. Explicit administrator overrides bind current fingerprints and fail on drift while preserving inferred risk evidence. A same-user process that can replace policy/config/executable files is outside this local file boundary. Discovery and inspection do not enable enforcement or Platform sync.
 
-Regression evidence: discovery privacy fixtures, subprocess protocol/lifecycle canaries, snapshot drift tests and classification poisoning/stale-override tests. OS-native secret storage, grants, approvals, audit, egress firewall and signed releases remain later gates.
+Regression evidence includes discovery privacy fixtures, subprocess protocol/lifecycle canaries, snapshot drift tests and classification poisoning/stale-override tests. The implemented native secret, governed-call, audit and egress boundaries are described below. Signing infrastructure is implemented; genuine publisher/signing acceptance and the unresolved [release blockers](RELEASE_BLOCKERS.json) still gate distribution.
 
 Windows cleanup additionally checks actual job membership, rather than treating any completion-port message as success. A reviewed source patch and deterministic cancellation regression cover the upstream wait defect found in CI; see ADR 0009. This does not widen permissions or change the local execution boundary.
 
@@ -118,9 +118,9 @@ Local persistence. Native OS operations are trusted IPC, not Platform egress.
 See [credential handling](SECRETS.md) and ADR 0012 for native prompts and failure
 semantics. This does not hide credentials from the selected upstream, its
 descendants, another privileged same-user process, or every memory dump/swap page.
-Deleting a reference does not revoke copied provider credentials. Full telemetry
-privacy enforcement and release gates remain open; per-call governance cannot
-revoke a credential already copied into a selected server's environment.
+Deleting a reference does not revoke copied provider credentials. The separate
+egress firewall protects optional telemetry; it cannot revoke a credential already
+copied into a selected server's environment. Release acceptance remains required.
 
 The executable gateway requires an explicit inventory-only or governed mode. Inventory-only denies every call. Governed mode requires reviewed launch/definitions, verified local authority and mandatory audit; see [composition and commit boundaries](ENFORCEMENT.md). Both validate profiles before launch and confirm upstream cleanup on EOF, timeout or graceful shutdown. Its standard-I/O worker lifetime ends at CLI process exit; see ADR 0011. Abrupt OS termination can skip Rust destructors, especially on Unix, so graceful cleanup tests do not establish crash-proof descendant containment. No sandbox is implied.
 

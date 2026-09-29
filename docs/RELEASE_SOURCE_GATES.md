@@ -43,7 +43,7 @@ make a reviewed correction; do not use empty changes to disguise it.
 
 This is a source gate, not a publisher or download verifier. Protected branch/tag
 rules and authorized maintainers still control release intent. Its JSON is a
-point-in-time observation, not a reusable credential: the future signing workflow
+point-in-time observation, not a reusable credential: the [signing workflow](RELEASE_PIPELINE.md)
 must run it immediately against its own pinned source. Never substitute cached
 output or a feature-branch run. The verifier is trusted build tooling and must be
 invoked from reviewed source on a trusted runner.
@@ -52,10 +52,9 @@ It does not prove macOS signing/notarization, artifact signatures/provenance,
 installer verification, backup/rollback safety, absence of known security bugs or
 fresh-machine acceptance. Those remain separate required gates in the
 [release standard](engineering/RELEASE_STANDARD.md). In particular, successful CI
-does not resolve Runtime issue #46's still-unexplained Windows governance fault.
-Runtime issue #50 also retains an unexplained pre-transport readiness failure.
-Neither is cleared by a later successful run. There is no release publication or
-production deployment in this change.
+does not resolve the failures tracked in [the release blocker policy](RELEASE_BLOCKERS.json).
+Issue closure and later successful runs cannot clear these failures. Source
+verification does not publish a release or deploy production.
 
 The [release-file authenticator](RELEASE_AUTHENTICATION.md) applies the fixed
 publisher policy to a bounded local file and attestation bundle. It is independent

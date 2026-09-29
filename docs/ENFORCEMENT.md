@@ -87,7 +87,8 @@ for the session. Grants are reloaded at each authorization check. A verified
 newer policy becomes active on recheck. An invalid/missing refreshed policy leaves
 the already verified in-memory policy active and emits one fixed warning per
 failure period. Fresh processes still require valid local stores and a verified
-bundle. `offline` is currently `true`: this gateway has no Platform channel.
+bundle. `offline` is currently `true`: authorization does not consult Platform.
+Optional metadata capture and delivery do not change this policy input.
 
 See [offline operation and recovery](OFFLINE.md) for cache, restart and unavailable
 approval behavior and the executable outage contract.
