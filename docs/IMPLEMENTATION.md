@@ -312,3 +312,23 @@ durable allow/deny records, random-reference correlation after restart,
 pause/purge and continued local operation with a missing sync profile. Automatic
 HTTP delivery and fleet composition remain open. These passing checks do not
 close the intermittent privacy-probe clock investigation in issue #36.
+
+Optional send now prepares its queue before opening native credentials. Empty,
+paused, leased and backing-off queues wait without taking the enrollment owner
+or rewriting the queue. Due expiry uses a fresh bounded transaction; abandoned
+leases receive their normal delayed retry without identity/body changes. Claims
+also reserve the complete retention budget, preventing a nearly expired record
+from taking leases ahead of deliverable work. These are scheduling hints only:
+native confirmation, consent, exact lease and final HTTPS checks still run.
+See [delivery preparation](OUTBOX.md#delivery-lifecycle).
+
+The Linux workspace passed 332 tests including compile-fail contracts; the native
+lock helper runs through its parent. Windows passed the relevant egress/enrollment
+tests, native credential-store lifecycle fixture, no-HTTPS compilation and strict
+package Clippy. Strict workspace Clippy and Linux executable builds pass. New
+cases cover read-only polling, unchanged retry bytes/delays, abandoned leases,
+retention eligibility, independent pause, corruption, rollback and a vetoed
+maintenance commit. The existing concurrent pause test now treats documented
+SQLite `Busy` as contention while retaining its original deadline and requiring
+the actual committed pause. No runtime timeout, clock guard, wire/profile/storage
+version or consent rule changes. A continuous sender remains the next slice.

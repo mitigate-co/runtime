@@ -122,7 +122,7 @@ fn checked_exchange(
 /// pause report only fixed transport categories; local commit failure is Err.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Delivery {
-    /// Paused, empty or waiting for a retained event's backoff.
+    /// Paused, empty, leased, backing off or without enough retention to send.
     Idle,
     /// Exact authenticated acknowledgment and local completion both committed.
     Accepted,
@@ -158,7 +158,11 @@ fn deliver_with(
     outbox: &mut Outbox,
     send: impl FnOnce(&mut Outbox, &Lease) -> Result<HttpsEventReceipt, Error>,
 ) -> Result<Delivery, Error> {
-    let Some(lease) = outbox.claim().map_err(Error::Outbox)? else {
+    let budget_ms = transport::EXCHANGE_TIMEOUT.as_millis() as u64 + 5000;
+    let Some(lease) = outbox
+        .claim_for_delivery(budget_ms)
+        .map_err(Error::Outbox)?
+    else {
         return Ok(Delivery::Idle);
     };
     let (outcome, result) = match send(outbox, &lease) {

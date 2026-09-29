@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod consent_tests;
 pub(crate) mod db;
+#[cfg(test)]
+mod readiness_tests;
 mod state;
 mod storage;
 #[cfg(test)]
@@ -84,6 +86,17 @@ pub enum Admission {
 /// renew consent. This is not an enrollment credential or a wire identifier.
 #[derive(Clone, PartialEq, Eq)]
 pub struct CapturePermit(state::CaptureConsent);
+
+/// Local scheduling hint, never a lease or permission to transmit an event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Readiness {
+    /// Explicit withdrawal; a sender must not unlock credentials or resume it.
+    Paused,
+    /// Empty, leased, backing off or too near retention expiry for the budget.
+    Waiting,
+    /// At least one candidate can currently cover the requested time budget.
+    Ready,
+}
 
 /// A delivery result classification supplied by the trusted sender. Never pass
 /// a response body/error message. Only transient failures are retried.

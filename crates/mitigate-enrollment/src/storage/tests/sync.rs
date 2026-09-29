@@ -63,6 +63,38 @@ impl Drop for SyncFixture {
 }
 
 #[test]
+#[cfg(feature = "https")]
+fn idle_delivery_does_not_open_the_native_owner_but_ready_work_still_requires_it() {
+    use crate::event_https::Delivery;
+    use mitigate_egress::outbox::Readiness;
+    let fixture = SyncFixture::new();
+    // Holding the original anchor deterministically rejects any second owner
+    // before OS credential access. The idle path must not attempt that open.
+    let owner = fixture.confirmed();
+    let profile = fixture.initialize(&owner).unwrap();
+    let before = fs::read(fixture.queue()).unwrap();
+    assert_eq!(profile.delivery_readiness(), Ok(Readiness::Waiting));
+    assert_eq!(profile.deliver_next(), Ok(Delivery::Idle));
+    assert!(
+        fs::read(fixture.queue()).unwrap() == before,
+        "idle polling rewrote the queue"
+    );
+    let mut queue = fixture.admit(&profile);
+    assert_eq!(profile.delivery_readiness(), Ok(Readiness::Ready));
+    assert_eq!(
+        profile.deliver_next(),
+        Err(sync::DeliveryError::Control(sync::Error::Enrollment(
+            Error::Busy
+        )))
+    );
+    assert_eq!(queue.inspect().unwrap().leased, 0);
+    queue.set_paused(true).unwrap();
+    assert_eq!(profile.delivery_readiness(), Ok(Readiness::Paused));
+    assert_eq!(profile.deliver_next(), Ok(Delivery::Idle));
+    assert_eq!(queue.inspect().unwrap().pending, 1);
+}
+
+#[test]
 fn consent_setup_requires_confirmed_native_state_and_never_replaces_files() {
     let fixture = SyncFixture::new();
     let pending = fixture.0.create().unwrap();
@@ -266,8 +298,13 @@ fn drain_reasserts_pause_if_a_competing_resume_wins_the_enrollment_lock() {
         locked.send(()).unwrap();
         let deadline = Instant::now() + Duration::from_secs(5);
         loop {
-            if queue.inspect().unwrap().paused {
-                break;
+            match queue.inspect() {
+                Ok(report) if report.paused => break,
+                // A concurrent committed pause can temporarily own SQLite's
+                // writer lock. Only this documented contention is retryable;
+                // the observed pause and the original deadline remain required.
+                Ok(_) | Err(mitigate_egress::outbox::Error::Busy) => (),
+                Err(error) => panic!("unexpected outbox failure: {error}"),
             }
             assert!(Instant::now() < deadline, "pause was not committed");
             thread::sleep(Duration::from_millis(1));

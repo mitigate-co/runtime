@@ -31,8 +31,11 @@ there is no additional setup argument. Its path is pinned in the new profile.
 Subsequent commands need only the profile path. `status` is read-only and does not
 unlock credentials or contact Platform. Its `paused` field describes current local
 consent, not whether an earlier network request has finished. `send` never resumes
-consent. A paused profile returns idle without unlocking the credential store.
-Enabled delivery restores its original confirmed native binding before claiming
+consent. Paused, empty, leased and backing-off queues return idle without unlocking
+the credential store or acquiring its owner lock. Local preparation applies due
+expiry through the existing bounded transaction; other polls use read-only
+connections. A candidate must have enough retention for the entire exchange.
+This hint does not authorize delivery. Ready work restores its original confirmed native binding before claiming
 an event and uses the [bounded one-attempt sender](EVENT_HTTPS.md).
 
 `pause` immediately commits withdrawal for new admission and attempts, then waits
