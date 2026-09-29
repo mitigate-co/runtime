@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
+import uuid
 
 import apple_verify
 import authenticate
@@ -232,7 +233,8 @@ class CaskTests(unittest.TestCase):
             self.signatures.assert_not_called()
 
     @unittest.skipUnless(
-        platform.system() == "Darwin", "actual Homebrew cask loader needs macOS"
+        platform.system() == "Darwin" and os.environ.get("GITHUB_ACTIONS") == "true",
+        "temporary Homebrew tap requires an ephemeral native CI runner",
     )
     def test_draft_loads_in_actual_homebrew_without_installing(self):
         with self.verification():
@@ -240,19 +242,48 @@ class CaskTests(unittest.TestCase):
         self.assertIsNotNone(
             shutil.which("brew"), "Homebrew must be available on native CI"
         )
-        environment = dict(os.environ)
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key
+            in {"PATH", "HOME", "USER", "LOGNAME", "TMPDIR", "LANG", "LC_ALL", "SHELL"}
+        }
         environment.update(HOMEBREW_NO_AUTO_UPDATE="1", HOMEBREW_NO_ANALYTICS="1")
-        result = subprocess.run(
-            ["brew", "info", "--cask", "--json=v2", str(self.output)],
-            env=environment,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            timeout=90,
-        )
-        self.assertEqual(
-            result.returncode, 0, "Homebrew rejected the synthetic cask draft"
-        )
-        casks = json.loads(result.stdout)["casks"]
+
+        def brew(*args):
+            result = subprocess.run(
+                ["brew", *args],
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=90,
+            )
+            # Public synthetic cask commands only; no provider credentials or
+            # customer inputs are inherited. Keep a bounded useful CI failure.
+            error = result.stderr.decode("utf-8", errors="replace").replace(
+                str(self.root), "<fixture>"
+            )[:4096]
+            self.assertEqual(result.returncode, 0, error)
+            return result.stdout
+
+        # Homebrew may forbid arbitrary Ruby paths. Validate in its actual tap
+        # boundary, never disable path/trust protection to make a fixture pass.
+        tap = "mitigate-ci/fixture-" + uuid.uuid4().hex
+        brew("tap-new", "--no-git", tap)
+        self.addCleanup(brew, "untap", tap)
+        tap_root = Path(brew("--repository", tap).decode().strip())
+        cask = tap_root / "Casks" / "mitigate.rb"
+        self.assertTrue(cask.parent.is_dir())
+        with cask.open("xb") as output:
+            output.write(self.output.read_bytes())
+        full_name = tap + "/mitigate"
+        # Older Homebrew versions have no trust-store command. Where present,
+        # grant only this newly owned synthetic cask, and remove that exact grant.
+        if b"trust" in brew("commands", "--quiet").split():
+            brew("trust", "--cask", full_name)
+            self.addCleanup(brew, "untrust", "--cask", full_name)
+        result = brew("info", "--cask", "--json=v2", full_name)
+        casks = json.loads(result)["casks"]
         self.assertEqual(len(casks), 1)
         self.assertEqual(casks[0]["token"], "mitigate")
         self.assertEqual(casks[0]["version"], "0.1.0")

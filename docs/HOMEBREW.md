@@ -53,18 +53,27 @@ does not replace native signature verification or prove OS compatibility.
 ## Validate and publish only after release approval
 
 The generated cask is trusted code and must be reviewed before Homebrew loads it.
-For a draft made from accepted artifacts, run on both Mac architectures:
+For a draft made from accepted artifacts, create an explicitly owned local test
+tap and copy the reviewed `mitigate.rb` into its `Casks` directory. Use `brew
+tap-new` and `brew --repository` to select that directory. Do not disable
+Homebrew's path or trust protection to load arbitrary Ruby files. On versions
+with explicit package trust, review the cask and use `brew trust --cask` for that
+single fully qualified cask.
+
+On both Mac architectures, substitute the actual test tap's fully qualified
+cask name for `OWNED_TEST_TAP/mitigate`:
 
 ```sh
-brew info --cask --json=v2 ./mitigate.rb
-brew style --cask ./mitigate.rb
-brew audit --new --cask ./mitigate.rb
-brew install --cask ./mitigate.rb
+brew info --cask --json=v2 OWNED_TEST_TAP/mitigate
+brew style --cask OWNED_TEST_TAP/mitigate
+brew audit --new --cask OWNED_TEST_TAP/mitigate
+brew install --cask OWNED_TEST_TAP/mitigate
 mitigate version --json
 mitigate mcp scan --root . --json
-brew uninstall --cask mitigate
+brew uninstall --cask OWNED_TEST_TAP/mitigate
 ```
 
+Remove only the owned test cask's trust entry and empty test tap after validation.
 Run scan against a deliberate synthetic test project, not an unrelated working
 directory. Confirm ordinary-user install, useful scan output, binary identity,
 package removal and preservation of existing Runtime data. Online audit and
@@ -83,8 +92,9 @@ pins their digest. Homebrew, the protected tap and native macOS trust are part o
 the installation boundary. No arbitrary URLs or checksum overrides are accepted.
 
 Synthetic tests authenticate fixture archives with mocked publisher/Apple
-boundaries. Native CI also loads the generated definition through actual
-Homebrew without downloading or installing fixture bytes. These do not establish
+boundaries. Native CI also loads the generated definition through an explicitly owned temporary
+Homebrew tap, removing only its own trust entry/tap afterward. It never downloads
+or installs fixture bytes, and the mutation test is skipped outside native CI. These do not establish
 successful installation of an authentic signed release.
 
 Provider references: [Homebrew cask cookbook](https://docs.brew.sh/Cask-Cookbook)
