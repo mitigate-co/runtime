@@ -1,0 +1,56 @@
+{
+  "convert_case@0.4.0": {
+    "file": "convert-case.txt",
+    "sha256": "797087750c4103075e96bb7a60202a040812f8679ae2f7263148a1cc0b298d28",
+    "commit": "300d9eef9e8c970e15f324afbc3df8b6a4ebbf71",
+    "source_url": "https://github.com/rutrum/convert-case/blob/f72ca63c9d579fbab22e361c76e39d31d1e86a2e/LICENSE"
+  },
+  "jsonschema-regex@0.58.2": {
+    "file": "jsonschema.txt",
+    "sha256": "117829c3ca21efb132d81a44b55363d395ab8eea18526873bc828da4c0e5f038",
+    "commit": "3d48b9026c6518e7f3a2ecc6c9c94a9f77f6083c",
+    "source_url": "https://github.com/Stranger6667/jsonschema/blob/3d48b9026c6518e7f3a2ecc6c9c94a9f77f6083c/LICENSE"
+  },
+  "jsonschema-value@0.58.2": {
+    "file": "jsonschema.txt",
+    "sha256": "117829c3ca21efb132d81a44b55363d395ab8eea18526873bc828da4c0e5f038",
+    "commit": "3d48b9026c6518e7f3a2ecc6c9c94a9f77f6083c",
+    "source_url": "https://github.com/Stranger6667/jsonschema/blob/3d48b9026c6518e7f3a2ecc6c9c94a9f77f6083c/LICENSE"
+  },
+  "uuid-simd@0.8.0": {
+    "file": "simd.txt",
+    "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d",
+    "commit": "d74c030d9dc4f3cae02146d1f497ff62726ef09a",
+    "source_url": "https://github.com/Nugine/simd/blob/d74c030d9dc4f3cae02146d1f497ff62726ef09a/LICENSE"
+  },
+  "verus_builtin_macros@0.0.0-2026-08-23-0033": {
+    "file": "verus-aug23.txt",
+    "sha256": "ab78fc657425500bc64f617e36bb6819c6b0d039c573642f603dd594b12fe0d3",
+    "commit": "60cb04e52bd4dd9f80546937540e11af8a5700d1",
+    "source_url": "https://github.com/verus-lang/verus/blob/60cb04e52bd4dd9f80546937540e11af8a5700d1/LICENSE"
+  },
+  "verus_builtin@0.0.0-2026-08-09-0044": {
+    "file": "verus-aug09.txt",
+    "sha256": "ab78fc657425500bc64f617e36bb6819c6b0d039c573642f603dd594b12fe0d3",
+    "commit": "f777e7eeb0c631985727895558d180d1b657afe0",
+    "source_url": "https://github.com/verus-lang/verus/blob/f777e7eeb0c631985727895558d180d1b657afe0/LICENSE"
+  },
+  "verus_state_machines_macros@0.0.0-2026-08-02-0125": {
+    "file": "verus-aug02.txt",
+    "sha256": "ab78fc657425500bc64f617e36bb6819c6b0d039c573642f603dd594b12fe0d3",
+    "commit": "b3cb23ae0639344465f4a07c76fda60a62b20853",
+    "source_url": "https://github.com/verus-lang/verus/blob/b3cb23ae0639344465f4a07c76fda60a62b20853/LICENSE"
+  },
+  "vsimd@0.8.0": {
+    "file": "simd.txt",
+    "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d",
+    "commit": "d74c030d9dc4f3cae02146d1f497ff62726ef09a",
+    "source_url": "https://github.com/Nugine/simd/blob/d74c030d9dc4f3cae02146d1f497ff62726ef09a/LICENSE"
+  },
+  "vstd@0.0.0-2026-08-23-0033": {
+    "file": "verus-aug23.txt",
+    "sha256": "ab78fc657425500bc64f617e36bb6819c6b0d039c573642f603dd594b12fe0d3",
+    "commit": "60cb04e52bd4dd9f80546937540e11af8a5700d1",
+    "source_url": "https://github.com/verus-lang/verus/blob/60cb04e52bd4dd9f80546937540e11af8a5700d1/LICENSE"
+  }
+}

@@ -8,6 +8,10 @@ The Apache-2.0 customer-side MCP scanner and gateway for Mitigate. Local operati
 
 Development has started. No release binaries or production-ready gateway are published yet. The executable work packages and acceptance gates are in [the MCP specification](docs/modules/mcp/LOW_LEVEL.md). See [implementation status](docs/IMPLEMENTATION.md) for verified scope.
 
+[Native CI candidates](docs/RELEASE_CANDIDATES.md) include checksums, dependency
+inventories and license notices. They are unsigned test artifacts; public signed
+distribution remains a separate release gate.
+
 ## Run from source
 
 Install Rust through rustup and a native C build toolchain (Visual Studio C++ build

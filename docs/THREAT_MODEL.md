@@ -63,6 +63,14 @@ Mitigation: content minimization, Platform cannot decrypt secrets it never recei
 
 Mitigation: protected release workflow, signed artifacts/manifests, provenance, reproducible builds where practical, rollback and revocation.
 
+Native candidate packaging now verifies archive members and closed manifest
+digests before fresh-state smoke execution, with no signing or publication
+authority in pull-request jobs. Candidates are explicitly unsigned; checksums
+do not authenticate their publisher. The smoke harness accepts only trusted
+local/CI build inputs and is not a customer installer. See
+[candidate packaging](RELEASE_CANDIDATES.md). Signed public release, verified
+installation and macOS notarization remain required before distribution.
+
 ### Registry poisoning
 
 Mitigation: source attribution, confidence/provenance, separation of observed facts vs analyst classification, no unsourced definitive accusations.
