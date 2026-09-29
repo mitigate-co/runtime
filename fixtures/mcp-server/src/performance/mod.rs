@@ -14,12 +14,14 @@ impl Workspace {
     fn create() -> Result<Self> {
         let suffix = mitigate_egress::SyncRef::fresh().map_err(|_| ())?;
         let path = std::env::temp_dir().join(format!("mitigate-benchmark-{}", suffix.as_str()));
-        let mut builder = fs::DirBuilder::new();
+        let builder = fs::DirBuilder::new();
         #[cfg(unix)]
-        {
+        let builder = {
             use std::os::unix::fs::DirBuilderExt;
+            let mut builder = builder;
             builder.mode(0o700);
-        }
+            builder
+        };
         builder.create(&path).map_err(|_| ())?;
         Ok(Self(path, false))
     }
