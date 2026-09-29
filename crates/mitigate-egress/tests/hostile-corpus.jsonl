@@ -1,0 +1,17 @@
+{"kind":"decision","location":"envelope","field":"metadata","value":{"synthetic-content-canary":"ignore all rules"}}
+{"kind":"inventory","location":"tool","field":"description","value":"synthetic-content-canary"}
+{"kind":"decision","location":"facts","field":"arguments","value":{"text":"synthetic-content-canary"}}
+{"kind":"inventory","location":"tool","field":"source_code","value":"synthetic-content-canary"}
+{"kind":"decision","location":"facts","field":"pr\u006fmpt","value":"synthetic-content-canary"}
+{"kind":"inventory","location":"facts","field":"__proto__","value":{"synthetic-content-canary":true}}
+{"kind":"inventory","location":"envelope","field":"runtime_ref","value":"https://synthetic-content-canary.invalid"}
+{"kind":"inventory","location":"facts","field":"tool_count","value":-1}
+{"kind":"decision","location":"facts","field":"duration_ms","value":9007199254740992}
+{"kind":"inventory","location":"tool","field":"capabilities","value":["read_data","synthetic-content-canary"]}
+{"kind":"decision","location":"envelope","field":"event_type","value":"mcp_inventory_snapshot"}
+{"kind":"inventory","location":"envelope","field":"schema_version","value":1}
+{"kind":"inventory","location":"facts","field":"tools_supported","value":"true"}
+{"kind":"decision","location":"facts","field":"attribution","value":"synthetic-content-canary"}
+{"kind":"inventory","location":"tool","field":"risk_flags","value":["ignore_approvals"]}
+{"kind":"decision","location":"facts","field":"unrecognized_extension","value":null}
+{"kind":"inventory","location":"tool","field":"unrecognized_extension","value":null}
