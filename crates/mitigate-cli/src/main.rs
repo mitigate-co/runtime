@@ -314,7 +314,7 @@ fn required_options_hint(arguments: &[std::ffi::OsString]) -> &'static str {
                 return "Inspection requires --launch-config and --allow-exec. Run mitigate mcp inspect --help.";
             }
             Some("serve") => {
-                return "Serve requires --launch-config, --allow-exec and --inventory-only. Run mitigate mcp serve --help.";
+                return "Serve requires --launch-config, --allow-exec and either --inventory-only or --enforce FILE with --launch-review FILE. Run mitigate mcp serve --help.";
             }
             Some("approvals") if words.next().is_some_and(|a| a == "approve" || a == "deny") => {
                 return "Approval decisions require --db, --reference, --operator-ref and --confirm. Run this command with --help.";

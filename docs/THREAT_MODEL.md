@@ -247,8 +247,11 @@ pause/purge reassert withdrawal under it before confirming drain. Missing native
 credentials do not block shutdown. A timeout reports incomplete drain and preserves
 the paused queue. Original anchor/ref/partition checks prevent accidental rebinding;
 same-user file tampering/anchor copies and rollback remain outside the guarantee.
-No continuous worker exists; future senders must preserve this ownership contract.
-See [controls](SYNC_CONTROLS.md) and ADR 0034.
+The explicit foreground `sync run` sender preserves this ownership contract,
+requires a passing privacy probe and checks current consent and lease state on
+every attempt. It never starts automatically from enrollment or gateway capture.
+Signals stop after in-flight work; `sync pause` commits withdrawal and confirms
+drain. See [controls](SYNC_CONTROLS.md), ADR 0034 and ADR 0039.
 
 The separate [reference catalog](SYNC_REFERENCES.md) prevents trusted producers
 from needing to forward local fingerprints for correlation: random IDs are

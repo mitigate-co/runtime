@@ -166,4 +166,9 @@ bundle. Source, raw metadata values and private keys are omitted from reports.
 - `gateway_review_changed`: inspect observed definitions and overrides before starting a newly reviewed connection.
 - `gateway_cleanup_unavailable`: inspect approvals and audit after failed cleanup; do not assume the prior call can be replayed.
 
-The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory pagination and shutdown. [Governed calls](ENFORCEMENT.md) document live authority and failure semantics. Platform synchronization remains a later package.
+The [gateway reference](GATEWAY.md) covers serve, explicit profiles, inventory
+pagination and shutdown. [Governed calls](ENFORCEMENT.md) document live authority
+and failure semantics. [Optional sync](SYNC_CONTROLS.md) requires explicit
+enrollment, consent, capture and delivery; local scanning and governance remain
+available without Platform. See [implementation status](IMPLEMENTATION.md) for
+the remaining release and hosted-provider gates.

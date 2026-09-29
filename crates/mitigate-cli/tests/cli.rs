@@ -552,6 +552,19 @@ fn parser_errors_are_content_free_json_and_help_stays_usable() {
 
 #[test]
 fn serve_requires_explicit_mode_and_refuses_invalid_profile_before_launch() {
+    let missing_mode = cli(&[
+        "mcp",
+        "serve",
+        "--launch-config",
+        "private-launch-canary",
+        "--allow-exec",
+    ]);
+    assert_eq!(missing_mode.status.code(), Some(2));
+    assert!(missing_mode.stdout.is_empty());
+    let guidance = String::from_utf8(missing_mode.stderr).unwrap();
+    assert!(guidance.contains("--inventory-only or --enforce FILE"));
+    assert!(guidance.contains("--launch-review FILE"));
+    assert!(!guidance.contains("private-launch-canary"));
     for args in [
         vec!["mcp", "serve", "--launch-config", "unused", "--allow-exec"],
         vec![
