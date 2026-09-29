@@ -107,5 +107,6 @@ fixture, recreates its signature and checks the exact Rust output. Mutations of
 all transcript fields, every event field/fact, the final LF and the signature fail.
 CI runs the fixture on Windows, macOS and Linux.
 
-The native signing path does not yet compose an HTTPS event sender, consent/lease
-cancellation, automatic gateway producer or hosted receiver.
+The explicit [HTTPS exchange](EVENT_HTTPS.md) requires that confirmed native owner
+and returns a transport-authenticated bound receipt. Consent/lease coordination,
+an automatic gateway producer and the hosted receiver remain separate requirements.

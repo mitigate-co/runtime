@@ -89,6 +89,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     require(
         pending.sign_event(&lease).err() == Some(mitigate_enrollment::storage::Error::Pending),
     )?;
+    #[cfg(feature = "https")]
+    require(
+        mitigate_enrollment::event_https::submit(&pending, &lease).err()
+            == Some(mitigate_enrollment::event_https::Error::Enrollment(
+                mitigate_enrollment::storage::Error::Pending,
+            )),
+    )?;
     let first = pending.claim()?;
     drop(pending);
     if let Some(cli) = &cli {
