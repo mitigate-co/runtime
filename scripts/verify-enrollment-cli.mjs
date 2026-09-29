@@ -71,7 +71,8 @@ try {
   const pending = await command('status');
   assert.equal(pending.status, 0);
   assert.equal(pending.body.status, 'pending');
-  assert.equal(pending.body.sync_enabled, false);
+  assert.equal(pending.body.schema_version, 2);
+  assert.equal(pending.body.sync_status, 'not_checked');
   assert.equal(connections, 1, 'Status must remain local.');
   const retry = await command('retry');
   assert.equal(retry.body.error, 'enrollment_connection');

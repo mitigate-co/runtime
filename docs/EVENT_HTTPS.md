@@ -100,11 +100,12 @@ remaining deadline after the check. A stale response cannot complete a renewed
 lease. Enrollment locking prevents cooperating local credential
 deletion during the request; it is not an outbox lock or remote authorization.
 
-This synchronous API has no mid-flight cancellation handle. A future owning sync
-worker must coordinate opt-out, stop new sends, account for an in-flight exchange
-and confirm shutdown before reporting that sync has stopped or purging/removing
-state. Closing a connection cannot retract bytes already transmitted. No UI or
-CLI exposes continuous sync until that coordination is implemented and tested.
+This synchronous API has no mid-flight cancellation handle. The
+[sync profile](SYNC_CONTROLS.md) coordinates its explicit sends with pause/purge
+using the original native owner lock. It commits withdrawal before waiting for
+drain and never reports shutdown while that operation is outstanding. Closing a
+connection cannot retract bytes already transmitted. There is no continuous
+sender or gateway producer; future workers must use this same ownership path.
 
 ## Verification
 

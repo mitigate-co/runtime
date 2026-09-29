@@ -18,6 +18,11 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
+    /// Enable, inspect, pause or explicitly send optional content-free events.
+    Sync {
+        #[command(subcommand)]
+        command: SyncCommand,
+    },
     /// Connect this Runtime to an organization without enabling telemetry.
     Enroll {
         #[command(subcommand)]
@@ -54,6 +59,53 @@ pub(crate) enum Command {
     Mcp {
         #[command(subcommand)]
         command: McpCommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum SyncCommand {
+    /// Consent to optional event sync; create local state without starting a sender.
+    Enable {
+        /// New private sync profile. Other sync commands need only this path.
+        #[arg(long)]
+        profile: PathBuf,
+        /// Existing confirmed enrollment file.
+        #[arg(long)]
+        enrollment: PathBuf,
+        /// Original canonical HTTPS Platform origin.
+        #[arg(long)]
+        platform: String,
+        /// New private queue file; never overwrites an existing database.
+        #[arg(long)]
+        outbox: PathBuf,
+    },
+    /// Inspect local consent and safe queue counts; no network or credential access.
+    Status {
+        #[arg(long)]
+        profile: PathBuf,
+    },
+    /// Pause new events and wait for active delivery to finish; retain queued events.
+    Pause {
+        #[arg(long)]
+        profile: PathBuf,
+    },
+    /// Resume consent after checking the original native enrollment; does not send.
+    Resume {
+        #[arg(long)]
+        profile: PathBuf,
+    },
+    /// Pause, wait for delivery to finish and delete retained local queue payloads.
+    Purge {
+        #[arg(long)]
+        profile: PathBuf,
+        /// Confirm local deletion. Previously hosted records are not removed.
+        #[arg(long, required = true)]
+        confirm: bool,
+    },
+    /// Deliver at most one queued event over verified HTTPS; never resumes consent.
+    Send {
+        #[arg(long)]
+        profile: PathBuf,
     },
 }
 

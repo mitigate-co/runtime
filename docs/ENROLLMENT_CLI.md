@@ -54,15 +54,22 @@ This deletes only the native entry bound to the supplied anchor and verifies its
 absence. Repeating it is safe. The anchor remains for recovery and concurrent-use
 protection. This is local credential removal, not remote revocation: revoke the
 Runtime in Platform separately. It does not purge a queue or stop another process.
-There is no automatic sync sender in this implementation. Future sync composition
-must stop delivery and purge the scoped queue before forgetting a credential.
+There is no automatic sync sender in this implementation. Use
+`mitigate sync purge --profile PROFILE --confirm` to pause/drain and remove queued
+payloads before forgetting a credential. See [sync controls](SYNC_CONTROLS.md).
 
 ## Reports and failures
 
-`--json` emits schema version 1. Pending/confirmed reports include `status`,
-`runtime_ref`, `enrollment_ref` and `sync_enabled: false`. Confirmed reports also
+`--json` emits schema version 2. Pending/confirmed reports include `status`,
+`runtime_ref`, `enrollment_ref` and `sync_status: "not_checked"`. Confirmed reports also
 include `enrolled_at_ms`, the informational timestamp from the stored receipt.
 Forgotten reports omit the references and timestamp. A receipt is not sync consent.
+
+Version 2 replaces version 1's unconditional `sync_enabled: false`: enrollment
+commands do not know which optional sync profile the operator uses. They must not
+claim delivery is disabled after a separate enable/resume. Read actual consent
+using `mitigate sync status --profile PROFILE`. The enrollment HTTPS wire format
+remains version 1; only the local CLI report changes.
 
 Errors use fixed categories on stderr, without echoing input, local paths, claim
 bytes, transport headers or OS-provider details. `enrollment_exists` means inspect

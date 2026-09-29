@@ -14,6 +14,7 @@ mod panic_report;
 mod policy;
 mod registry;
 mod secrets;
+mod sync;
 
 use args::{Cli, Command, ConfigCommand, McpCommand};
 use clap::{Parser, error::ErrorKind};
@@ -53,6 +54,7 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Sync { command } => return sync::run(command, cli.json),
         Command::Enroll { command } => return enrollment::run(command, cli.json),
         Command::Privacy { command } => return egress::privacy(command, cli.json),
         Command::Egress { command } => return egress::inspect(command, cli.json),

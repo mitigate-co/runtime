@@ -50,8 +50,8 @@ fn report(output: &Output) -> Value {
 fn schema_inspection_distinguishes_supported_fields_from_observed_delivery() {
     let result = cli(&["egress", "inspect", "--json"]);
     let value = report(&result);
-    assert_eq!(value["schema_version"], 1);
-    assert_eq!(value["delivery_status"], "not_configured");
+    assert_eq!(value["schema_version"], 2);
+    assert_eq!(value["delivery_status"], "not_checked");
     assert!(value["destination"].is_null() && value["queue"].is_null());
     assert_eq!(value["observed_event_types"], json!([]));
     assert_eq!(value["observed_schema_versions"], json!([]));
@@ -63,7 +63,7 @@ fn schema_inspection_distinguishes_supported_fields_from_observed_delivery() {
     let human = cli(&["egress", "inspect"]);
     assert!(human.status.success());
     let text = String::from_utf8(human.stdout).unwrap();
-    assert!(text.contains("Destination: not configured"));
+    assert!(text.contains("Destination: not checked"));
     assert!(text.contains("No queue selected"));
 }
 

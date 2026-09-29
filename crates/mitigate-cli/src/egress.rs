@@ -60,8 +60,8 @@ pub(crate) fn inspect(command: EgressCommand, machine: bool) -> io::Result<ExitC
                     .any(|c| c.action == Action::Queued && c.totals.events > 0)
         });
         Ok(Inspection {
-            schema_version: 1,
-            delivery_status: "not_configured",
+            schema_version: 2,
+            delivery_status: "not_checked",
             destination: None,
             supported_events: vec![EventContract {
                 event_type: "mcp_tool_decision",
@@ -95,7 +95,7 @@ pub(crate) fn inspect(command: EgressCommand, machine: bool) -> io::Result<ExitC
 fn render(report: &Inspection, mut out: impl Write) -> io::Result<()> {
     writeln!(
         out,
-        "Destination: not configured. This build has no Platform sender."
+        "Destination: not checked. Use sync status with your profile to inspect optional delivery."
     )?;
     writeln!(
         out,

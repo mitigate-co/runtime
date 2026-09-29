@@ -27,6 +27,8 @@ impl Drop for Cleanup {
         let _ = fs::remove_file(&self.path);
         let _ = fs::remove_file(self.dir.join("outbox.sqlite"));
         let _ = fs::remove_file(self.dir.join("foreign.sqlite"));
+        let _ = fs::remove_file(self.dir.join("sync.json"));
+        let _ = fs::remove_file(self.dir.join("sync.sqlite"));
         let _ = fs::remove_dir(&self.dir);
     }
 }
@@ -172,17 +174,86 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         // remains local instead of trying to resolve or contact Platform again.
         check_cli(cli, &cleanup, "retry", "confirmed")?;
     }
+    let profile_path = cleanup.dir.join("sync.json");
+    let sync_queue_path = cleanup.dir.join("sync.sqlite");
+    let sync = if let Some(cli) = &cli {
+        check_sync_cli(cli, &cleanup, "enable", "enabled")?;
+        mitigate_enrollment::storage::sync::SyncProfile::open(&profile_path)?
+    } else {
+        mitigate_enrollment::storage::sync::SyncProfile::create(
+            &profile_path,
+            &cleanup.path,
+            &cleanup.origin,
+            &sync_queue_path,
+            Limits::default(),
+        )?
+    };
+    let mut sync_queue = Outbox::open(&sync_queue_path, sync.inspect()?.partition)?;
+    require(sync_queue.admit(&serde_json::to_vec(&event)?)? == Admission::Queued)?;
+    require(sync.pause()?.paused)?;
+    require(!sync.resume()?.paused)?;
+    require(sync.pause()?.paused)?;
+    #[cfg(feature = "https")]
+    require(sync.deliver_next()? == mitigate_enrollment::event_https::Delivery::Idle)?;
+    if let Some(cli) = &cli {
+        check_sync_cli(cli, &cleanup, "status", "paused")?;
+        check_sync_cli(cli, &cleanup, "resume", "enabled")?;
+        check_sync_cli(cli, &cleanup, "pause", "paused")?;
+        check_sync_cli(cli, &cleanup, "send", "waiting")?;
+        check_sync_cli(cli, &cleanup, "purge", "purged")?;
+    }
+    require(sync.purge()?.pending == 0)?;
+    drop(sync_queue);
     outbox.purge()?;
     drop(outbox);
     EnrollmentStore::forget(&cleanup.path, &cleanup.origin)?;
+    require(
+        sync.resume().err()
+            == Some(mitigate_enrollment::storage::sync::Error::Enrollment(
+                mitigate_enrollment::storage::Error::Missing,
+            )),
+    )?;
+    require(sync.pause()?.paused)?;
+    require(sync.purge()?.pending == 0)?;
     require(
         EnrollmentStore::open(&cleanup.path, &cleanup.origin).err()
             == Some(mitigate_enrollment::storage::Error::Missing),
     )?;
     EnrollmentStore::forget(&cleanup.path, &cleanup.origin)?;
     println!(
-        "Native enrollment verified: pending restart, identical proof, confirmed signing/restart and exact deletion. No network requests."
+        "Native enrollment and sync verified: recovery, confirmed signing, consent, pause/drain, purge and exact deletion. No network requests."
     );
+    Ok(())
+}
+fn check_sync_cli(
+    cli: &Path,
+    cleanup: &Cleanup,
+    action: &str,
+    status: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut command = Command::new(cli);
+    command
+        .args(["sync", action, "--profile"])
+        .arg(cleanup.dir.join("sync.json"))
+        .arg("--json");
+    if action == "enable" {
+        command
+            .arg("--enrollment")
+            .arg(&cleanup.path)
+            .args(["--platform", cleanup.origin.as_str(), "--outbox"])
+            .arg(cleanup.dir.join("sync.sqlite"));
+    }
+    if action == "purge" {
+        command.arg("--confirm");
+    }
+    let output = command.stdin(std::process::Stdio::null()).output()?;
+    require(output.status.success() && output.stderr.is_empty())?;
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    require(value["schema_version"] == 1 && value["status"] == status)?;
+    if action == "pause" || action == "purge" {
+        require(value["delivery_drained"] == true)?;
+    }
+    require(!String::from_utf8_lossy(&output.stdout).contains("sec_"))?;
     Ok(())
 }
 fn check_cli(
@@ -206,7 +277,9 @@ fn check_cli(
     require(output.status.success() && output.stderr.is_empty())?;
     let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
     require(
-        value["schema_version"] == 1 && value["status"] == status && value["sync_enabled"] == false,
+        value["schema_version"] == 2
+            && value["status"] == status
+            && value["sync_status"] == "not_checked",
     )?;
     if status == "confirmed" {
         require(value["enrolled_at_ms"] == 1790614800000u64)?;
