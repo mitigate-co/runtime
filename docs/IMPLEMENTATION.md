@@ -49,6 +49,8 @@ explicit shutdown/drop of both halves resolved it, and the process check passed.
 No production timeout, durability, authorization, telemetry or release-blocker
 policy changed. The harness contract is included in three-OS CI without a noisy
 latency threshold. Final CI and protected merge remain required for this slice.
+The [recorded baseline](performance-baselines/linux-wsl-x86_64.json) retains all
+thirteen optimized sample series, exact source revision and coarse environment.
 
 Enforcing-gateway prerequisite merged in PR #16, main `eab5a6b`: exact private launch review binds
 executable/selected artifact bytes, argv, cwd, ordinary environment and native

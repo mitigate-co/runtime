@@ -87,3 +87,27 @@ Noisy shared-runner durations are not performance regression gates or SLOs.
 Interpret results using the [research methodology](RESEARCH_METHODS.md). Keep
 separate baselines for OS/build/filesystem and preserve unsuccessful runs. This
 harness does not resolve the [open release blockers](RELEASE_BLOCKERS.json).
+
+## Recorded baseline
+
+[Raw samples and environment](performance-baselines/linux-wsl-x86_64.json) record
+the 2026-09-29 optimized run of source `7af11d9`, Rust 1.98.1, on WSL2 x86-64.
+All thirteen cases completed 100 samples after ten warmups without failure.
+The host exposed twenty logical processors and about 32 GiB to WSL; fixture data
+used its ext4 virtual disk and the binary was on a mounted Windows drive. Other
+interactive development was running, so this is an uncontrolled local baseline.
+
+| Selected case | Median | p95 |
+| --- | --- | --- |
+| Schema fingerprint, 32 fields | 36.526 µs | 58.698 µs |
+| Scan, 128 declarations | 0.775 ms | 0.895 ms |
+| Compiled policy evaluation | 9.305 µs | 9.601 µs |
+| Durable audit append, growing history | 14.906 ms | 21.273 ms |
+| Direct synthetic stdio call | 0.053 ms | 0.085 ms |
+| Managed adapter call | 0.439 ms | 0.621 ms |
+| Listener plus managed adapter | 0.508 ms | 0.768 ms |
+
+These component values are not a customer latency promise, a production SLO,
+cross-platform comparison or full governed CLI measurement. Keep the raw sample
+order and environment when comparing a later run; do not sum medians or subtract
+percentiles to invent an end-to-end distribution.
