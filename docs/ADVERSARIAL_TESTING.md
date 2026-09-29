@@ -51,3 +51,8 @@ or subsequent CI run. Real signed-artifact acceptance, malicious process review,
 logs/telemetry review and the other [launch gates](MASTER_SPEC.md#16-launch-gates)
 remain required. Do not publish operational adoption/security claims from fixture
 results.
+
+Native gateway-capture issue [#57](https://github.com/mitigate-co/runtime/issues/57)
+also remains unresolved. Its [bounded failure diagnostics](SYNC_CAPTURE.md#verification)
+are regression tested without forwarding arbitrary child output. The diagnostic
+fix must not be represented as a fix for an unproven clock, storage or timeout cause.

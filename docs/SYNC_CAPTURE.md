@@ -128,3 +128,18 @@ pause/purge and missing-profile isolation. Windows/Linux use `--cli`; macOS uses
 `--capture-cli` so only the
 creating fixture binary accesses its native Keychain item. These fixtures never
 contact Platform or read customer data.
+
+Windows run [36561230328](https://github.com/mitigate-co/runtime/actions/runs/36561230328/job/109382314152)
+failed in the native gateway-capture child with only a stage name retained;
+[issue #57](https://github.com/mitigate-co/runtime/issues/57) preserves that evidence.
+The diagnostic projector now accepts Windows and POSIX spellings of only the
+two known public fixture source files, with positive numeric line/column values.
+At most 8 KiB / 64 lines are inspected. Only fixed stages/privacy categories and
+the child's numeric exit code can be printed; raw stderr, paths and panic payloads
+remain excluded. Regression fixtures cover both path formats, malformed/overflow
+positions, private text and bounds. Capture stage labels carry no workload values.
+
+This fixes missing Windows assertion diagnostics, not the underlying capture
+failure. Readiness deadlines, required counts, privacy probes and expected MCP
+outcomes are unchanged. A successful subsequent run cannot close the release
+blocker without establishing its cause.
