@@ -47,13 +47,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .next()
             .is_some_and(|a| a == "--allow-native-fixture"),
     )?;
-    let cli = match arguments.next() {
-        None => None,
+    let (cli, capture_cli) = match arguments.next() {
+        None => (None, None),
         Some(flag) => {
-            require(flag == "--cli")?;
-            Some(PathBuf::from(
-                arguments.next().ok_or("missing fixture executable")?,
-            ))
+            require(flag == "--cli" || flag == "--capture-cli")?;
+            let path = PathBuf::from(arguments.next().ok_or("missing fixture executable")?);
+            (
+                if flag == "--cli" {
+                    Some(path.clone())
+                } else {
+                    None
+                },
+                Some(path),
+            )
         }
     };
     require(arguments.next().is_none())?;
@@ -205,6 +211,26 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     require(sync.purge()?.pending == 0)?;
     drop(sync_queue);
+    if let Some(cli) = &capture_cli {
+        require(!sync.resume()?.paused)?;
+        let fixture = cli.with_file_name(if cfg!(windows) {
+            "mitigate-test-mcp.exe"
+        } else {
+            "mitigate-test-mcp"
+        });
+        let output = Command::new(fixture)
+            .arg("sync-capture-contract")
+            .arg(cli)
+            .arg(&profile_path)
+            .stdin(std::process::Stdio::null())
+            .output()?;
+        if !output.status.success() {
+            // This child has synthetic fixtures only; do not expose its raw diagnostics.
+            return Err("actual CLI sync-capture fixture failed".into());
+        }
+        require(sync.inspect()?.paused && sync.inspect()?.pending == 0)?;
+        println!("Actual CLI sync capture fixture passed.");
+    }
     // Missing mapping state must never rotate identifiers or resume consent.
     // Shutdown/purge remain usable without this optional local catalog.
     let catalog = cleanup.dir.join("sync.sqlite.references.sqlite");

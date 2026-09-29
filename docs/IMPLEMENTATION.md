@@ -295,3 +295,20 @@ The first Linux run returned `Storage(Clock)` in the privacy self-test before a
 subsequent full run passed. This narrows that recurrence to the clock guard; it
 does not establish the original cause or close issue #36. No timeout, clock
 tolerance, retry or privacy assertion was relaxed.
+
+The governed CLI now accepts an explicit sync profile for live typed metadata
+capture. Consent is sampled before the audit write; only a successful required
+commit may publish into the bounded nonblocking buffer. A dedicated worker maps
+seven local key domains to random references and admits checked events under the
+original owner and consent permit. It has no tool transport, credential or HTTP
+client. Startup requires the real privacy probe to pass. See
+[capture behavior and loss limits](SYNC_CAPTURE.md) and ADR 0038.
+
+The Linux workspace suite passed 325 cases, including compile-fail contracts;
+after tightening consent sampling before audit, all 17 CLI unit tests passed.
+Windows passed 54 enrollment tests and four compile-fail checks. Strict workspace
+Clippy passed. An isolated Linux native fixture exercised real CLI capture,
+durable allow/deny records, random-reference correlation after restart,
+pause/purge and continued local operation with a missing sync profile. Automatic
+HTTP delivery and fleet composition remain open. These passing checks do not
+close the intermittent privacy-probe clock investigation in issue #36.

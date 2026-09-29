@@ -19,6 +19,41 @@ fn sync_help_explains_explicit_delivery_and_local_controls() {
 }
 
 #[test]
+fn live_capture_requires_explicit_enforcement_and_does_not_echo_invalid_input() {
+    let output = Command::new(env!("CARGO_BIN_EXE_mitigate"))
+        .args(["mcp", "serve", "--help"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .contains("--sync-profile")
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_mitigate"))
+        .args([
+            "mcp",
+            "serve",
+            "--launch-config",
+            "private-canary",
+            "--allow-exec",
+            "--inventory-only",
+            "--sync-profile",
+            "private-canary",
+        ])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    assert!(
+        !String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("private-canary")
+    );
+}
+
+#[test]
 fn invalid_sync_requests_never_echo_input_or_create_partial_state() {
     let missing = std::env::temp_dir()
         .join(format!("mitigate-sync-absent-{}", std::process::id()))

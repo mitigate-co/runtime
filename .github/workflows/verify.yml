@@ -92,7 +92,7 @@ jobs:
           python scripts/verify-policy.py target/debug/mitigate --native
           # Keychain ACLs trust the creating application. Keep the receipt fixture
           # in its own binary; the following CLI fixture creates its own entries.
-          cargo run -p mitigate-enrollment --features https --example native_lifecycle --locked -- --allow-native-fixture
+          cargo run -p mitigate-enrollment --features https --example native_lifecycle --locked -- --allow-native-fixture --capture-cli target/debug/mitigate
           node scripts/verify-enrollment-cli.mjs target/debug/mitigate
       - name: Verify native credentials on Linux
         if: runner.os == 'Linux'

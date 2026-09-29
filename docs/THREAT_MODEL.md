@@ -258,6 +258,16 @@ is version two; legacy upgrade occurs only on explicit resume and commits
 atomically. Full filesystem rollback and same-user tampering remain outside this
 guarantee. This does not retract already transmitted bytes. See ADR 0037.
 
+Live governed-call capture is explicitly selected by CLI flag and starts only
+after its privacy probe passes. It reads no audit history; a narrow projection
+is published only after required local audit commits. Its bounded nonblocking
+channel has no workload/JSON/path/operator/evidence fields. Optional capture
+failures or overload do not change authority. Catalog work stays on a separate
+thread under a short-lived original owner; it cannot execute/replay a tool or
+access a native credential/network client. Startup/shutdown/overload can cause
+metadata gaps before durable admission. Explicit pause/purge still certifies
+drain independently. See [capture limits](SYNC_CAPTURE.md) and ADR 0038.
+
 The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
 code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local

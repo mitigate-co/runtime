@@ -215,8 +215,18 @@ opaque anchor reference and queue partition; no secret value or workload content
 These local paths never enter events or command reports. Pause persists withdrawal
 before waiting for the original enrollment owner and reasserts it under that lock.
 Purge happens only after drain. Neither operation needs native credential access.
-Resume/send still restore and verify the exact confirmed native binding. No
-background producer or automatic network loop is activated.
+Resume/send still restore and verify the exact confirmed native binding.
+
+The explicit [gateway capture worker](SYNC_CAPTURE.md) runs a privacy self-test
+before enabling a bounded, typed metadata channel. Required audit commits precede
+capture. Seven named governance keys stay in the local catalog; only their random
+mappings, fresh invocation IDs, closed enums and bounded numeric fields reach
+checked events. Audit JSON/chain IDs, evidence, operator identity, environment,
+full definition/policy hashes and workload data have no producer field. The
+worker owns no native credential or network handle. Short-lived owner sessions
+and durable consent permits prevent pause/resume from reviving old buffers.
+Optional capture can lose events before durable admission without changing local
+authority. No automatic HTTP delivery loop is activated. See ADR 0038.
 
 The optional [HTTPS transport](ENROLLMENT_HTTPS.md) explicitly sends the bootstrap
 claim to its signed audience with certificate verification, no redirects or
