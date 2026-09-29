@@ -5,6 +5,7 @@
 //! persists only validated events and bounded diagnostics; it owns no network
 //! transport and cannot forward local audit exports.
 mod guard;
+pub mod inventory;
 mod model;
 pub mod outbox;
 mod reference;

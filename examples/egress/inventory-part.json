@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_type": "mcp_inventory_snapshot",
+  "event_id": "ref_11111111111111111111111111111111",
+  "occurred_at_ms": 1800000000000,
+  "runtime_ref": "ref_22222222222222222222222222222222",
+  "facts": {
+    "snapshot_ref": "ref_33333333333333333333333333333333",
+    "server_ref": "ref_44444444444444444444444444444444",
+    "tools_supported": true,
+    "tool_count": 1,
+    "part_index": 0,
+    "tools": [
+      {
+        "tool_ref": "ref_55555555555555555555555555555555",
+        "schema_ref": "ref_66666666666666666666666666666666",
+        "capabilities": ["read_data"],
+        "risk_flags": [],
+        "classification_sources": ["deterministic"],
+        "confidence": "medium"
+      }
+    ]
+  }
+}
