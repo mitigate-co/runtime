@@ -1,6 +1,6 @@
 //! Optional customer-local queue and egress admission journal. Never owns a
 //! network handle, workload invocation or an enrollment credential.
-mod db;
+pub(crate) mod db;
 mod state;
 mod storage;
 #[cfg(test)]

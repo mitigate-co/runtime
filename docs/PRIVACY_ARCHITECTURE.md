@@ -68,6 +68,13 @@ envelope adds only version, enrollment reference and signature; no bootstrap
 credential, key or arbitrary metadata. Active delivery and consent composition
 remain required; a signature alone never enables sync.
 
+The [local reference catalog](SYNC_REFERENCES.md) maps fixed-size, domain-separated
+customer-local identity/schema keys to independent random wire references. Keys
+never enter event serialization or command reports. Mapping batches commit before
+returning references, remain scoped to the original enrollment and never evict
+stable mappings at capacity. This separate bounded library does not activate a
+gateway producer or replace the event/queue admission boundary.
+
 The [privacy CLI](PRIVACY_COMMANDS.md) injects synthetic content through the actual
 queue admission boundary, checks retained bytes and removes its private fixture.
 The inspector opens existing queues read-only and distinguishes supported fields

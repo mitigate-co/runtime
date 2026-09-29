@@ -233,6 +233,14 @@ same-user file tampering/anchor copies and rollback remain outside the guarantee
 No continuous worker exists; future senders must preserve this ownership contract.
 See [controls](SYNC_CONTROLS.md) and ADR 0034.
 
+The separate [reference catalog](SYNC_REFERENCES.md) prevents trusted producers
+from needing to forward local fingerprints for correlation: random IDs are
+generated independently and persisted under an exact enrollment scope. Domain
+separation, closed bounded storage, unique IDs and atomic batches prevent
+accidental cross-domain/restart rebinding. Catalog files remain customer-local;
+same-user replacement/rollback are outside the guarantee. Mapping success is
+neither sync consent nor egress acceptance. See ADR 0035.
+
 The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
 code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local

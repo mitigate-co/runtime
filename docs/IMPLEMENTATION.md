@@ -21,7 +21,7 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-015 — Offline behavior | Local authority and safe queue merged | PR #22 at `def9772` and PR #24 at `e952779` passed final Windows/macOS/Linux and security CI. Cached policy and unavailable approvals remain local; the durable queue validates before persistence. Enrolled delivery remains MCP-018 work. |
 | MCP-016 — Privacy boundary | Local boundary and CLI merged | PR #23 at `22244f5`, PR #24 at `e952779` and PR #25 at `2ef62f0` passed final Windows/macOS/Linux and security CI. The 147-candidate privacy self-test and read-only scoped inspector work with real storage. Enrolled integrity remains MCP-018 work. |
 | MCP-017 — Registry v0 | Runtime contract/client merged | PR #26, main `768a4e0`; final cross-platform/security CI passed. Closed source-attributed catalogs and offline CLI lookup preserve conflicts and stale/unknown status. Hosted integration remains a separate gate. |
-| MCP-018 — Optional Platform sync | Enrollment protocol, native lifecycle, HTTPS and CLI merged | PR #27 at `77e8133`, PR #28 at `f567bc4`, PR #29 at `30e1944` and PR #30 at `e002511` passed three-OS/security CI. Signed event integrity is implemented with independent verification; active delivery, hosted ingest and fleet composition remain open. |
+| MCP-018 — Optional Platform sync | Enrollment, signed delivery and explicit controls merged | Through PR #35 at `a126eeb`, confirmed native enrollment, checked one-attempt delivery and consent/pause/drain/purge controls passed three-OS/security CI. The local reference catalog is implemented separately; gateway production, continuous sending and fleet composition remain open. |
 | MCP-019 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
@@ -251,4 +251,21 @@ exercised those operations through the actual CLI without external requests.
 An earlier Linux privacy-probe test reported storage unavailable once; the
 targeted rerun, full workspace run and ten additional probes passed without a
 reproduction. Its cause remains unconfirmed; no storage limit or assertion was
-relaxed. Three-OS CI remains the merge gate.
+relaxed. Both complete Windows/macOS/Linux and security CI runs passed before
+controls PR #35 merged at `a126eeb`.
+
+The local reference catalog now assigns independent random wire IDs to seven
+closed domains of local governance keys. Exact enrollment scope, atomic batches,
+durable restart, concurrent resolution, failed commits, capacity and corrupt-file
+refusal are covered. No gateway producer, automatic sender or profile migration
+is enabled. See [reference mapping](SYNC_REFERENCES.md) and ADR 0035.
+
+Reference mapping passed 37 egress tests and two compile-fail checks on Windows
+and Linux, plus the synthetic mapping-to-queue demonstration on both systems.
+The full Linux workspace suite passed 309 cases. A subsequent privacy diagnostic
+regression passed with all 38 egress tests, two compile-fail checks, four actual
+CLI privacy contracts and strict workspace Clippy. It preserves closed storage
+failure categories without exposing local paths or content. The intermittent
+privacy-probe storage failure remains under investigation in
+[issue #36](https://github.com/mitigate-co/runtime/issues/36); successful reruns
+and improved diagnostics do not close that release gate.

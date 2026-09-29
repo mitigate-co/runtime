@@ -18,7 +18,7 @@ const RECEIPTS: &str =
     "CREATE TABLE receipts (id TEXT PRIMARY KEY, record BLOB NOT NULL) STRICT, WITHOUT ROWID";
 const MAX_FILE: u64 = 16 * 1024 * 1024;
 
-pub(super) fn create_file(path: &Path) -> Result<(), Error> {
+pub(crate) fn create_file(path: &Path) -> Result<(), Error> {
     let mut options = fs::OpenOptions::new();
     options.create_new(true).write(true);
     #[cfg(unix)]
@@ -32,7 +32,7 @@ pub(super) fn create_file(path: &Path) -> Result<(), Error> {
         .sync_all()
         .map_err(|_| Error::Storage)
 }
-pub(super) fn connect(path: &Path) -> Result<Connection, Error> {
+pub(crate) fn connect(path: &Path) -> Result<Connection, Error> {
     open(path, false)
 }
 pub(super) fn readonly(path: &Path) -> Result<Connection, Error> {
@@ -100,7 +100,7 @@ fn open(path: &Path, readonly: bool) -> Result<Connection, Error> {
     }
     Ok(conn)
 }
-pub(super) fn budget(conn: &Connection) -> Result<Instant, Error> {
+pub(crate) fn budget(conn: &Connection) -> Result<Instant, Error> {
     let deadline = Instant::now() + Duration::from_secs(2);
     conn.progress_handler(100, Some(move || Instant::now() >= deadline))?;
     Ok(deadline)
