@@ -75,6 +75,11 @@ returning references, remain scoped to the original enrollment and never evict
 stable mappings at capacity. This separate bounded library does not activate a
 gateway producer or replace the event/queue admission boundary.
 
+New explicit sync setup binds that catalog in a version-two local profile without
+another CLI argument. Resume verifies the original catalog; pause/purge keep
+stable mappings and remain usable if the catalog is missing. Version-one profiles
+retain their existing controls without implicit migration or catalog creation.
+
 The [privacy CLI](PRIVACY_COMMANDS.md) injects synthetic content through the actual
 queue admission boundary, checks retained bytes and removes its private fixture.
 The inspector opens existing queues read-only and distinguishes supported fields

@@ -1,12 +1,16 @@
 //! Explicit optional sync controls. The immutable local profile binds one queue
-//! to one native enrollment; it contains references and paths, never credentials.
+//! and reference catalog to one native enrollment; it contains references and
+//! paths, never credentials.
 //! Pause/purge need no native-store access and drain the enrollment operation lock
 //! before confirming completion. These blocking operations do not own MCP calls.
 mod profile;
 
 use super::{EnrollmentStore, Session, Status, Vault, anchor::Anchor};
 use crate::PlatformOrigin;
-use mitigate_egress::outbox::{self, Limits, Outbox, Partition, Report};
+use mitigate_egress::{
+    outbox::{self, Limits, Outbox, Partition, Report},
+    references::{self, ReferenceMap},
+};
 use profile::Record;
 use std::{
     fmt,
@@ -28,6 +32,8 @@ pub enum Error {
     Enrollment(super::Error),
     /// Queue mutation could not be confirmed.
     Outbox(outbox::Error),
+    /// Local reference mappings could not be verified; preserve the original file.
+    References(references::Error),
     /// Queue is paused, but an outstanding operation has not drained yet.
     Draining,
 }
@@ -40,6 +46,7 @@ impl Error {
             Self::Storage => "sync_storage",
             Self::Enrollment(error) => error.code(),
             Self::Outbox(_) => "sync_outbox",
+            Self::References(_) => "sync_references",
             Self::Draining => "sync_draining",
         }
     }
@@ -52,6 +59,7 @@ impl fmt::Display for Error {
             Self::Storage => f.write_str("Sync setup could not be confirmed. Inspect its local files before retrying."),
             Self::Enrollment(error) => error.fmt(f),
             Self::Outbox(error) => error.fmt(f),
+            Self::References(error) => error.fmt(f),
             Self::Draining => f.write_str("New delivery is paused. An operation is still finishing; retry pause before removing state."),
         }
     }
@@ -65,8 +73,10 @@ pub struct SyncProfile {
     origin: PlatformOrigin,
 }
 impl SyncProfile {
-    /// Explicit consent entry point: create one new profile and queue using a
-    /// confirmed native enrollment. Never enroll, replace files or start a sender.
+    /// Explicit consent entry point: create a version-two profile, queue and local
+    /// reference catalog using a confirmed native enrollment. The catalog is a
+    /// new sibling named `<outbox filename>.references.sqlite`. Never enroll,
+    /// replace files, adopt an existing catalog or start a sender.
     /// Parent directories must already exist and be trusted/private. A failed
     /// creation can leave partial files; do not silently delete or repair them.
     pub fn create(
@@ -96,6 +106,7 @@ impl SyncProfile {
     /// Does not send or start a worker. Credential failure never enables delivery.
     pub fn resume(&self) -> Result<Report, Error> {
         let _store = self.enrollment()?;
+        self.verify_references()?;
         let mut queue = self.queue()?;
         queue.set_paused(false).map_err(Error::Outbox)?;
         queue.inspect().map_err(Error::Outbox)
@@ -107,7 +118,9 @@ impl SyncProfile {
         self.stop(false, Duration::from_secs(25))
     }
     /// Pause/drain, then remove pending bodies and duplicate receipts. Retains
-    /// the bounded content-free journal, profile and immutable enrollment anchor.
+    /// the bounded content-free journal, profile, local reference catalog and
+    /// immutable enrollment anchor. Retained mappings prevent identity rotation
+    /// when this enrollment is resumed.
     /// Never deletes credentials or claims to remove previously hosted records.
     pub fn purge(&self) -> Result<Report, Error> {
         self.stop(true, Duration::from_secs(25))
@@ -139,6 +152,12 @@ impl SyncProfile {
     }
     fn queue(&self) -> Result<Outbox, Error> {
         Outbox::open(&self.record.outbox_file, self.record.partition.clone()).map_err(Error::Outbox)
+    }
+    fn verify_references(&self) -> Result<(), Error> {
+        if let Some(path) = &self.record.reference_file {
+            ReferenceMap::open(path, self.record.partition.clone()).map_err(Error::References)?;
+        }
+        Ok(())
     }
     fn check_anchor(&self, anchor: &Anchor) -> Result<(), Error> {
         if anchor.reference.as_str() != self.record.native_reference {
@@ -220,14 +239,21 @@ pub(super) fn initialize<V: Vault>(
     let enrollment_file = enrollment_file.canonicalize().map_err(|_| Error::Profile)?;
     let path = profile::new_path(path)?;
     let outbox_file = profile::new_path(outbox_file)?;
-    if path == enrollment_file || path == outbox_file || outbox_file == enrollment_file {
+    let reference_file = profile::reference_path(&outbox_file)?;
+    if path == enrollment_file
+        || path == outbox_file
+        || outbox_file == enrollment_file
+        || reference_file == path
+        || reference_file == enrollment_file
+    {
         return Err(Error::Profile);
     }
     let record = Record {
-        schema_version: 1,
+        schema_version: 2,
         platform: session.anchor.origin.as_str().to_owned(),
         enrollment_file,
         outbox_file,
+        reference_file: Some(reference_file.clone()),
         native_reference: session.anchor.reference.as_str().to_owned(),
         partition: Partition {
             runtime_ref: session.record.identity.runtime_ref().clone(),
@@ -237,11 +263,15 @@ pub(super) fn initialize<V: Vault>(
     let origin = record.validate()?;
     let bytes = profile::encode(&record)?;
     // Reserve an empty profile first; partial setup never looks usable. Keep the
-    // native owner locked until both queue and immutable profile are durable.
+    // native owner locked until queue, catalog and immutable profile are durable.
     let file = profile::reserve(&path)?;
     drop(
         Outbox::create(&record.outbox_file, record.partition.clone(), limits)
             .map_err(Error::Outbox)?,
+    );
+    drop(
+        ReferenceMap::create(&reference_file, record.partition.clone())
+            .map_err(Error::References)?,
     );
     profile::finish(file, &path, &bytes)?;
     Ok(SyncProfile { record, origin })

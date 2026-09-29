@@ -22,6 +22,9 @@ impl SyncFixture {
     fn queue(&self) -> PathBuf {
         self.0.dir.join("outbox.sqlite")
     }
+    fn references(&self) -> PathBuf {
+        self.0.dir.join("outbox.sqlite.references.sqlite")
+    }
     fn initialize(&self, session: &Session<MemoryVault>) -> Result<SyncProfile, sync::Error> {
         sync::initialize(
             &self.profile(),
@@ -55,6 +58,7 @@ impl Drop for SyncFixture {
     fn drop(&mut self) {
         let _ = fs::remove_file(self.profile());
         let _ = fs::remove_file(self.queue());
+        let _ = fs::remove_file(self.references());
     }
 }
 
@@ -68,6 +72,7 @@ fn consent_setup_requires_confirmed_native_state_and_never_replaces_files() {
     );
     assert!(!fixture.profile().exists());
     assert!(!fixture.queue().exists());
+    assert!(!fixture.references().exists());
     let response = receipt(&pending);
     let confirmed = pending.confirm(&response).unwrap();
     let profile = fixture.initialize(&confirmed).unwrap();
@@ -78,7 +83,12 @@ fn consent_setup_requires_confirmed_native_state_and_never_replaces_files() {
     );
     assert_eq!(fs::read(fixture.profile()).unwrap(), original);
     let value: Value = serde_json::from_slice(&original).unwrap();
-    assert_eq!(value.as_object().unwrap().len(), 6);
+    assert_eq!(value.as_object().unwrap().len(), 7);
+    assert_eq!(value["schema_version"], 2);
+    assert_eq!(
+        value["reference_file"],
+        json!(fixture.references().canonicalize().unwrap())
+    );
     assert!(!String::from_utf8(original).unwrap().contains("mcp1:"));
     assert!(!profile.inspect().unwrap().paused);
     assert_eq!(profile.inspect().unwrap().pending, 0);
@@ -87,6 +97,86 @@ fn consent_setup_requires_confirmed_native_state_and_never_replaces_files() {
         reopened.inspect().unwrap().partition.runtime_ref
             == *confirmed.record.identity.runtime_ref()
     );
+}
+
+#[test]
+fn a_preexisting_catalog_is_never_adopted_or_replaced_during_setup() {
+    let fixture = SyncFixture::new();
+    let owner = fixture.confirmed();
+    let original = b"synthetic preexisting catalog canary";
+    fs::write(fixture.references(), original).unwrap();
+    assert!(matches!(
+        fixture.initialize(&owner),
+        Err(sync::Error::References(_))
+    ));
+    assert_eq!(fs::read(fixture.references()).unwrap(), original);
+    assert_eq!(
+        SyncProfile::open(&fixture.profile()).err(),
+        Some(sync::Error::Profile)
+    );
+    assert_eq!(fixture.initialize(&owner).err(), Some(sync::Error::Exists));
+}
+
+#[test]
+fn purge_retains_committed_reference_identity_and_does_not_repair_a_missing_catalog() {
+    use mitigate_egress::references::{Kind, LocalKey, ReferenceMap};
+    let fixture = SyncFixture::new();
+    let owner = fixture.confirmed();
+    let profile = fixture.initialize(&owner).unwrap();
+    let partition = profile.inspect().unwrap().partition;
+    let key = LocalKey::new(Kind::Tool, [0xa5; 32]);
+    let mut catalog = ReferenceMap::open(&fixture.references(), partition.clone()).unwrap();
+    let original = catalog.resolve(std::slice::from_ref(&key)).unwrap();
+    drop(catalog);
+    drop(owner);
+    assert!(profile.purge().unwrap().paused);
+    let mut catalog = ReferenceMap::open(&fixture.references(), partition).unwrap();
+    assert!(catalog.resolve(&[key]).unwrap() == original);
+    drop(catalog);
+    fs::remove_file(fixture.references()).unwrap();
+    assert!(profile.pause().unwrap().paused);
+    assert!(profile.purge().unwrap().paused);
+    assert!(!fixture.references().exists());
+}
+
+#[test]
+fn legacy_profiles_remain_controllable_without_implicit_catalog_creation() {
+    let fixture = SyncFixture::new();
+    let owner = fixture.confirmed();
+    fixture.initialize(&owner).unwrap();
+    drop(owner);
+    let original: Value = serde_json::from_slice(&fs::read(fixture.profile()).unwrap()).unwrap();
+    let mut legacy = original.clone();
+    legacy["schema_version"] = json!(1);
+    legacy.as_object_mut().unwrap().remove("reference_file");
+    fs::remove_file(fixture.references()).unwrap();
+    fs::write(fixture.profile(), serde_json::to_vec(&legacy).unwrap()).unwrap();
+    let profile = SyncProfile::open(&fixture.profile()).unwrap();
+    assert!(profile.pause().unwrap().paused);
+    assert_eq!(profile.purge().unwrap().pending, 0);
+    assert!(!fixture.references().exists());
+    // No version ambiguity, null-as-missing, aliases, or relative catalog paths.
+    for (version, reference) in [
+        (1, Some(original["reference_file"].clone())),
+        (1, Some(Value::Null)),
+        (2, None),
+        (2, Some(Value::Null)),
+        (2, Some(json!("relative.sqlite"))),
+        (2, Some(original["outbox_file"].clone())),
+        (2, Some(original["enrollment_file"].clone())),
+        (3, Some(original["reference_file"].clone())),
+    ] {
+        let mut invalid = legacy.clone();
+        invalid["schema_version"] = json!(version);
+        if let Some(reference) = reference {
+            invalid["reference_file"] = reference;
+        }
+        fs::write(fixture.profile(), serde_json::to_vec(&invalid).unwrap()).unwrap();
+        assert_eq!(
+            SyncProfile::open(&fixture.profile()).err(),
+            Some(sync::Error::Profile)
+        );
+    }
 }
 
 #[test]

@@ -18,12 +18,25 @@ pub(super) struct Record {
     pub platform: String,
     pub enrollment_file: PathBuf,
     pub outbox_file: PathBuf,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_path"
+    )]
+    pub reference_file: Option<PathBuf>,
     pub native_reference: String,
     pub partition: Partition,
 }
 impl Record {
     pub fn validate(&self) -> Result<PlatformOrigin, Error> {
-        if self.schema_version != 1
+        let valid_version = match (self.schema_version, &self.reference_file) {
+            (1, None) => true,
+            (2, Some(path)) => {
+                path.is_absolute() && path != &self.outbox_file && path != &self.enrollment_file
+            }
+            _ => false,
+        };
+        if !valid_version
             || !self.enrollment_file.is_absolute()
             || !self.outbox_file.is_absolute()
             || self.enrollment_file == self.outbox_file
@@ -34,6 +47,16 @@ impl Record {
         }
         PlatformOrigin::parse(&self.platform).map_err(|_| Error::Profile)
     }
+}
+// An omitted field is valid only in a legacy profile. An explicit null is not
+// equivalent to omission and must not bypass the versioned closed contract.
+fn present_path<'de, D: serde::Deserializer<'de>>(decoder: D) -> Result<Option<PathBuf>, D::Error> {
+    PathBuf::deserialize(decoder).map(Some)
+}
+pub(super) fn reference_path(outbox: &Path) -> Result<PathBuf, Error> {
+    let mut name = outbox.file_name().ok_or(Error::Profile)?.to_os_string();
+    name.push(".references.sqlite");
+    new_path(&outbox.with_file_name(name))
 }
 pub(super) fn new_path(path: &Path) -> Result<PathBuf, Error> {
     let parent = path

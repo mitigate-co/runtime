@@ -29,6 +29,7 @@ impl Drop for Cleanup {
         let _ = fs::remove_file(self.dir.join("foreign.sqlite"));
         let _ = fs::remove_file(self.dir.join("sync.json"));
         let _ = fs::remove_file(self.dir.join("sync.sqlite"));
+        let _ = fs::remove_file(self.dir.join("sync.sqlite.references.sqlite"));
         let _ = fs::remove_dir(&self.dir);
     }
 }
@@ -204,6 +205,46 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     require(sync.purge()?.pending == 0)?;
     drop(sync_queue);
+    // Missing mapping state must never rotate identifiers or resume consent.
+    // Shutdown/purge remain usable without this optional local catalog.
+    let catalog = cleanup.dir.join("sync.sqlite.references.sqlite");
+    fs::remove_file(&catalog)?;
+    require(matches!(
+        sync.resume(),
+        Err(mitigate_enrollment::storage::sync::Error::References(_))
+    ))?;
+    require(sync.inspect()?.paused && !catalog.exists())?;
+    require(sync.pause()?.paused)?;
+    require(sync.purge()?.pending == 0)?;
+    drop(mitigate_egress::references::ReferenceMap::create(
+        &catalog,
+        Partition {
+            runtime_ref: mitigate_egress::SyncRef::fresh()?,
+            enrollment_ref: mitigate_egress::SyncRef::fresh()?,
+        },
+    )?);
+    require(matches!(
+        sync.resume(),
+        Err(mitigate_enrollment::storage::sync::Error::References(
+            mitigate_egress::references::Error::Storage(mitigate_egress::outbox::Error::Partition)
+        ))
+    ))?;
+    require(sync.inspect()?.paused)?;
+    fs::remove_file(&catalog)?;
+    // Preserve the legacy controller behavior with the same confirmed native
+    // enrollment, without silently creating a new catalog for the old profile.
+    let original_profile = fs::read(&profile_path)?;
+    let mut legacy: serde_json::Value = serde_json::from_slice(&original_profile)?;
+    legacy["schema_version"] = serde_json::json!(1);
+    legacy
+        .as_object_mut()
+        .ok_or("invalid synthetic profile")?
+        .remove("reference_file");
+    fs::write(&profile_path, serde_json::to_vec(&legacy)?)?;
+    let legacy = mitigate_enrollment::storage::sync::SyncProfile::open(&profile_path)?;
+    require(!legacy.resume()?.paused)?;
+    require(legacy.pause()?.paused && !catalog.exists())?;
+    fs::write(&profile_path, original_profile)?;
     outbox.purge()?;
     drop(outbox);
     EnrollmentStore::forget(&cleanup.path, &cleanup.origin)?;
