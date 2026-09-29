@@ -207,7 +207,8 @@ and bounded JSON reader. No background producer, consent activation or queue
 completion is implicit in `submit`. It now requires committed consent and lease
 preflight. The explicit `deliver_next` runner composes one attempt with local
 completion, fixed retry categories and authority-induced pause. It cannot enable
-or resume consent. Coordinated opt-out remains required before continuous sync.
+or resume consent. Continuous CLI delivery uses the same coordinated opt-out
+through the original owner and durable queue state.
 
 Explicit [sync controls](SYNC_CONTROLS.md) create a separate bounded private
 profile only on local consent. It stores original enrollment/queue paths, origin,
@@ -226,7 +227,16 @@ full definition/policy hashes and workload data have no producer field. The
 worker owns no native credential or network handle. Short-lived owner sessions
 and durable consent permits prevent pause/resume from reviving old buffers.
 Optional capture can lose events before durable admission without changing local
-authority. No automatic HTTP delivery loop is activated. See ADR 0038.
+authority. Capture does not start HTTP delivery. See ADR 0038.
+
+An explicit `sync run` starts a separate foreground sender after the actual
+privacy self-test passes; a ready manual `sync send` applies the same gate. It
+never starts from enrollment, setup, capture or resume alone. Readiness polling
+has no native credential or network access. Every attempt restores its original
+confirmed binding and follows the same signed-event/consent/lease checks. Signals
+stop this process after its current operation finishes; durable withdrawal and
+drain use `sync pause`. Fixed progress messages contain no workload content,
+paths or provider text. See [controls](SYNC_CONTROLS.md) and ADR 0039.
 
 The optional [HTTPS transport](ENROLLMENT_HTTPS.md) explicitly sends the bootstrap
 claim to its signed audience with certificate verification, no redirects or

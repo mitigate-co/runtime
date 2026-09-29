@@ -4,8 +4,8 @@ Enrollment does not enable telemetry. Explicit sync setup binds a new private
 queue and local reference catalog to one confirmed native enrollment. Local MCP
 protection never depends on these controls or Platform availability. The explicit
 [gateway capture flag](SYNC_CAPTURE.md) queues governed-call metadata; setup alone
-does not start it. `send` attempts at most one queued event. Automatic network
-delivery is not yet enabled.
+does not start it. `send` attempts at most one queued event. `run` explicitly
+starts a foreground sender that drains eligible events until paused or stopped.
 
 ## Commands
 
@@ -16,6 +16,7 @@ your selected paths and the original canonical HTTPS Platform origin:
 mitigate sync enable --profile PROFILE --enrollment ENROLLMENT --platform ORIGIN --outbox QUEUE
 mitigate sync status --profile PROFILE
 mitigate sync send --profile PROFILE
+mitigate sync run --profile PROFILE
 mitigate sync pause --profile PROFILE
 mitigate sync resume --profile PROFILE
 mitigate sync purge --profile PROFILE --confirm
@@ -37,6 +38,38 @@ expiry through the existing bounded transaction; other polls use read-only
 connections. A candidate must have enough retention for the entire exchange.
 This hint does not authorize delivery. Ready work restores its original confirmed native binding before claiming
 an event and uses the [bounded one-attempt sender](EVENT_HTTPS.md).
+
+## Continuous delivery
+
+Start `run` in a separate terminal after enabling sync and starting the governed
+gateway with its explicit capture flag. No daemon, scheduled task or automatic
+restart is installed. Starting this command never creates or resumes consent.
+A paused profile exits immediately. Otherwise the real synthetic privacy
+self-test must pass once in this process before any native unlock or delivery;
+failure stops it without retries. `send` applies the same gate when work is ready.
+Use `mitigate privacy self-test` to inspect an unsuccessful check.
+
+The sender polls local readiness once per second when idle or delayed, without
+holding the native owner. A ready attempt restores the original native binding
+and rechecks current consent, exact lease and remaining time. One process spaces
+completed attempts by at least 500 ms. Multiple senders use the existing owner
+and queue leases; they do not share a global rate limiter. Prefer one sender per
+profile. Transport retries retain their original event/identity and queue backoff.
+Only documented owner/SQLite contention is retried locally; clock, integrity,
+native-store and completion failures stop the sender for inspection. Permanent
+event refusals do not block other events. Authorization failure or a redirect
+pauses the queue and stops the sender.
+
+Ctrl-C stops this process; Unix also handles SIGTERM. Shutdown starts no new
+attempt once observed and waits for its already-started worker operation before
+reporting stopped. Native unlock prompts, blocked output or OS suspension can
+outlast the HTTPS deadline. A forced process termination cannot retract bytes or
+confirm completion; a retained lease follows normal recovery on the next start.
+Stopping a sender does not withdraw consent or stop a different sender. Use
+`sync pause` for durable withdrawal and coordinated drain. A sender exits when
+it observes local pause; a deliberate resume requires starting it again if it
+has exited. A pause/resume completed between polls may not cause process exit,
+but each attempt still checks current consent under the original owner.
 
 `pause` immediately commits withdrawal for new admission and attempts, then waits
 up to 25 seconds for the enrollment operation lock. Holding that same lock, it
@@ -114,7 +147,7 @@ are explicit; they never cause automatic resume or replay a local tool call.
 
 ## Reports and checks
 
-Sync commands emit schema-version-one JSON with fixed `status`, a safe `queue`
+Single-operation sync commands emit schema-version-one JSON with fixed `status`, a safe `queue`
 report, optional fixed `reason`, and `delivery_drained: true` only after a
 successful pause/purge. No profile paths, native reference, payload or provider
 text is emitted. Invalid input/local failure uses the normal stderr error contract
@@ -123,8 +156,26 @@ also returns exit 2 with its structured outcome on stdout. Idle/accepted/control
 success returns zero. Enrollment CLI reports separately use version 2 and state
 `sync_status: "not_checked"` instead of inventing a disabled status.
 
+`run --json` is a separate JSON Lines progress contract. Every stdout line has
+exactly `schema_version: 1`, a fixed `status`, and an optional fixed `reason`.
+Statuses are `waiting`, `sending`, `retrying`, `rejected`, `stopping` and `stopped`;
+identical consecutive states are suppressed. Progress contains no paths, queue
+IDs, event bodies or provider messages. `sending` announces an attempt, not
+remote acceptance. Final `stopped` uses `sync_interrupted`, `sync_paused` or the
+closed authorization/redirect reason. Interruption and observed local pause exit
+zero; remote authority refusal exits 2. A fatal operational/privacy failure emits
+the normal stderr error contract and exits 2, possibly after earlier progress.
+It does not emit a successful final report. Output failure stops further attempts.
+
 Tests cover real SQLite consent, pause before native drain, missing native records,
 competing resume, immutable/partial setup, catalog preservation, legacy profiles,
 closed/private profile parsing and actual CLI input privacy. Synthetic Windows and isolated Linux native fixtures
 exercise create/resume/pause/purge and paused send without external requests.
-Three-OS CI also verifies the native fixture and command contracts.
+The actual continuous CLI fixture checks simultaneous empty senders, unchanged
+queue bytes, failed privacy-probe refusal, coordinated pause and immediate paused
+exit. Unix additionally verifies both interrupt signals without changing consent.
+Deterministic driver tests cover interrupted/in-flight work, backoff, authority
+refusal, output failure and fatal storage errors. Actual CLI fixtures do not claim
+successful delivery to a live Platform; the separately reviewed TLS/receipt tests
+exercise real transport with private test certificates. Three-OS CI verifies the
+native fixture and command contracts.

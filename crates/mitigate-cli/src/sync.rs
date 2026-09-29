@@ -1,4 +1,5 @@
-//! Explicit local consent and one-attempt delivery. No payload import or daemon.
+//! Explicit local consent and optional delivery. No payload import or implicit daemon.
+mod sender;
 use crate::{args::SyncCommand, output};
 use mitigate_egress::outbox::{Limits, Report as QueueReport};
 use mitigate_enrollment::{
@@ -26,6 +27,7 @@ struct Report {
     #[serde(skip)]
     failed: bool,
 }
+#[derive(Debug)]
 struct Failure {
     code: &'static str,
     message: String,
@@ -83,7 +85,7 @@ fn execute(command: SyncCommand) -> Result<Report, Failure> {
             } else {
                 (
                     "enabled",
-                    "Sync enabled. Use send to attempt one queued event.",
+                    "Sync enabled. Use run for continuous delivery or send for one event.",
                 )
             };
             (queue, status, message.to_owned())
@@ -116,7 +118,15 @@ fn execute(command: SyncCommand) -> Result<Report, Failure> {
         }
         SyncCommand::Send { profile } => {
             let profile = SyncProfile::open(&profile)?;
-            let result = profile.deliver_next()?;
+            let result = match profile.delivery_readiness()? {
+                mitigate_egress::outbox::Readiness::Ready => {
+                    privacy_check()?;
+                    profile.deliver_next()?
+                }
+                // Do not re-enter delivery after an ungated idle observation:
+                // a producer could have queued an event between the two reads.
+                _ => Delivery::Idle,
+            };
             let (status, message) = match result {
                 Delivery::Idle => ("waiting", "No event is ready to send.".to_owned()),
                 Delivery::Accepted => ("accepted", "One event accepted.".to_owned()),
@@ -141,6 +151,7 @@ fn execute(command: SyncCommand) -> Result<Report, Failure> {
             };
             (profile.inspect()?, status, message)
         }
+        SyncCommand::Run { .. } => unreachable!("continuous sync is dispatched separately"),
     };
     Ok(Report {
         schema_version: 1,
@@ -153,6 +164,9 @@ fn execute(command: SyncCommand) -> Result<Report, Failure> {
     })
 }
 pub(crate) fn run(command: SyncCommand, machine: bool) -> io::Result<ExitCode> {
+    if let SyncCommand::Run { profile } = command {
+        return sender::run(profile, machine);
+    }
     match execute(command) {
         Ok(report) => {
             if machine {
@@ -175,5 +189,17 @@ pub(crate) fn run(command: SyncCommand, machine: bool) -> io::Result<ExitCode> {
             output::error(error.code, &error.message, machine)?;
             Ok(ExitCode::from(2))
         }
+    }
+}
+
+/// The real admission/storage probe must pass before this process sends events.
+/// Never retry an unavailable probe or report it as a successful privacy check.
+fn privacy_check() -> Result<(), Failure> {
+    match mitigate_egress::self_test::run(&std::env::temp_dir()) {
+        Ok(report) if report.passed => Ok(()),
+        _ => Err(Failure {
+            code: "sync_privacy",
+            message: "Delivery stopped: privacy check did not pass. Run mitigate privacy self-test before restarting the sender.".to_owned(),
+        }),
     }
 }

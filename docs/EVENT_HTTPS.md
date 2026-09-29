@@ -107,9 +107,13 @@ This synchronous API has no mid-flight cancellation handle. The
 [sync profile](SYNC_CONTROLS.md) coordinates its explicit sends with pause/purge
 using the original native owner lock. It commits withdrawal before waiting for
 drain and never reports shutdown while that operation is outstanding. Closing a
-connection cannot retract bytes already transmitted. There is no continuous
-sender; the gateway's separate capture worker owns no network handle. Future
-senders must use this same ownership path. `SyncProfile::delivery_readiness`
+connection cannot retract bytes already transmitted. The explicit CLI
+`sync run` uses this ownership path on its dedicated blocking worker; the
+gateway's separate capture worker owns no network handle. The CLI requires a
+successful actual privacy probe before its delivery loop or a ready manual send.
+Low-level embedders remain responsible for that startup gate as well as consent
+and shutdown coordination; the transport API does not run a probe implicitly.
+`SyncProfile::delivery_readiness`
 performs local queue preparation without a native owner; empty, paused or delayed
 work does not prompt the OS credential store. Every ready attempt still restores
 the original confirmed identity before obtaining a lease.
