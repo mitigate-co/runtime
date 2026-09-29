@@ -299,3 +299,14 @@ unknown identity and unavailable verification fail closed. This is separate from
 source CI gates, Apple notarization, safe installation and rollback. A compromised
 local host or publisher workflow remains outside this guarantee. See
 [release authentication](RELEASE_AUTHENTICATION.md) and ADR 0043.
+
+The [local installer](VERIFIED_INSTALL.md) authenticates both manifest and archive
+before creating the chosen destination. Exact native source/version/target,
+bounded ZIP directory/expanded sizes, static regular-file paths, modes and every
+digest are checked independently. Apple targets additionally require a trusted
+team's Developer ID signature and notarization through the system verifier.
+An existing destination cannot be replaced; source-path replacement cannot change
+the authenticated copies. The installer does not execute or activate code, change
+PATH, migrate data or claim automatic downgrade protection. Disk/cleanup failures
+remain failures even if receipt bytes exist. Host/parent-directory trust and
+release signing acceptance remain prerequisites; see ADR 0044.

@@ -58,11 +58,17 @@ verified snapshot. Unix directory/file modes are 0700/0600; Windows uses the
 current user's temporary-directory ACL. A trusted local host and no malicious
 same-user process remain prerequisites.
 
-Future consumers must use `authenticated_snapshot` and consume its private path
+Consumers must use `authenticated_snapshot` and consume its private path
 inside the context. The context removes the copy on success or failure. Reopening
 the original path based on a prior JSON report would reintroduce a race and is
 forbidden. Authentication alone does not authorize extracting an archive, running
 a binary, changing PATH, downgrading, or replacing an existing installation.
+
+The [verified local installer](VERIFIED_INSTALL.md) composes two authenticated
+snapshots with a closed signed-release layout, file digests, native Apple checks
+and exclusive new-directory creation. It does not accept unsigned candidates or
+activate/run the installed binary. Authentic positive release acceptance remains
+required.
 
 ## Acceptance evidence
 
