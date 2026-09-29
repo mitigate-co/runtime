@@ -300,6 +300,45 @@ impl Client {
         assert!(!stderr.contains("canary"));
         assert_eq!(status.code(), Some(code), "{stderr}");
     }
+    async fn fault_category(&mut self) {
+        // Only fixed CLI categories may reach CI logs. Never dump arbitrary child
+        // stderr when an assertion fails, and never change the expected MCP code.
+        let mut line = String::new();
+        let mut diagnostic = (&mut self.diagnostics).take(257);
+        if let Ok(Ok(count)) =
+            timeout(Duration::from_millis(500), diagnostic.read_line(&mut line)).await
+            && count <= 256
+        {
+            let line = line.trim();
+            for code in [
+                "approval_input_invalid",
+                "approval_path_unavailable",
+                "approval_store_unavailable",
+                "approval_missing",
+                "approval_state_conflict",
+                "approval_clock_invalid",
+                "approval_capacity_reached",
+            ] {
+                if line == format!("Mitigate: governance approval failure: {code}") {
+                    eprintln!("Synthetic governance failure: {code}");
+                    return;
+                }
+            }
+            for code in [
+                "control_input_invalid",
+                "control_path_unavailable",
+                "control_store_unavailable",
+                "control_clock_rejected",
+                "control_capacity_reached",
+            ] {
+                if line == format!("Mitigate: governance control failure: {code}") {
+                    eprintln!("Synthetic governance failure: {code}");
+                    return;
+                }
+            }
+        }
+        eprintln!("Synthetic governance failure: category unavailable.");
+    }
 }
 pub(super) fn verify(binary: &Path) {
     let root = Project(std::env::temp_dir().join(format!(

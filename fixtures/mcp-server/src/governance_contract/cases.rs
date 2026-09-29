@@ -155,7 +155,11 @@ async fn approvals(binary: &Path, root: &Path) {
     client.call(5, json!({"value":1})).await;
     let pending = project.pending().await;
     project.decide(&pending, Choice::Deny);
-    assert_eq!(client.result(5).await.0["error"]["code"], -32001);
+    let refused = client.result(5).await.0["error"]["code"].clone();
+    if refused != -32001 {
+        client.fault_category().await;
+    }
+    assert_eq!(refused, -32001);
     assert!(!project.path("call-marker").exists());
     client.call(6, json!({"value":1})).await;
     let pending = project.pending().await;

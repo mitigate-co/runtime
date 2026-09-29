@@ -391,3 +391,14 @@ The native Linux lifecycle/CLI fixture passed after adding bounded failure
 categories and synthetic assertion line diagnostics. An earlier run failed with
 only the legacy generic message; its cause remains unproven. This successful
 rerun does not close issue #36 or the intermittent-fixture release gate.
+
+One Windows governance fixture on the initial inventory-egress revision returned
+`governance_unavailable` after a local approval denial, instead of the expected
+`denied`. The matching PR run passed; that is not evidence of a fix. Approval and
+control failures now retain only their fixed library error codes on local stderr,
+and the failing assertion can report one allowlisted category within 257 bytes
+and 500 ms. No workload data or backend exception is printed. A deterministic
+approval-clock regression confirms the invocation remains undispatched when
+approval inspection and cancellation both fail. Authorization, clock guards,
+timeouts and expected fixture results are unchanged; the intermittent failure
+still needs a demonstrated cause before release.

@@ -129,6 +129,27 @@ impl Fixture {
 }
 
 #[test]
+fn a_clock_failure_while_awaiting_approval_preserves_blocked_local_authority() {
+    let fixture = Fixture::new("require_approval");
+    let mut state = State::open(&fixture.config).unwrap();
+    fixture.begin(&mut state, true);
+    assert_eq!(state.authorize_request(), Ok(true));
+    ApprovalStore::open(&fixture.config.approvals_db)
+        .unwrap()
+        .list(now().unwrap() + 60_000)
+        .unwrap();
+    assert_eq!(state.approved(), Err(Fault::GovernanceUnavailable));
+    assert_eq!(
+        state.finish(ResultClass::NotInvoked, Some(Fault::GovernanceUnavailable)),
+        Err(Fault::GovernanceUnavailable)
+    );
+    assert!(!state.active.as_ref().unwrap().dispatched);
+    let records = fixture.records();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0]["call"]["phase"], "approval_pending");
+}
+
+#[test]
 fn allowance_has_durable_correlated_dispatch_and_observed_completion_without_content() {
     let fixture = Fixture::new("allow");
     let mut state = State::open(&fixture.config).unwrap();
