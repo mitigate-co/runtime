@@ -58,11 +58,20 @@ def digest(value):
 
 
 def validate_manifest(data, target, commit, tag):
+    return _validate_manifest(data, target, commit, tag, "signed_release")
+
+
+def validate_candidate(data, target, commit, tag):
+    """Build tooling only: structural validation grants no publisher trust."""
+    return _validate_manifest(data, target, commit, tag, "unsigned_candidate")
+
+
+def _validate_manifest(data, target, commit, tag, kind):
     require(expected_source(commit, tag) and len(tag) <= 64)
     manifest = decode(data)
     require(isinstance(manifest, dict) and set(manifest) == MANIFEST_FIELDS)
     require(type(manifest["schema_version"]) is int and manifest["schema_version"] == 1)
-    require(manifest["kind"] == "signed_release")
+    require(manifest["kind"] == kind)
     require(target in TARGETS and manifest["target"] == target)
     require(manifest["version"] == tag[1:] and manifest["source_commit"] == commit)
     require(isinstance(manifest["rustc"], str) and 0 < len(manifest["rustc"]) <= 4096)

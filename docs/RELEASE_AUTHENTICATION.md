@@ -85,6 +85,10 @@ manifest and archive, current unresolved security issues, safe installation,
 rollback and fresh-machine checks remain separate requirements. Do not clear the
 [release standard](engineering/RELEASE_STANDARD.md) from this report alone.
 
+[Native release staging](RELEASE_STAGING.md) prepares final native files and
+implements the Apple signing/notarization tool boundary. It returns no publisher
+authentication claim and cannot substitute for this verifier's real attestation.
+
 Policy follows the official [GitHub CLI verification interface](https://cli.github.com/manual/gh_attestation_verify),
 including its warning that editable provenance predicates are not certificate
 identity. See [ADR 0043](decisions/0043-release-publisher-verification.md).

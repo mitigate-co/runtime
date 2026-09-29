@@ -310,3 +310,12 @@ the authenticated copies. The installer does not execute or activate code, chang
 PATH, migrate data or claim automatic downgrade protection. Disk/cleanup failures
 remain failures even if receipt bytes exist. Host/parent-directory trust and
 release signing acceptance remain prerequisites; see ADR 0044.
+
+[Native release staging](RELEASE_STAGING.md) builds and checks its own clean
+native candidate before invoking any Apple signing operation. Only the public
+binary is submitted for notarization; the explicit runner Keychain remains local.
+The Apple command environment excludes workload secrets and alternate tool hooks.
+Source/CI evidence is rechecked after build/notarization, and final digests/layout
+must satisfy the installer contract. Context environment strings and staged
+manifest fields are not publisher authentication. No failed/partial output may
+be attested, and no protected signing workflow is enabled here; see ADR 0045.
