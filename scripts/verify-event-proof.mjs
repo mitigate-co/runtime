@@ -4,13 +4,15 @@ import assert from 'node:assert/strict';
 import { createHash, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-if (process.argv.length !== 3) throw new Error('Provide the synthetic Rust event output path.');
+if (process.argv.length !== 3 && !(process.argv.length === 4 && process.argv[3] === '--inventory'))
+  throw new Error('Provide the synthetic Rust event output path and optional --inventory.');
 const actual = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-const event = JSON.parse(readFileSync(new URL('../examples/egress/decision.json', import.meta.url), 'utf8'));
+const inventory = process.argv[3] === '--inventory';
+const event = JSON.parse(readFileSync(new URL(inventory ? '../examples/egress/inventory-part.json' : '../examples/egress/decision.json', import.meta.url), 'utf8'));
 // This fixture contains ASCII keys and safe integers only. Sorting object keys
 // reproduces its RFC 8785 bytes independently of the Rust implementation.
 function canonical(value) {
-  if (value === null || typeof value === 'string') return JSON.stringify(value);
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value);
   if (typeof value === 'number') {
     assert(Number.isSafeInteger(value));
     return JSON.stringify(value);
@@ -60,6 +62,15 @@ for (const field of Object.keys(event.facts)) {
   assert.equal(verify(null, Buffer.from(`${altered.join('\n')}\n`), publicKey, signature), false);
 }
 const damaged = Buffer.from(signature);
+if (inventory) {
+  for (const field of Object.keys(event.facts.tools[0])) {
+    const changed = structuredClone(event);
+    changed.facts.tools[0][field] = null;
+    const altered = [...fields];
+    altered[7] = createHash('sha256').update(canonical(changed)).digest('base64url');
+    assert.equal(verify(null, Buffer.from(`${altered.join('\n')}\n`), publicKey, signature), false);
+  }
+}
 damaged[0] ^= 1;
 assert.equal(verify(null, message, publicKey, damaged), false);
 console.log('Event fixture: independent OpenSSL signature, exact body and tamper checks passed.');

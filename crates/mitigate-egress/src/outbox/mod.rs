@@ -4,13 +4,15 @@
 mod consent_tests;
 pub(crate) mod db;
 #[cfg(test)]
+mod inventory_tests;
+#[cfg(test)]
 mod readiness_tests;
 mod state;
 mod storage;
 #[cfg(test)]
 mod tests;
 
-use crate::{CheckedEvent, Rejection, SyncRef};
+use crate::{CheckedEvent, EventKind, Rejection, SyncRef};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 pub use storage::Outbox;
@@ -223,6 +225,20 @@ pub struct Counter {
     pub totals: Totals,
 }
 
+/// Exact type/version totals from currently retained, revalidated pending rows.
+/// Excludes completed receipts and lifetime journal history, which have no kind.
+#[derive(Serialize)]
+pub struct PendingContract {
+    /// Reviewed event type.
+    pub event_type: EventKind,
+    /// Exact schema associated with this type.
+    pub schema_version: u8,
+    /// Pending records of this type, including leased or unpruned expired rows.
+    pub events: u32,
+    /// Canonical pending bytes of this type.
+    pub bytes: usize,
+}
+
 /// Local inspector result, with no queued payloads or rejected source material.
 #[derive(Serialize)]
 pub struct Report {
@@ -240,6 +256,8 @@ pub struct Report {
     pub leased: usize,
     /// Retained canonical event bytes.
     pub payload_bytes: usize,
+    /// Positive counts by exact pending type/version. No historical inference.
+    pub pending_contracts: Vec<PendingContract>,
     /// Completed ID/digest receipts retained for local duplicate prevention.
     pub receipts: usize,
     /// Fixed action counters.

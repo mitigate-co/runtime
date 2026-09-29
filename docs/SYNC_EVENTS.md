@@ -1,6 +1,6 @@
 # Closed sync event candidates
 
-`mitigate-egress` validates the first optional Platform event contract. Its
+`mitigate-egress` validates closed optional Platform event contracts. Its
 [customer-local outbox](OUTBOX.md) records admission and retains validated events.
 The [signing contract](SIGNED_EVENTS.md) accepts only a committed outbox lease.
 The optional [sender](SYNC_CONTROLS.md) additionally requires explicit consent,
@@ -9,9 +9,11 @@ Validating or signing a candidate does not authorize delivery. Local audit/snaps
 exports are not accepted events.
 See [ADR 0024](decisions/0024-closed-events-before-durable-sync.md).
 
-The separate [inventory candidate protocol](INVENTORY_PROTOCOL.md) validates
-version-two bounded parts and complete observations. It is not yet an admitted
-outbox event and does not widen this active decision contract.
+The [inventory protocol](INVENTORY_PROTOCOL.md) validates version-two bounded
+parts and complete observations. Checked parts use the same consent/journal/outbox
+boundary as decisions. The v1 decision schema below remains unchanged; an explicit
+type/version dispatch prevents mixing its fields with inventory facts. Live
+inventory production and hosted receiver composition remain separate work.
 
 ## Version 1: `mcp_tool_decision`
 

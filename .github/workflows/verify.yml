@@ -27,6 +27,8 @@ jobs:
         run: |
           cargo run -p mitigate-enrollment --example event_proof --locked > target/event-fixture.json
           node scripts/verify-event-proof.mjs target/event-fixture.json
+          cargo run -p mitigate-enrollment --example event_proof --locked -- --inventory > target/inventory-fixture.json
+          node scripts/verify-event-proof.mjs target/inventory-fixture.json --inventory
       - run: cargo run -p mitigate-egress --example outbox --locked
       - run: cargo run -p mitigate-egress --example reference_mapping --locked
       - run: cargo run --locked -- privacy self-test --json

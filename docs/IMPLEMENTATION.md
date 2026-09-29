@@ -368,3 +368,26 @@ requests. No dependency or storage migration was added. Three-OS CI remains the
 merge gate; MCP-018 and the privacy-probe issue remain open.
 Continuous sender PR #43 passed all ten three-OS/security checks and merged at
 `d267dc7`; its tests do not close the outstanding inventory or release gates.
+
+Inventory candidate PR #44 passed all ten public checks and merged at `97e3e7e`.
+The next composition admits its exact v2 type/version through CheckedEvent and
+the existing shared outbox. Consent-generation checks, durable journal, partition,
+capacity, retry, retention, leases and receipts apply unchanged. The inspector
+now reports exact pending type/version counts, without inferring historical types
+from untyped counters. Its output is v3 and the queue report is v2; stored schemas
+are unchanged. See ADR 0041 and the inventory downgrade/receiver-rollout guidance.
+
+Windows passed 65 egress and 56 enrollment tests plus seven compile-fail contracts;
+the native lock helper is invoked by its parent. Linux workspace tests and strict
+all-target/all-feature Clippy passed. Added checks exercise mixed queues, retry and
+receipt recovery, original capture consent, rollback/corruption, full 1,000-part
+taxonomy queues and exact inventory HTTPS receipts/refusals. Actual CLI inspection
+remains read-only and drops observed types after drain, while retaining untyped
+counters. The executable privacy probe rejects all 260 hostile candidates across
+both kinds and preserves only two safe controls. Node/OpenSSL independently
+reproduces Rust signatures and rejects changed fields for both public fixtures.
+No inventory producer or hosted receiver is activated; MCP-018 remains open.
+The native Linux lifecycle/CLI fixture passed after adding bounded failure
+categories and synthetic assertion line diagnostics. An earlier run failed with
+only the legacy generic message; its cause remains unproven. This successful
+rerun does not close issue #36 or the intermittent-fixture release gate.

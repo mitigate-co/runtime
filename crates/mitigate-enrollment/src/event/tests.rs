@@ -68,9 +68,16 @@ fn receipt(signed: &SignedEvent) -> Value {
 
 #[test]
 fn signature_binds_the_exact_canonical_event_and_every_transport_scope() {
+    verify_signed_event(event());
+    verify_signed_event(include_bytes!(
+        "../../../../examples/egress/inventory-part.json"
+    ));
+}
+fn verify_signed_event(input: &[u8]) {
     let dir = directory();
     let mut f = fixture(&dir);
-    let lease = lease(&mut f);
+    assert_eq!(f.outbox.admit(input), Ok(Admission::Queued));
+    let lease = f.outbox.claim().unwrap().unwrap();
     let signed = key().sign_event(&origin(), &f.identity, &lease).unwrap();
     assert!(signed.as_bytes().len() <= MAX_SIGNED_EVENT_BYTES);
     let envelope: Value = serde_json::from_slice(signed.as_bytes()).unwrap();
@@ -145,6 +152,7 @@ fn signature_binds_the_exact_canonical_event_and_every_transport_scope() {
     assert_eq!(f.outbox.inspect().unwrap().pending, 1);
     f.outbox.complete(lease, DeliveryOutcome::Accepted).unwrap();
     assert_eq!(f.outbox.inspect().unwrap().pending, 0);
+    assert_eq!(f.outbox.admit(input), Ok(Admission::Duplicate));
 }
 
 #[test]

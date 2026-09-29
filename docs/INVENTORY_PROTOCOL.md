@@ -1,12 +1,12 @@
 # Bounded inventory observation protocol
 
-This implements candidate validation and complete-snapshot assembly only.
-`mitigate_egress::inventory::CheckedPart` is deliberately separate from the
-currently admitted version-one decision event. `CheckedEvent`, the outbox,
-signing/HTTPS paths, live capture and egress inspector do not accept or announce
-inventory events yet. A producer, consent/diagnostic composition and hosted
-receiver must be implemented before enabling this protocol. No new telemetry is
-activated by this change.
+`mitigate_egress::inventory::CheckedPart` validates individual parts and the pure
+assembler requires complete observations. `CheckedEvent` accepts those same
+closed parts into the existing consent, journal, outbox and signing boundary.
+The inspector reports exact retained pending types. Live inventory capture and
+hosted inventory ingestion remain unimplemented: this preparation does not start
+a producer or sender. An older receiver rejects inventory under its existing
+permanent schema-refusal behavior; do not enable a producer before receiver rollout.
 
 ## Version 2: `mcp_inventory_snapshot`
 
@@ -108,5 +108,14 @@ inventory size through 512, numeric and collection limits, full-taxonomy size,
 canonical sorting and classification consistency. Assembly tests cover empty and
 maximum-size observations, reordered arrival, missing parts, mixed identity/time,
 count conflicts, repeated events/tools and global-order violations. Existing
-decision admission remains closed to this candidate type. No dependency, stored
-queue schema, enrollment protocol or active command contract changes.
+decision validation remains unchanged. Both kinds share partition, consent,
+capacity, lease, retry, receipt and retention rules. An event ID cannot be reused
+across kinds with different bytes. The privacy probe exercises both kinds through
+actual admission. No dependency or stored queue schema changes; inspector output
+version 3 and queue report version 2 describe pending types explicitly.
+
+Existing stores require no migration. An older binary rejects a queue containing
+v2 parts as unsupported state; it must not reinterpret or discard them. Before
+downgrading, use the current binary to pause and drain or explicitly purge that
+queue. Existing v1 event/signature bytes remain compatible. The outer signature
+envelope stays v1 and binds the full nested event, including its own type/version.

@@ -119,6 +119,19 @@ const FIELDS: &[&str] = &[
     "/facts/decision",
     "/facts/outcome",
 ];
+const INVENTORY_FIELDS: &[&str] = &[
+    "/event_type",
+    "/event_id",
+    "/runtime_ref",
+    "/facts/snapshot_ref",
+    "/facts/server_ref",
+    "/facts/tools/0/tool_ref",
+    "/facts/tools/0/schema_ref",
+    "/facts/tools/0/confidence",
+    "/facts/tools/0/capabilities/0",
+    "/facts/tools/0/risk_flags/0",
+    "/facts/tools/0/classification_sources/0",
+];
 const CONTENT: &[(&str, &str)] = &[
     ("api_key", "sk_test_synthetic_privacy_canary_7ea1849bc135"), // gitleaks:allow -- synthetic non-provider privacy fixture
     (
@@ -171,11 +184,23 @@ fn exercise(path: &Path) -> Result<Report, Error> {
     };
     safe["runtime_ref"] = json!(partition.runtime_ref);
     safe["event_id"] = json!(SyncRef::fresh().map_err(|_| Error::Setup)?);
+    let mut inventory: Value = serde_json::from_slice(include_bytes!(
+        "../../../examples/egress/inventory-part.json"
+    ))
+    .map_err(|_| Error::Setup)?;
+    inventory["runtime_ref"] = json!(partition.runtime_ref);
+    inventory["event_id"] = json!(SyncRef::fresh().map_err(|_| Error::Setup)?);
+    inventory["facts"]["tools"][0]["risk_flags"] = json!(["unknown_high_impact"]);
     let bytes = encode(&safe)?;
     let mut store = Outbox::create(path, partition, Limits::default()).map_err(storage_failure)?;
-    let positive_control = CheckedEvent::from_bytes(&bytes).is_ok()
+    let decision_control = CheckedEvent::from_bytes(&bytes).is_ok()
         && store.admit(&bytes).map_err(storage_failure)? == Admission::Queued
         && store.admit(&bytes).map_err(storage_failure)? == Admission::Duplicate;
+    let inventory_bytes = encode(&inventory)?;
+    let inventory_control = CheckedEvent::from_bytes(&inventory_bytes).is_ok()
+        && store.admit(&inventory_bytes).map_err(storage_failure)? == Admission::Queued
+        && store.admit(&inventory_bytes).map_err(storage_failure)? == Admission::Duplicate;
+    let positive_control = decision_control && inventory_control;
     let long_text = "synthetic_document_canary ".repeat(80);
     let mut checks = Vec::new();
     for &(category, content) in CONTENT
@@ -195,6 +220,11 @@ fn exercise(path: &Path) -> Result<Report, Error> {
         let mut candidate = safe.clone();
         candidate["facts"]["capabilities"] = json!([content]);
         probe(&mut store, &mut check, &encode(&candidate)?)?;
+        for field in INVENTORY_FIELDS {
+            let mut candidate = inventory.clone();
+            *candidate.pointer_mut(field).ok_or(Error::Setup)? = json!(content);
+            probe(&mut store, &mut check, &encode(&candidate)?)?;
+        }
         checks.push(check);
     }
     let mut nested = Check {
@@ -204,6 +234,12 @@ fn exercise(path: &Path) -> Result<Report, Error> {
     };
     for pointer in ["", "/facts"] {
         let mut candidate = safe.clone();
+        candidate.pointer_mut(pointer).ok_or(Error::Setup)?["future"] =
+            json!({"private_field":"nested_canary"});
+        probe(&mut store, &mut nested, &encode(&candidate)?)?;
+    }
+    for pointer in ["", "/facts", "/facts/tools/0"] {
+        let mut candidate = inventory.clone();
         candidate.pointer_mut(pointer).ok_or(Error::Setup)?["future"] =
             json!({"private_field":"nested_canary"});
         probe(&mut store, &mut nested, &encode(&candidate)?)?;
@@ -226,6 +262,11 @@ fn exercise(path: &Path) -> Result<Report, Error> {
         let mut candidate = safe.clone();
         candidate["facts"][field] = json!("prohibited_canary");
         probe(&mut store, &mut prohibited, &encode(&candidate)?)?;
+        for pointer in ["", "/facts", "/facts/tools/0"] {
+            let mut candidate = inventory.clone();
+            candidate.pointer_mut(pointer).ok_or(Error::Setup)?[field] = json!("prohibited_canary");
+            probe(&mut store, &mut prohibited, &encode(&candidate)?)?;
+        }
     }
     checks.push(prohibited);
     let mut malformed = Check {
@@ -241,12 +282,19 @@ fn exercise(path: &Path) -> Result<Report, Error> {
     probe(
         &mut store,
         &mut malformed,
+        br#"{"schema_version":2,"schema_version":2,"event_type":"mcp_inventory_snapshot"}"#,
+    )?;
+    probe(
+        &mut store,
+        &mut malformed,
         &vec![b' '; crate::MAX_EVENT_BYTES + 1],
     )?;
     checks.push(malformed);
     let report = store.inspect().map_err(storage_failure)?;
     let rejected: u64 = checks.iter().map(|c| u64::from(c.attempted)).sum();
-    let queue_isolation = report.pending == 1
+    let queue_isolation = report.pending == 2
+        && report.pending_contracts.len() == 2
+        && report.pending_contracts.iter().all(|c| c.events == 1)
         && report.receipts == 0
         && report
             .counters
@@ -305,7 +353,7 @@ mod tests {
         let result = run(&workspace.path).unwrap();
         assert!(result.passed);
         assert_eq!(result.checks.len(), 11);
-        assert_eq!(result.checks.iter().map(|c| c.attempted).sum::<u32>(), 147);
+        assert_eq!(result.checks.iter().map(|c| c.attempted).sum::<u32>(), 260);
         assert_eq!(fs::read_dir(&workspace.path).unwrap().count(), 1);
         assert_eq!(fs::read(&marker).unwrap(), b"owned-test-marker");
         let encoded = serde_json::to_string(&result).unwrap();

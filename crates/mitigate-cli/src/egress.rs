@@ -4,8 +4,8 @@ use crate::{
     output,
 };
 use mitigate_egress::{
-    EVENT_FIELDS, MAX_EVENT_BYTES, SyncRef,
-    outbox::{Action, Error, Outbox, Partition, Report as QueueReport},
+    EventKind, MAX_EVENT_BYTES, SyncRef,
+    outbox::{Error, Outbox, Partition, Report as QueueReport},
     self_test,
 };
 use serde::Serialize;
@@ -29,6 +29,7 @@ struct Inspection {
     supported_events: Vec<EventContract>,
     observed_event_types: Vec<&'static str>,
     observed_schema_versions: Vec<u8>,
+    observed_scope: &'static str,
     queue: Option<QueueReport>,
 }
 fn reference(text: Option<String>) -> Result<SyncRef, Error> {
@@ -53,28 +54,26 @@ pub(crate) fn inspect(command: EgressCommand, machine: bool) -> io::Result<ExitC
             None if runtime_ref.is_none() && enrollment_ref.is_none() => None,
             None => return Err(Error::Input),
         };
-        let observed = queue.as_ref().is_some_and(|q| {
-            q.pending > 0
-                || q.counters
-                    .iter()
-                    .any(|c| c.action == Action::Queued && c.totals.events > 0)
-        });
+        let observed = queue
+            .as_ref()
+            .map(|q| q.pending_contracts.as_slice())
+            .unwrap_or(&[]);
         Ok(Inspection {
-            schema_version: 2,
+            schema_version: 3,
             delivery_status: "not_checked",
             destination: None,
-            supported_events: vec![EventContract {
-                event_type: "mcp_tool_decision",
-                schema_version: 1,
-                fields: EVENT_FIELDS,
-                max_event_bytes: MAX_EVENT_BYTES,
-            }],
-            observed_event_types: if observed {
-                vec!["mcp_tool_decision"]
-            } else {
-                Vec::new()
-            },
-            observed_schema_versions: if observed { vec![1] } else { Vec::new() },
+            supported_events: EventKind::ALL
+                .into_iter()
+                .map(|kind| EventContract {
+                    event_type: kind.as_str(),
+                    schema_version: kind.schema_version(),
+                    fields: kind.fields(),
+                    max_event_bytes: MAX_EVENT_BYTES,
+                })
+                .collect(),
+            observed_event_types: observed.iter().map(|c| c.event_type.as_str()).collect(),
+            observed_schema_versions: observed.iter().map(|c| c.schema_version).collect(),
+            observed_scope: "pending",
             queue,
         })
     })();
@@ -97,11 +96,14 @@ fn render(report: &Inspection, mut out: impl Write) -> io::Result<()> {
         out,
         "Destination: not checked. Use sync status with your profile to inspect optional delivery."
     )?;
-    writeln!(
-        out,
-        "Supported event: mcp_tool_decision v1 (maximum {MAX_EVENT_BYTES} bytes)."
-    )?;
-    writeln!(out, "Fields: {}", EVENT_FIELDS.join(", "))?;
+    for contract in &report.supported_events {
+        writeln!(
+            out,
+            "Supported event: {} v{} (maximum {} bytes).",
+            contract.event_type, contract.schema_version, contract.max_event_bytes
+        )?;
+        writeln!(out, "Fields: {}", contract.fields.join(", "))?;
+    }
     let Some(queue) = &report.queue else {
         return writeln!(
             out,
@@ -130,13 +132,18 @@ fn render(report: &Inspection, mut out: impl Write) -> io::Result<()> {
     )?;
     writeln!(
         out,
-        "Observed schema versions: {}.",
-        if report.observed_schema_versions.is_empty() {
-            "none"
-        } else {
-            "1"
-        }
+        "Observed types cover retained pending events only; receipts and historical totals have no type breakdown."
     )?;
+    for contract in &queue.pending_contracts {
+        writeln!(
+            out,
+            "{} v{}: {} events, {} bytes.",
+            contract.event_type.as_str(),
+            contract.schema_version,
+            contract.events,
+            contract.bytes
+        )?;
+    }
     writeln!(out, "ACTION  EVENTS  BYTES")?;
     // These are closed enums/numbers from verified state, never event strings.
     let value = serde_json::to_value(&queue.counters).map_err(io::Error::other)?;

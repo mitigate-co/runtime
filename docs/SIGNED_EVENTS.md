@@ -34,7 +34,7 @@ origin. The body has exactly four required fields:
 | --- | --- |
 | `schema_version` | Integer `1` |
 | `enrollment_ref` | The enrollment's opaque `ref_` reference |
-| `event` | Nested closed version-one checked event |
+| `event` | Nested checked v1 decision or v2 inventory part |
 | `signature` | Raw 64-byte Ed25519 signature in canonical unpadded base64url |
 
 The full request is bounded to 5 KiB. Its nested checked event remains limited to
@@ -53,7 +53,8 @@ POST
 ```
 
 Hash only the already validated canonical event, including its fixed schema,
-timestamp, references and decision facts. Never hash rejected input, raw workload
+timestamp, references and reviewed facts. The outer proof/envelope version remains
+1: nested type/version are included in the canonical digest. Never hash rejected input, raw workload
 content or a local configuration fingerprint. Enrollment bootstrap tokens and
 private/public keys are absent from the event request. No cookie or ambient user
 session is needed to prove possession of the enrolled key.
@@ -96,6 +97,8 @@ not ordinary logs. Opaque correlation references are still metadata, not anonymi
 cargo test -p mitigate-enrollment --all-features --locked
 cargo run -p mitigate-enrollment --example event_proof --locked > event-fixture.json
 node scripts/verify-event-proof.mjs event-fixture.json
+cargo run -p mitigate-enrollment --example event_proof --locked -- --inventory > inventory-fixture.json
+node scripts/verify-event-proof.mjs inventory-fixture.json --inventory
 ```
 
 The example creates and removes its own temporary SQLite queue, admits the public

@@ -33,10 +33,15 @@ impl Drop for Cleanup {
         let _ = fs::remove_dir(&self.dir);
     }
 }
+#[track_caller]
 fn require(value: bool) -> Result<(), Box<dyn std::error::Error>> {
     if value {
         Ok(())
     } else {
+        eprintln!(
+            "Synthetic fixture assertion failed at line {}.",
+            std::panic::Location::caller().line()
+        );
         Err("synthetic enrollment check failed".into())
     }
 }
@@ -378,12 +383,24 @@ fn check_cli(
     Ok(())
 }
 fn main() -> ExitCode {
-    if run().is_ok() {
-        ExitCode::SUCCESS
-    } else {
-        eprintln!(
-            "Native enrollment fixture failed. Use --allow-native-fixture with an unlocked native credential store."
-        );
-        ExitCode::from(2)
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            // Only closed library errors can be rendered; never dump a boxed OS,
+            // native-provider, path, subprocess or serialization diagnostic.
+            if let Some(error) = error.downcast_ref::<mitigate_enrollment::storage::Error>() {
+                eprintln!("Native fixture category: {}.", error.code());
+            } else if let Some(error) = error.downcast_ref::<mitigate_egress::outbox::Error>() {
+                eprintln!("Native fixture queue category: {error:?}.");
+            } else if let Some(error) =
+                error.downcast_ref::<mitigate_enrollment::storage::sync::Error>()
+            {
+                eprintln!("Native fixture sync category: {error:?}.");
+            }
+            eprintln!(
+                "Native enrollment fixture failed. Use --allow-native-fixture with an unlocked native credential store."
+            );
+            ExitCode::from(2)
+        }
     }
 }
