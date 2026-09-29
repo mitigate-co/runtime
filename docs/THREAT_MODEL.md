@@ -241,6 +241,13 @@ accidental cross-domain/restart rebinding. Catalog files remain customer-local;
 same-user replacement/rollback are outside the guarantee. Mapping success is
 neither sync consent nor egress acceptance. See ADR 0035.
 
+Version-two sync setup creates a new catalog alongside the new queue, then commits
+the profile under the original native owner. Resume rejects missing, corrupt or
+wrong-scope catalogs instead of rotating identifiers. Shutdown does not depend on
+catalog availability. Purge retains mappings for later resume; complete local
+retirement follows explicit native enrollment deletion. Legacy profiles are not
+silently migrated. See ADR 0036 and the controls lifecycle instructions.
+
 The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
 code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local

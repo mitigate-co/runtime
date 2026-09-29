@@ -269,3 +269,15 @@ failure categories without exposing local paths or content. The intermittent
 privacy-probe storage failure remains under investigation in
 [issue #36](https://github.com/mitigate-co/runtime/issues/36); successful reruns
 and improved diagnostics do not close that release gate.
+
+Sync setup now creates an enrollment-scoped catalog beside the queue and pins it
+in a version-two profile. Existing version-one profiles retain their controls
+without migration. Pause/purge preserve stable mappings and tolerate a missing
+catalog; resume validates the original catalog before unpausing. Tests cover
+preexisting-file refusal, partial setup, catalog retention and closed versioned
+profiles. All 53 enrollment tests and four compile-fail checks passed on Windows
+and Linux; the native lock helper runs through its parent. Windows also passed
+all 38 egress tests and two compile-fail checks. Synthetic Windows and isolated
+Linux native fixtures verified missing/wrong-scope catalog refusal and legacy
+resume without recreation; Linux exercised the setup controls through the actual
+CLI. No gateway producer or background sender is activated by this change.

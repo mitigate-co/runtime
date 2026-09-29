@@ -1,8 +1,8 @@
 # Optional sync controls
 
 Enrollment does not enable telemetry. Explicit sync setup binds a new private
-queue to one confirmed native enrollment. Local MCP protection never depends on
-these controls or Platform availability. No gateway producer or background sender
+queue and local reference catalog to one confirmed native enrollment. Local MCP
+protection never depends on these controls or Platform availability. No gateway producer or background sender
 is activated by this slice; `send` attempts at most one already queued event.
 
 ## Commands
@@ -23,6 +23,8 @@ mitigate sync purge --profile PROFILE --confirm
 new files without replacing existing ones. It does not send an event or start a
 worker. The queue defaults to 1,000 events and seven-day admission retention.
 The library permits shorter retention only above the sender's 25-second budget.
+The catalog is created beside the queue as `<queue filename>.references.sqlite`;
+there is no additional setup argument. Its path is pinned in the new profile.
 
 Subsequent commands need only the profile path. `status` is read-only and does not
 unlock credentials or contact Platform. Its `paused` field describes current local
@@ -38,30 +40,48 @@ lock first cannot undo the final pause. Already transmitted bytes cannot be
 retracted. A later deliberate resume is a new consent action.
 
 `purge` follows the same pause/drain sequence, then deletes queued bodies and
-duplicate receipts. It retains the bounded content-free journal, profile and
-immutable enrollment anchor. It does not delete native credentials or previously
-hosted records. Pause and purge work after native credentials are removed: they
+duplicate receipts. It retains the bounded content-free journal, profile, local
+reference catalog and immutable enrollment anchor. Retained mappings preserve
+identity across pause/purge/resume. It does not delete native credentials or
+previously hosted records. Pause and purge work after native credentials are removed: they
 verify the immutable anchor without reading the OS credential store.
 
 `resume` requires the exact original confirmed native enrollment, anchor reference
-and queue partition. It changes local consent only. A missing/locked/changed key or
-pending enrollment cannot silently enable delivery.
+and queue partition. Version-two profiles also verify the original catalog and
+its scope before unpausing. It changes local consent only. A missing/locked/changed
+key, pending enrollment or invalid catalog cannot silently enable delivery.
 
 ## Local profile and failure behavior
 
-The immutable version-one profile contains exactly six fields: `schema_version`,
+The immutable version-two profile contains exactly seven fields: `schema_version`,
 canonical `platform`, absolute `enrollment_file` and `outbox_file`, the opaque
 `native_reference` already present in the enrollment anchor, and the queue's
-`partition`. It contains no key, bootstrap code, event body or workload identifier.
+`partition`, plus absolute `reference_file`. It contains no key, bootstrap code,
+event body or workload identifier.
 Paths are customer-local configuration and never enter telemetry or CLI reports.
 The profile is capped at 8 KiB; unknown/duplicate fields, unsupported versions,
 relative paths, malformed references and unsafe files are rejected.
 
-Creation reserves a new empty profile, creates the new queue, then durably writes
-the complete binding while holding the native owner. Interrupted setup may leave
-an empty profile or queue. Inspect it; do not automatically remove/repair files or
-rotate enrollment. An existing queue cannot turn a failed setup into a valid new
+Creation reserves a new empty profile, creates the new queue and catalog, then
+durably writes the complete binding while holding the native owner. Interrupted setup may leave
+an empty profile, queue or catalog. Inspect it; do not automatically remove/repair
+files or rotate enrollment. An existing queue or catalog cannot become part of a new
 profile. An uncertain flush requires reopening to inspect actual state.
+
+Legacy version-one profiles retain their original six-field contract and existing
+controls. They are not silently migrated and no missing catalog is created on
+open/resume. A version-one profile cannot carry `reference_file`; version two
+requires it. Null, relative paths and catalog paths equal to the queue or anchor
+path are rejected. The profile
+change does not change version-one CLI reports, queue storage or wire events.
+
+Status, pause and purge intentionally do not open the reference catalog. They
+remain available if that optional store is missing or damaged. Preserve a damaged
+catalog for recovery rather than rebuilding it under the same enrollment. For
+complete local retirement, first pause/drain and purge, then forget the native
+enrollment before removing its profile, queue and catalog. Never remove the
+original enrollment anchor while another operation can hold it; delete only the
+explicitly retired files. A new enrollment uses a new catalog.
 
 Unix files are mode 0600; Windows files inherit the selected directory's ACL.
 Keep parent directories private. This does not defend against same-user/root
@@ -89,7 +109,7 @@ success returns zero. Enrollment CLI reports separately use version 2 and state
 `sync_status: "not_checked"` instead of inventing a disabled status.
 
 Tests cover real SQLite consent, pause before native drain, missing native records,
-competing resume, immutable/partial setup, closed/private profile parsing and
-actual CLI input privacy. Synthetic Windows and isolated Linux native fixtures
+competing resume, immutable/partial setup, catalog preservation, legacy profiles,
+closed/private profile parsing and actual CLI input privacy. Synthetic Windows and isolated Linux native fixtures
 exercise create/resume/pause/purge and paused send without external requests.
 Three-OS CI also verifies the native fixture and command contracts.

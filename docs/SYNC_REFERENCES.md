@@ -30,8 +30,10 @@ The catalog holds at most 8,192 mappings. Full catalogs still resolve known keys
 new keys fail atomically without eviction. References remain stable across
 restarts and are not automatically aged out. This avoids silently assigning a
 new hosted identity while older events still refer to the previous one. A new
-enrollment uses a new catalog. Explicit lifecycle/deletion and integration with
-the sync profile remain required before enabling the gateway producer.
+enrollment uses a new catalog. Version-two [sync profiles](SYNC_CONTROLS.md)
+create and pin the catalog during explicit consent. Pause/purge retain stable
+mappings; resume verifies the original store and never regenerates a missing one.
+Gateway production and continuous sending remain separate implementation work.
 
 The shared private SQLite opener applies the existing 16 MiB file cap, 250 ms
 busy wait, two-second work budget, defensive/trusted-schema settings, restricted
