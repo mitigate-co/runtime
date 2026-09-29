@@ -1,6 +1,6 @@
 # Command line reference
 
-Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAND` or `target/debug/mitigate` (`mitigate.exe` on Windows). Local MCP use requires no account. The first build downloads dependencies. Only explicit enrollment start/pending retry contacts Platform; other command side effects are listed below.
+Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAND` or `target/debug/mitigate` (`mitigate.exe` on Windows). Local MCP use requires no account. The first build downloads dependencies. Enrollment start/pending retry and explicitly started sync delivery can contact Platform. Selected MCP servers may contact their own destinations; command side effects are listed below.
 
 ## Choose a command
 
@@ -37,6 +37,23 @@ Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAN
 | Prune expired records | `mitigate mcp audit prune --db FILE --confirm` | Permanently applies stored retention limits |
 
 `--help` works at each command level. Human tables give a compact overview; `--details` shows full labels and review guidance. Long table cells end with `...`. Terminal controls, bidirectional/invisible text and non-ASCII characters are escaped in human labels. JSON retains exact validated labels. Do not parse human tables as an API. Absence of flags does not establish server safety.
+
+## Optional synchronization
+
+For optional synchronization, use the [setup and recovery guide](SYNC_CONTROLS.md).
+Enrollment, capture and delivery are separate choices:
+
+| Task | Command | Side effect |
+| --- | --- | --- |
+| Enable local sync consent | `mitigate sync enable --profile NEW_FILE --enrollment FILE --platform ORIGIN --outbox NEW_FILE` | Creates local profile, catalog and queue; checks confirmed native enrollment; no sending |
+| Inspect sync | `mitigate sync status --profile FILE` | Reads local consent and queue counts; no network or credential lookup |
+| Capture gateway decisions | Add `--sync-profile FILE` to governed serve | Requires existing consent and a passing privacy probe; admits only typed metadata; no sending |
+| Also capture tool inventory | Add `--sync-inventory` with `--sync-profile FILE` | Admits bounded fresh inventory metadata, never scanner reports or raw schemas |
+| Send one queued event | `mitigate sync send --profile FILE` | Rechecks consent, native enrollment and exact lease; may send one signed HTTPS event |
+| Run the sender | `mitigate sync run --profile FILE` | Foreground delivery until paused, interrupted or failed; never enables consent |
+| Pause and drain | `mitigate sync pause --profile FILE` | Commits withdrawal and waits for in-flight delivery; queued events remain |
+| Resume consent | `mitigate sync resume --profile FILE` | Checks the original native binding; no automatic capture or sending |
+| Purge local queue | `mitigate sync purge --profile FILE --confirm` | Pauses, drains and deletes retained queue payloads; does not delete hosted records |
 
 ## Machine output and exits
 
