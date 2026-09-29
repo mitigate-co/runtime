@@ -60,6 +60,9 @@ For timing, separate parsing/classification/policy/gateway overhead from upstrea
 server latency and build/setup time. Describe warm-up, sample count, hardware,
 OS, load, summary statistics and uncertainty. Preserve failed/timeout cases and
 explain exclusions. Do not present noisy CI durations as product latency promises.
+The [local harness](PERFORMANCE.md) supplies reproducible synthetic component
+measurements with raw ordered samples and explicit failures. Its scope excludes
+the full governed CLI path and must remain visible in any comparison.
 
 For longitudinal comparisons, keep definitions and cohort rules consistent and
 disclose changes. For capability classification, provide the taxonomy version and

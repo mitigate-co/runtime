@@ -68,6 +68,7 @@ jobs:
           fixture=target/debug/mitigate-test-mcp
           if [ "$RUNNER_OS" = Windows ]; then fixture="$fixture.exe"; fi
           python scripts/verify-launch-review.py "$cli" "$fixture"
+          python scripts/verify-benchmark.py "$fixture"
       - name: Compare policy decisions with OPA reference
         if: runner.os == 'Linux'
         shell: bash

@@ -1317,11 +1317,13 @@ name = "mitigate-mcp-fixture"
 version = "0.1.0"
 dependencies = [
  "mitigate-audit",
+ "mitigate-config",
  "mitigate-egress",
  "mitigate-enrollment",
  "mitigate-fingerprint",
  "mitigate-gateway",
  "mitigate-mcp",
+ "mitigate-mcp-scan",
  "mitigate-policy",
  "mitigate-secrets",
  "process-wrap",
