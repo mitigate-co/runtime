@@ -8,27 +8,38 @@ pub(super) struct State {
     pub partition: Partition,
     pub limits: Limits,
     pub paused: bool,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_capture"
+    )]
+    pub capture: Option<CaptureConsent>,
     pub last_time: u64,
     pub sequence: u64,
     pub totals: [Totals; 15],
     pub journal: Vec<JournalEntry>,
 }
 impl State {
-    pub fn new(partition: Partition, limits: Limits) -> Self {
-        Self {
+    pub fn new(partition: Partition, limits: Limits) -> Result<Self, Error> {
+        Ok(Self {
             partition,
             limits,
             paused: false,
+            capture: Some(CaptureConsent::new()?),
             last_time: 0,
             sequence: 0,
             totals: [Totals::default(); 15],
             journal: Vec::new(),
-        }
+        })
     }
     pub fn validate(&self) -> Result<(), Error> {
         self.limits.validate().map_err(|_| Error::Integrity)?;
         if self.last_time > MAX_TIME
             || self.sequence > MAX_TIME
+            || self
+                .capture
+                .as_ref()
+                .is_some_and(|c| c.generation > self.sequence)
             || self.journal.len() > JOURNAL_LIMIT
             || self
                 .totals
@@ -58,6 +69,16 @@ impl State {
             .is_some_and(|e| e.sequence != self.sequence)
         {
             return Err(Error::Integrity);
+        }
+        Ok(())
+    }
+    pub fn invalidate_capture(&mut self) -> Result<(), Error> {
+        if let Some(capture) = &mut self.capture {
+            capture.generation = capture
+                .generation
+                .checked_add(1)
+                .filter(|n| *n <= MAX_TIME)
+                .ok_or(Error::Budget)?;
         }
         Ok(())
     }
@@ -107,6 +128,29 @@ impl State {
                 .collect(),
             recent: self.journal,
         }
+    }
+}
+
+// Schema one omits this field. Schema two requires the exact non-null object;
+// db::load checks the field against the SQLite version before any operation.
+fn present_capture<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<CaptureConsent>, D::Error> {
+    CaptureConsent::deserialize(deserializer).map(Some)
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CaptureConsent {
+    queue_ref: SyncRef,
+    generation: u64,
+}
+impl CaptureConsent {
+    pub fn new() -> Result<Self, Error> {
+        Ok(Self {
+            queue_ref: SyncRef::fresh().map_err(|_| Error::Storage)?,
+            generation: 0,
+        })
     }
 }
 

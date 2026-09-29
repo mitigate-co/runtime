@@ -248,6 +248,16 @@ catalog availability. Purge retains mappings for later resume; complete local
 retirement follows explicit native enrollment deletion. Legacy profiles are not
 silently migrated. See ADR 0036 and the controls lifecycle instructions.
 
+Buffered sync captures carry an opaque queue-specific consent generation.
+Admission verifies that generation under the same transaction as the queued
+write. Pause, purge and authentication-induced pause invalidate earlier permits;
+resume cannot revive them. Generations survive process restart and bounded
+journal eviction. A producer must capture the permit before metadata and discard
+stale captures rather than relabel them with renewed consent. New queue storage
+is version two; legacy upgrade occurs only on explicit resume and commits
+atomically. Full filesystem rollback and same-user tampering remain outside this
+guarantee. This does not retract already transmitted bytes. See ADR 0037.
+
 The enrollment CLI uses hidden terminal input or an explicit pipe and rejects
 code arguments. It keeps pending state across failed TLS/HTTP exchanges, makes no implicit network retry,
 and holds the native operation lock through confirmation. Its status is a local

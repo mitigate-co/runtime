@@ -23,6 +23,21 @@ bounded observed byte count, trusted time and local sequence are retained. No
 rejected payload, identifier, digest or backend exception is stored or printed.
 Every candidate runtime must match the configured runtime reference.
 
+A buffered producer must call `capture_permit` before taking optional metadata,
+then use `admit_captured` with the original opaque permit and typed checked event.
+The worker checks the permit in the same write transaction as admission. Pause,
+authorization refusal and purge invalidate it durably; later resume cannot make
+old buffered captures eligible again. Queue-specific randomness prevents a permit
+from another queue, including one with the same enrollment, from being accepted.
+Control generations survive restart and journal eviction. No permit identifiers
+or generations enter wire events or diagnostic reports.
+
+`None` means capture is disabled or legacy storage needs explicit resume.
+`ConsentChanged` means discard the capture. Never retry it with a new permit.
+The unbuffered `admit` API remains for low-level immediate admission and privacy
+probes; it must not be used to drain buffered gateway activity. These APIs do not
+turn on a gateway producer or create a background sender.
+
 The same pending/completed ID with the same canonical body is a duplicate. Reusing
 that ID with different validated facts is a conflict. Completed/expired events
 leave only an event ID, completion time and digest of the already validated
@@ -121,7 +136,20 @@ On storage/integrity failure, stop this optional queue worker, preserve the file
 and inspect permissions, free space, clock and backups. Do not delete local
 authority/audit stores or replay tool calls to recover telemetry. An uncertain
 completion must be reconciled by reopening the queue, not by inventing success.
-Version 1 is new storage; unsupported versions fail closed with no migration.
+New queues use storage version 2 with an exact non-null capture-consent object.
+Version 1 remains readable and supports existing admission, delivery, pause and
+purge without migration. It cannot issue capture permits. Explicit
+`set_paused(false)` (including `mitigate sync resume`) upgrades it atomically to
+version 2, preserving pending bodies, leases, duplicate receipts and journal.
+Both record and SQLite version roll back on a failed commit. A missing/null/
+malformed capture field or a field/version mismatch fails closed; open/inspect
+never repair it. Other versions are unsupported.
+
+Earlier binaries cannot open version-2 queues. Before rolling back a binary,
+use the matching binary to pause/drain and preserve the queue. There is no
+in-place downgrade or automatic file deletion. This storage version is separate
+from the immutable sync profile version; neither wire events nor CLI reports
+change. See ADR 0037.
 
 ## Demonstrate and verify
 
