@@ -156,6 +156,8 @@ bundle. Source, raw metadata values and private keys are omitted from reports.
 - `grant_file_unavailable`: check file type, size and permissions; no source values are echoed.
 - `approval_state_conflict`: inspect current state; expired/terminal approvals cannot be reused.
 - `approval_store_unavailable`: preserve corrupt state; check storage and permissions before retrying.
+- `approval_store_busy`: a competing SQLite lock prevented completion; inspect current request state after it finishes. No authority was granted by the failed operation.
+- `approval_store_interrupted`: SQLite interrupted the operation, including its execution budget; inspect local resources and request state. This does not authorize execution.
 - `approval_clock_invalid`: correct the system clock; do not reset approval state to bypass the check.
 - `approval_capacity_reached`: resolve active requests; active approvals are never evicted to admit new ones.
 - `control_store_unavailable`: keep admission closed; inspect access, disk space and integrity without resetting the database.
