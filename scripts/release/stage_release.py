@@ -1,4 +1,4 @@
-"""Build native release files for later publisher attestation; never publish them.
+"""Stage this workflow run's native candidate for later publisher attestation.
 
 Only the direct reviewed release workflow may invoke this entrypoint. A staged
 manifest is not signed merely because its schema kind says signed_release.
@@ -15,7 +15,6 @@ import tempfile
 
 import apple_sign
 import package
-import smoke
 from authenticate import MAX_ARTIFACT, VerificationError, snapshot
 from install import native_target, new_destination, write_new
 from install_contract import (
@@ -51,6 +50,7 @@ def workflow_context(commit, tag, environment):
         "GITHUB_WORKFLOW_REF": f"{REPOSITORY}/.github/workflows/release.yml@refs/tags/{tag}",
         "GITHUB_WORKFLOW_SHA": commit,
         "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_JOB": "sign",
         "RUNNER_ENVIRONMENT": "github-hosted",
     }
     require(
@@ -76,7 +76,8 @@ def read_candidate(directory, temporary, target, commit, tag):
     digest, size = snapshot(
         directory / (prefix + ".zip"), archive_copy, MAX_ARTIFACT, "candidate_archive"
     )
-    # Structural integrity only; inputs came from this invocation's native build.
+    # Structural integrity only. The workflow must download the exact named
+    # immutable candidate from its own successful, unprivileged build jobs.
     archive = BuildArchive(archive_copy, digest, size)
     return manifest, prefix, binary, checked_files(archive, manifest, prefix)
 
@@ -146,7 +147,15 @@ def finalize(manifest, prefix, binary, files, output, commit, tag):
 
 
 def stage(
-    root, commit, tag, output, identity=None, team=None, keychain=None, profile=None
+    root,
+    candidate,
+    commit,
+    tag,
+    output,
+    identity=None,
+    team=None,
+    keychain=None,
+    profile=None,
 ):
     workflow_context(commit, tag, os.environ)
     target = native_target()
@@ -162,12 +171,9 @@ def stage(
             all(value is None for value in (identity, team, keychain, profile)),
             "unexpected_apple_identity",
         )
-    with tempfile.TemporaryDirectory(prefix="mitigate-release-build-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="mitigate-release-stage-") as temporary:
         temporary = Path(temporary)
         temporary.chmod(0o700)
-        candidate = temporary / "candidate"
-        package.package(root, target, candidate)
-        smoke.smoke(candidate, target, commit)
         manifest, prefix, binary, files = read_candidate(
             candidate, temporary, target, commit, tag
         )
@@ -178,7 +184,7 @@ def stage(
             signed_copy = temporary / "notarized-binary"
             snapshot(executable, signed_copy, MAX_FILE, "apple_signed_binary")
             files[binary] = signed_copy.read_bytes()
-        # Recheck source evidence after a potentially long native build/notary
+        # Recheck source evidence after a potentially long native notary
         # wait; a moved tag, changed checkout or newly failing run blocks output.
         require(package.source_revision(root) == commit, "release_checkout")
         require(preflight(commit, tag)["source_eligible"], "release_source_gates")
@@ -195,6 +201,7 @@ def main():
     parser.add_argument("--commit", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--apple-identity")
     parser.add_argument("--apple-team")
     parser.add_argument("--apple-keychain", type=Path)
@@ -203,6 +210,7 @@ def main():
         args = parser.parse_args()
         report = stage(
             Path(__file__).resolve().parents[2],
+            args.candidate,
             args.commit,
             args.tag,
             args.output,

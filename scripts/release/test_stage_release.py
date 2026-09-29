@@ -32,6 +32,7 @@ def context():
         "GITHUB_WORKFLOW_SHA": COMMIT,
         "GITHUB_RUN_ATTEMPT": "1",
         "GITHUB_RUN_ID": "12345",
+        "GITHUB_JOB": "sign",
         "RUNNER_ENVIRONMENT": "github-hosted",
     }
 
@@ -87,6 +88,8 @@ class StageTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.output = self.root / "release"
+        self.candidate = self.root / "candidate"
+        candidate(self.root, TARGETS[0], self.candidate)
         self.stack = ExitStack()
         self.addCleanup(self.stack.close)
         self.stack.enter_context(patch.dict(os.environ, context(), clear=True))
@@ -96,16 +99,17 @@ class StageTests(unittest.TestCase):
         self.preflight = self.stack.enter_context(
             patch.object(staging, "preflight", return_value={"source_eligible": True})
         )
-        self.build = self.stack.enter_context(
-            patch.object(staging.package, "package", side_effect=candidate)
+        self.read = self.stack.enter_context(
+            patch.object(staging, "read_candidate", wraps=staging.read_candidate)
         )
         self.target = self.stack.enter_context(
             patch.object(staging, "native_target", return_value=TARGETS[0])
         )
-        self.smoke = self.stack.enter_context(patch.object(staging.smoke, "smoke"))
 
     def stage(self, **kwargs):
-        return staging.stage(self.root, COMMIT, TAG, self.output, **kwargs)
+        return staging.stage(
+            self.root, self.candidate, COMMIT, TAG, self.output, **kwargs
+        )
 
     def read_release(self, target):
         prefix = f"mitigate-0.1.0-{target}"
@@ -137,6 +141,8 @@ class StageTests(unittest.TestCase):
             with self.subTest(target=target):
                 self.output = self.root / target
                 self.target.return_value = target
+                self.candidate = self.root / ("candidate-" + target)
+                candidate(self.root, target, self.candidate)
                 apple = target.endswith("apple-darwin")
                 values = (
                     dict(
@@ -178,59 +184,58 @@ class StageTests(unittest.TestCase):
                 self.assertEqual(len(checksums), 3)
         self.assertEqual(self.preflight.call_count, 8)
 
-    def test_every_workflow_identity_field_is_required_before_build(self):
+    def test_every_workflow_identity_field_is_required_before_reading_candidate(self):
         for key in context():
             with self.subTest(key=key), patch.dict(os.environ, {key: "wrong"}):
                 with self.assertRaisesRegex(
                     VerificationError, "release_workflow_context"
                 ):
                     self.stage()
-        self.build.assert_not_called()
+        self.read.assert_not_called()
         self.preflight.assert_not_called()
         self.assertFalse(self.output.exists())
 
-    def test_invalid_source_rejected_before_provider_or_build(self):
+    def test_invalid_source_rejected_before_provider_or_candidate(self):
         for revision, tag in (
             ("short", TAG),
             (COMMIT, "v0.1.0-rc1"),
             (COMMIT, "v" + "1" * 65 + ".1.0"),
         ):
             with self.assertRaisesRegex(VerificationError, "invalid_source"):
-                staging.stage(self.root, revision, tag, self.output)
+                staging.stage(self.root, self.candidate, revision, tag, self.output)
         self.preflight.assert_not_called()
-        self.build.assert_not_called()
+        self.read.assert_not_called()
 
-    def test_source_ci_failure_prevents_build(self):
+    def test_source_ci_failure_prevents_candidate_read(self):
         self.preflight.return_value = {"source_eligible": False}
         with self.assertRaisesRegex(VerificationError, "release_source_gates"):
             self.stage()
-        self.build.assert_not_called()
+        self.read.assert_not_called()
         self.assertFalse(self.output.exists())
 
-    def test_new_ci_failure_after_build_refuses_output(self):
+    def test_new_ci_failure_after_candidate_read_refuses_output(self):
         self.preflight.side_effect = [
             {"source_eligible": True},
             {"source_eligible": False},
         ]
         with self.assertRaisesRegex(VerificationError, "release_source_gates"):
             self.stage()
-        self.build.assert_called_once()
+        self.read.assert_called_once()
         self.assertFalse(self.output.exists())
 
-    def test_checkout_change_before_or_during_build_refuses_output(self):
+    def test_checkout_change_before_or_during_staging_refuses_output(self):
         for revisions in (("b" * 40,), (COMMIT, "b" * 40)):
             self.source.side_effect = revisions
             with self.assertRaisesRegex(VerificationError, "release_checkout"):
                 self.stage()
             self.assertFalse(self.output.exists())
 
-    def test_native_smoke_failure_refuses_signing_and_output(self):
-        self.smoke.side_effect = ValueError("Synthetic privacy probe failed")
-        with patch.object(staging.apple_sign, "sign_and_notarize") as sign:
-            with self.assertRaises(ValueError):
-                self.stage()
-            sign.assert_not_called()
-        self.assertFalse(self.output.exists())
+    def test_signing_stage_never_compiles_or_executes_a_candidate(self):
+        with patch.object(staging.package, "package") as build, patch.object(
+            subprocess, "run", side_effect=AssertionError("unexpected process")
+        ):
+            self.stage()
+            build.assert_not_called()
 
     def test_existing_directory_and_creation_race_preserve_owner_files(self):
         self.output.mkdir()
@@ -238,26 +243,23 @@ class StageTests(unittest.TestCase):
         marker.write_bytes(b"keep")
         with self.assertRaisesRegex(VerificationError, "install_destination"):
             self.stage()
-        self.build.assert_not_called()
+        self.read.assert_not_called()
         self.assertEqual(marker.read_bytes(), b"keep")
         self.output = self.root / "raced"
 
         def raced(*args):
-            candidate(*args)
+            result = self.read._mock_wraps(*args)
             self.output.mkdir()
             (self.output / "owner.txt").write_bytes(b"keep")
+            return result
 
-        self.build.side_effect = raced
+        self.read.side_effect = raced
         with self.assertRaises(FileExistsError):
             self.stage()
         self.assertEqual([p.name for p in self.output.iterdir()], ["owner.txt"])
 
     def test_corrupt_candidate_refused_before_signing_or_output(self):
-        def corrupted(*args):
-            path = candidate(*args)
-            next(path.glob("*.zip")).write_bytes(b"tampered")
-
-        self.build.side_effect = corrupted
+        next(self.candidate.glob("*.zip")).write_bytes(b"tampered")
         with patch.object(staging.apple_sign, "sign_and_notarize") as signer:
             with self.assertRaisesRegex(VerificationError, "archive_mismatch"):
                 self.stage()
@@ -272,25 +274,25 @@ class StageTests(unittest.TestCase):
             ("kind", "signed_release"),
         ):
 
-            def wrong(*args):
-                directory = candidate(*args)
-                path = next(directory.glob("*.manifest.json"))
-                data = json.loads(path.read_bytes())
-                data[field] = value
-                path.write_bytes(json_bytes(data))
-
-            self.build.side_effect = wrong
+            path = next(self.candidate.glob("*.manifest.json"))
+            original = path.read_bytes()
+            data = json.loads(original)
+            data[field] = value
+            path.write_bytes(json_bytes(data))
             with self.subTest(field=field), self.assertRaises(VerificationError):
                 self.stage()
             self.assertFalse(self.output.exists())
+            path.write_bytes(original)
 
     def test_apple_options_refused_on_other_platforms(self):
         with self.assertRaisesRegex(VerificationError, "unexpected_apple_identity"):
             self.stage(team="A" * 10)
-        self.build.assert_not_called()
+        self.read.assert_not_called()
 
     def test_apple_failure_never_finalizes(self):
         self.target.return_value = TARGETS[2]
+        self.candidate = self.root / "apple-candidate"
+        candidate(self.root, TARGETS[2], self.candidate)
         with patch.object(staging.apple_sign, "signing_inputs"), patch.object(
             staging.apple_sign,
             "sign_and_notarize",
@@ -315,6 +317,8 @@ class StageTests(unittest.TestCase):
             [
                 sys.executable,
                 str(Path(staging.__file__)),
+                "--candidate",
+                str(self.candidate),
                 "--commit",
                 COMMIT,
                 "--tag",

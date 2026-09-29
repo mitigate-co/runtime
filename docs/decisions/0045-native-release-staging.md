@@ -5,8 +5,14 @@ Date: 2026-09-29
 
 ## Decision
 
-Build each release on its native hosted runner from the exact reviewed clean
-source. Check source/tag/CI evidence before and after the build. Reuse the bounded
+Build and smoke-test each release candidate on its native hosted runner from the
+exact reviewed clean source, without signing keys or OIDC/attestation permissions.
+Require all native builds to succeed before a separate signing job receives the
+exact same-run immutable artifact through GitHub's digest-checked handoff. Never
+compile dependencies or execute the candidate on the signing runner. This keeps
+build scripts and binary execution out of the signing credential boundary.
+
+Check source/tag/CI evidence before and after staging/notarization. Reuse the bounded
 installer archive contract to validate both private candidate bytes and final
 release files. Candidate parsing is structurally separate from the installer's
 signed-release entrypoint and does not confer publisher trust.
@@ -24,8 +30,9 @@ these primitives and pass authentic installation/fresh-machine acceptance.
 
 ## Consequences
 
-No new dependency or Runtime data-path change. A local input file or mutable CI
-candidate cannot replace the current native build. Existing output is preserved;
+No new dependency or Runtime data-path change. The workflow's exact same-run
+artifact selection is a required provider trust boundary; editable manifest
+fields alone do not prove source identity. Existing output is preserved;
 partial new output after failure cannot be reused for publication. The trusted
 runner remains a prerequisite, and context environment strings are not a
 signature. No insecure compatibility path is added to the installer.
