@@ -3,7 +3,9 @@
 //! paths, never credentials.
 //! Pause/purge need no native-store access and drain the enrollment operation lock
 //! before confirming completion. These blocking operations do not own MCP calls.
+mod capture;
 mod profile;
+pub use capture::CaptureSession;
 
 use super::{EnrollmentStore, Session, Status, Vault, anchor::Anchor};
 use crate::PlatformOrigin;

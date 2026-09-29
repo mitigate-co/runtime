@@ -151,6 +151,41 @@ fn allowance_has_durable_correlated_dispatch_and_observed_completion_without_con
 }
 
 #[test]
+fn optional_capture_requires_a_committed_audit_and_never_blocks_local_authority() {
+    let fixture = Fixture::new("allow");
+    let mut state = State::open(&fixture.config).unwrap();
+    let (producer, receiver) =
+        crate::gateway::sync::tests::producer(&fixture.root.join("queue.sqlite"));
+    state.sync = Some(producer);
+    fixture.begin(&mut state, true);
+    assert_eq!(state.authorize_request(), Ok(false));
+    assert!(receiver.try_recv().is_err());
+    state.dispatch().unwrap();
+    assert!(receiver.try_recv().is_ok());
+    assert_eq!(fixture.records().len(), 1);
+    // A lost optional worker cannot turn a successful local call into an error.
+    drop(receiver);
+    state.finish(ResultClass::Success, None).unwrap();
+    assert_eq!(fixture.records().len(), 2);
+
+    let (producer, receiver) =
+        crate::gateway::sync::tests::producer(&fixture.root.join("other-queue.sqlite"));
+    state.sync = Some(producer);
+    fixture.begin(&mut state, true);
+    state.authorize_request().unwrap();
+    let audit = state.audit.clone();
+    let poisoned = std::thread::spawn(move || {
+        let _held = audit.lock().unwrap();
+        panic!("synthetic audit failure");
+    })
+    .join();
+    assert!(poisoned.is_err());
+    assert_eq!(state.dispatch(), Err(Fault::AuditUnavailable));
+    assert!(receiver.try_recv().is_err());
+    assert_eq!(fixture.records().len(), 2);
+}
+
+#[test]
 fn unknown_client_and_explicit_grant_denial_cannot_be_overridden_by_allow_policy() {
     for known in [false, true] {
         let fixture = Fixture::new("allow");

@@ -23,6 +23,13 @@ record exists; an already-started audit commit may still finish after cancellati
 See [audit scope, bounds and recovery](AUDIT.md). This inventory option never
 enables invocation. Governed mode owns its mandatory audit configuration separately.
 
+Governed mode can explicitly select `--sync-profile FILE` for
+[optional metadata capture](SYNC_CAPTURE.md). It uses an existing consented
+profile and requires a passing privacy probe. Required audit succeeds before any
+metadata is published to the bounded worker; sync failure cannot alter local
+authorization. This flag does not start automatic HTTP delivery or export local
+audit history.
+
 ## Identity
 
 The caller is unknown by default: client, principal and agent references are absent; source and confidence are `unknown`. An explicitly selected local profile can declare a mapping:

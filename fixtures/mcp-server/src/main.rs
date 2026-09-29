@@ -80,6 +80,13 @@ fn main() {
         ));
         return;
     }
+    if mode == "sync-capture-contract" {
+        governance_contract::verify_capture(
+            std::path::Path::new(args.get(2).expect("explicit CLI binary path")),
+            std::path::Path::new(args.get(3).expect("synthetic sync profile")),
+        );
+        return;
+    }
     if mode == "upstream-contract" {
         upstream_contract::verify();
         return;

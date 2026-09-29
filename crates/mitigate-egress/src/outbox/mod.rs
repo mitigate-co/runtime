@@ -82,7 +82,7 @@ pub enum Admission {
 /// Opaque consent snapshot for bounded, customer-local producer buffers.
 /// Obtain before capture and present unchanged at admission. Cloning does not
 /// renew consent. This is not an enrollment credential or a wire identifier.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct CapturePermit(state::CaptureConsent);
 
 /// A delivery result classification supplied by the trusted sender. Never pass

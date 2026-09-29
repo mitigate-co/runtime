@@ -3,7 +3,8 @@
 `mitigate_egress::outbox::Outbox` is the durable queue and admission journal for
 closed sync candidates. It is a library component, with an executable synthetic
 demonstration. It has no HTTP client, credentials, enrollment workflow or automatic
-gateway producer. Creating a queue does not enable Platform synchronization.
+gateway producer of its own. The CLI's explicit [capture worker](SYNC_CAPTURE.md)
+uses it after required local audit. Creating a queue does not start synchronization.
 
 An integration must obtain explicit local consent, provision independent random
 runtime/enrollment references and own the queue on a dedicated worker. Queue

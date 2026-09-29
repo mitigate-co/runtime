@@ -100,6 +100,50 @@ fn consent_setup_requires_confirmed_native_state_and_never_replaces_files() {
 }
 
 #[test]
+fn capture_owner_preserves_mapping_scope_and_pause_drain_without_native_access() {
+    use mitigate_egress::{
+        CheckedEvent,
+        references::{Kind, LocalKey},
+    };
+    let fixture = SyncFixture::new();
+    let confirmed = fixture.confirmed();
+    let profile = fixture.initialize(&confirmed).unwrap();
+    drop(confirmed);
+    let mut capture = profile.capture_session().unwrap();
+    let permit = capture.permit().unwrap().unwrap();
+    let keys = [LocalKey::new(Kind::Server, [7; 32])];
+    let mapped = capture.resolve(&permit, &keys).unwrap().unwrap();
+    let mut wire: Value = serde_json::from_slice(include_bytes!(
+        "../../../../../examples/egress/decision.json"
+    ))
+    .unwrap();
+    wire["runtime_ref"] = json!(capture.runtime_ref());
+    wire["facts"]["server_ref"] = json!(mapped[0]);
+    let checked = CheckedEvent::from_bytes(&serde_json::to_vec(&wire).unwrap()).unwrap();
+    assert_eq!(capture.admit(&permit, &checked), Ok(Admission::Queued));
+    assert!(matches!(
+        profile.capture_session(),
+        Err(sync::Error::Enrollment(Error::Busy))
+    ));
+    assert_eq!(profile.stop_now(false).err(), Some(sync::Error::Draining));
+    assert!(capture.permit().unwrap().is_none());
+    assert!(capture.resolve(&permit, &keys).unwrap().is_none());
+    assert_eq!(
+        capture.admit(&permit, &checked),
+        Ok(Admission::ConsentChanged)
+    );
+    drop(capture);
+    assert!(profile.stop_now(false).unwrap().paused);
+    assert_eq!(profile.inspect().unwrap().pending, 1);
+    fs::remove_file(fixture.references()).unwrap();
+    assert!(matches!(
+        profile.capture_session(),
+        Err(sync::Error::References(_))
+    ));
+    assert!(!fixture.references().exists());
+}
+
+#[test]
 fn a_preexisting_catalog_is_never_adopted_or_replaced_during_setup() {
     let fixture = SyncFixture::new();
     let owner = fixture.confirmed();

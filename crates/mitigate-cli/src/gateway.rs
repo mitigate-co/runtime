@@ -4,6 +4,7 @@ mod configuration;
 pub(crate) mod context;
 mod enforcement;
 mod facts;
+mod sync;
 
 use crate::output;
 use mitigate_audit::{AuditStore, Decision, EventDetails, Operation, ResultClass};
@@ -212,6 +213,7 @@ pub(crate) fn run(
     audit_path: Option<&Path>,
     review_path: Option<&Path>,
     enforcement_path: Option<&Path>,
+    sync_path: Option<&Path>,
 ) -> io::Result<ExitCode> {
     // Reject profile/config before opening stdin or executing the upstream.
     let caller = match profile(profile_path) {
@@ -257,6 +259,21 @@ pub(crate) fn run(
             output::error(error.code(), &error.to_string(), false)?;
             return Ok(ExitCode::from(2));
         }
+    };
+    let _sync_worker = match (sync_path, enforcement.as_mut()) {
+        (Some(path), Some(enforcement)) => match sync::start(path.to_owned()) {
+            Ok((producer, worker)) => {
+                enforcement.attach_sync(producer);
+                Some(worker)
+            }
+            Err(_) => {
+                eprintln!(
+                    "Mitigate: sync capture could not start; local protection remains active."
+                );
+                None
+            }
+        },
+        _ => None,
     };
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()

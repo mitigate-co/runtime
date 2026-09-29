@@ -2,8 +2,10 @@
 
 Enrollment does not enable telemetry. Explicit sync setup binds a new private
 queue and local reference catalog to one confirmed native enrollment. Local MCP
-protection never depends on these controls or Platform availability. No gateway producer or background sender
-is activated by this slice; `send` attempts at most one already queued event.
+protection never depends on these controls or Platform availability. The explicit
+[gateway capture flag](SYNC_CAPTURE.md) queues governed-call metadata; setup alone
+does not start it. `send` attempts at most one queued event. Automatic network
+delivery is not yet enabled.
 
 ## Commands
 

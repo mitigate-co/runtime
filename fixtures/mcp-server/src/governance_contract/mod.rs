@@ -3,6 +3,7 @@ mod cases;
 mod changes;
 mod context;
 mod offline;
+mod sync;
 use mitigate_audit::{AuditStore, Retention};
 use mitigate_fingerprint::Fingerprint;
 use mitigate_mcp::{LaunchConfig, LaunchReview, Snapshot, StdioServer};
@@ -19,9 +20,10 @@ use std::{
     process::Stdio,
     time::Duration,
 };
+pub(super) use sync::verify_capture;
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    process::{Child, ChildStdin, ChildStdout},
+    process::{Child, ChildStderr, ChildStdin, ChildStdout},
     time::timeout,
 };
 
@@ -203,9 +205,13 @@ struct Client {
     child: Child,
     input: Option<ChildStdin>,
     output: BufReader<ChildStdout>,
+    diagnostics: BufReader<ChildStderr>,
 }
 impl Client {
     fn start(binary: &Path, project: &Project, known: bool) -> Self {
+        Self::start_sync(binary, project, known, None)
+    }
+    fn start_sync(binary: &Path, project: &Project, known: bool, sync: Option<&Path>) -> Self {
         let mut command = tokio::process::Command::new(binary);
         command
             .args(["mcp", "serve", "--allow-exec", "--launch-config"])
@@ -217,6 +223,9 @@ impl Client {
         if known {
             command.arg("--profile").arg(project.path("profile.json"));
         }
+        if let Some(sync) = sync {
+            command.arg("--sync-profile").arg(sync);
+        }
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -227,6 +236,7 @@ impl Client {
         Self {
             input: child.stdin.take(),
             output: BufReader::new(child.stdout.take().unwrap()),
+            diagnostics: BufReader::new(child.stderr.take().unwrap()),
             child,
         }
     }
@@ -286,13 +296,7 @@ impl Client {
             .expect("bounded CLI cleanup")
             .unwrap();
         let mut stderr = String::new();
-        self.child
-            .stderr
-            .take()
-            .unwrap()
-            .read_to_string(&mut stderr)
-            .await
-            .unwrap();
+        self.diagnostics.read_to_string(&mut stderr).await.unwrap();
         assert!(!stderr.contains("canary"));
         assert_eq!(status.code(), Some(code), "{stderr}");
     }

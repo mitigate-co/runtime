@@ -1317,6 +1317,8 @@ name = "mitigate-mcp-fixture"
 version = "0.1.0"
 dependencies = [
  "mitigate-audit",
+ "mitigate-egress",
+ "mitigate-enrollment",
  "mitigate-fingerprint",
  "mitigate-gateway",
  "mitigate-mcp",

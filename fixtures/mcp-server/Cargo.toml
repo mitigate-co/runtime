@@ -11,6 +11,8 @@ name = "mitigate-test-mcp"
 path = "src/main.rs"
 
 [dependencies]
+mitigate-egress = { path = "../../crates/mitigate-egress", version = "0.1.0" }
+mitigate-enrollment = { path = "../../crates/mitigate-enrollment", version = "0.1.0" }
 rusqlite.workspace = true
 mitigate-policy = { path = "../../crates/mitigate-policy", version = "0.1.0" }
 mitigate-fingerprint = { path = "../../crates/mitigate-fingerprint", version = "0.1.0" }

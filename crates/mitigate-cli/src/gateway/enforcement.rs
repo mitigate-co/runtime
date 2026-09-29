@@ -37,6 +37,11 @@ impl Drop for CancellationGuard {
     }
 }
 impl Enforcement {
+    pub fn attach_sync(&mut self, producer: super::sync::Producer) {
+        if let Ok(mut state) = self.state.lock() {
+            state.sync = Some(producer);
+        }
+    }
     pub fn open(path: &Path) -> Result<Self, Fault> {
         let config = EnforcementConfig::from_file(path)?;
         let (snapshot, overrides) = config.definitions()?;

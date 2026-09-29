@@ -280,6 +280,9 @@ pub(crate) enum McpCommand {
         /// Explicit local governance configuration for approved tool execution.
         #[arg(long, requires = "launch_review", conflicts_with_all = ["json", "audit_db"])]
         enforce: Option<PathBuf>,
+        /// Capture safe metadata into an existing consented sync queue.
+        #[arg(long, requires = "enforce")]
+        sync_profile: Option<PathBuf>,
         /// Explicit local caller mapping; omitted attribution remains unknown.
         #[arg(long)]
         profile: Option<PathBuf>,

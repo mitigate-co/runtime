@@ -33,6 +33,7 @@ pub(super) struct State {
     approvals: ApprovalStore,
     controls: ControlStore,
     pub audit: Arc<Mutex<AuditStore>>,
+    pub sync: Option<super::sync::Producer>,
     environment: Option<String>,
     approval_timeout_ms: u64,
     active: Option<Invocation>,
@@ -44,6 +45,7 @@ struct Invocation {
     cancelled: Arc<AtomicBool>,
     binding: Option<Binding>,
     dispatched: bool,
+    sync_refs: Option<super::sync::InvocationRefs>,
 }
 impl Invocation {
     fn live(&self) -> Result<(), Fault> {
@@ -121,16 +123,28 @@ impl State {
             environment: config.environment.clone(),
             approval_timeout_ms: config.approval_timeout_ms,
             active: None,
+            sync: None,
         })
     }
 
     fn record(&self, call: &mut Invocation) -> Result<(), Fault> {
         call.detail.duration_ms = call.started.elapsed().as_millis().min(86_400_000) as u64;
-        self.audit
+        let consent = self.sync.as_ref().and_then(|producer| producer.permit());
+        let receipt = self
+            .audit
             .lock()
             .map_err(|_| Fault::AuditUnavailable)?
             .append_call(call.detail.clone(), call.context.clone())
             .map_err(|_| Fault::AuditUnavailable)?;
+        if let (Some(producer), Some(consent)) = (&self.sync, consent) {
+            producer.publish(
+                consent,
+                &call.detail,
+                call.context.phase,
+                receipt.event.time_ms,
+                &mut call.sync_refs,
+            );
+        }
         Ok(())
     }
     fn with_call<T>(
@@ -277,6 +291,7 @@ impl State {
             cancelled,
             binding: None,
             dispatched: false,
+            sync_refs: None,
         });
         Ok(())
     }
