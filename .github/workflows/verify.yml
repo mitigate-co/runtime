@@ -9,7 +9,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # Full synchronous-storage suites and native CLI checks share this job.
+    # Keep operation/test deadlines intact; allow the entire suite to finish.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - run: rustup show active-toolchain

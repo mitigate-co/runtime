@@ -195,4 +195,15 @@ Tests additionally cover clock rollback, disk-full/commit failures, exact capaci
 lease expiry, concurrent workers, stale acknowledgements, permanent rejection,
 bounded backoff/journal/receipts, invalid stored content/schema and private paths.
 [CLI inspection and privacy self-test](PRIVACY_COMMANDS.md) exercise this boundary
-without a sender. Optional authenticated Platform delivery remains MCP-018 work.
+without a sender. The authenticated sender is documented in
+[event HTTPS delivery](EVENT_HTTPS.md).
+
+The composed HTTPS refusal test retains failure-only timing diagnostics for
+[Windows readiness issue #50](https://github.com/mitigate-co/runtime/issues/50).
+It compares monotonic claim/check/total durations with UTC elapsed time and the
+synthetic journal's claim age at check entry. Inspection happens only after the
+failed attempt, so it cannot consume time before the readiness check. Diagnostics
+contain only fixed outcomes, durations and queue counts; no payloads, references,
+paths or provider text. The test still requires the exact expected result.
+The cause of the original CI failure is unproven; a passing rerun does not resolve
+it. Production lease, clock, retention and consent checks remain unchanged.

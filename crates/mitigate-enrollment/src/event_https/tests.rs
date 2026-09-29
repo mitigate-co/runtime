@@ -6,12 +6,19 @@ use crate::{
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use mitigate_egress::{
     CheckedEvent, SyncRef,
-    outbox::{Admission, Limits, Outbox, Partition},
+    outbox::{Action, Admission, Limits, Outbox, Partition},
 };
 use mitigate_secrets::Secret;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use std::{fs, io, net::TcpListener, path::PathBuf, sync::mpsc, thread, time::Duration};
+use std::{
+    fs, io,
+    net::TcpListener,
+    path::PathBuf,
+    sync::mpsc,
+    thread,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
 
 struct EventFixture {
     signed: SignedEvent,
@@ -122,6 +129,61 @@ fn ready_fixture(origin: &PlatformOrigin) -> EventFixture {
     fixture
 }
 
+// Failure-only synthetic diagnostics for #50. Never add an inspection/write
+// between claiming and checking readiness: it would change the measured path.
+fn observed_delivery(
+    outbox: &mut Outbox,
+    signed: &SignedEvent,
+    agent: &Agent,
+) -> Result<Delivery, Error> {
+    let started = Instant::now();
+    let wall_start = wall_millis();
+    let mut claim_elapsed = None;
+    let mut check_elapsed = None;
+    let mut check_wall = None;
+    let result = deliver_with(outbox, |outbox, lease| {
+        claim_elapsed = Some(started.elapsed().as_millis());
+        check_wall = wall_millis();
+        let checking = Instant::now();
+        let result = checked_exchange(outbox, lease, signed, agent);
+        check_elapsed = Some(checking.elapsed().as_millis());
+        result
+    });
+    let elapsed = started.elapsed().as_millis();
+    let wall_end = wall_millis();
+    if result.is_err() {
+        let report = outbox.inspect().ok();
+        let claimed = report.as_ref().and_then(|report| {
+            report
+                .recent
+                .iter()
+                .rev()
+                .find(|entry| entry.action == Action::Claimed)
+        });
+        let claim_age = check_wall
+            .zip(claimed)
+            .map(|(now, entry)| now - i128::from(entry.time_ms));
+        let wall_elapsed = wall_end.zip(wall_start).map(|(end, start)| end - start);
+        eprintln!(
+            "synthetic delivery: result={result:?} elapsed_ms={elapsed} \
+             claim_return_ms={claim_elapsed:?} check_ms={check_elapsed:?} \
+             wall_elapsed_ms={wall_elapsed:?} claim_age_at_check_ms={claim_age:?} \
+             paused={:?} pending={:?} leased={:?}",
+            report.as_ref().map(|report| report.paused),
+            report.as_ref().map(|report| report.pending),
+            report.as_ref().map(|report| report.leased),
+        );
+    }
+    result
+}
+
+fn wall_millis() -> Option<i128> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|time| time.as_millis().try_into().ok())
+}
+
 #[test]
 fn composed_delivery_commits_only_the_exact_authenticated_receipt() {
     let tls = Fixture::start(response(200, "", &receipt()));
@@ -158,9 +220,7 @@ fn composed_delivery_retains_uncertain_events_and_pauses_refused_authority() {
         let tls = Fixture::start(response(status, "", "private-response-canary"));
         let mut fixture = ready_fixture(&tls.origin);
         assert_eq!(
-            deliver_with(&mut fixture.outbox, |outbox, lease| {
-                checked_exchange(outbox, lease, &fixture.signed, &tls.agent)
-            }),
+            observed_delivery(&mut fixture.outbox, &fixture.signed, &tls.agent),
             Ok(expected)
         );
         let report = fixture.outbox.inspect().unwrap();

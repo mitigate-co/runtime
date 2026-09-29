@@ -66,3 +66,11 @@ Use synthetic fixtures only. Never copy real customer secrets/data into tests.
 ## Performance
 
 Keep repeatable benchmark baselines; do not fail CI on noisy microbenchmark variance unless the environment is controlled. Use benchmarks to guide decisions and catch gross regressions.
+
+The native Verify job has a 25-minute total budget. Windows
+[run 36557035465](https://github.com/mitigate-co/runtime/actions/runs/36557035465)
+passed workspace tests but reached the former 15-minute limit during subsequent
+CLI contracts, before native-credential verification. Its synchronous-storage
+suites completed successfully but consumed most of the job time. This CI budget
+change does not extend a Runtime lease, SQLite deadline, transport timeout or
+fixture assertion, and does not resolve the separate failures in issues #46/#50.
