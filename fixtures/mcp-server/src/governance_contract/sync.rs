@@ -73,6 +73,7 @@ fn events(queue: &Path) -> Vec<Value> {
         .collect()
 }
 pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
+    eprintln!("Synthetic capture stage: prepare.");
     let root = Project(
         std::env::temp_dir().join(format!("mitigate-capture-contract-{}", std::process::id())),
     );
@@ -89,14 +90,18 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
         .unwrap()
         .block_on(async {
             let project = Project::new(&root.0, "capture", "relay-progress", "allow", 60_000).await;
+            eprintln!("Synthetic capture stage: first_start.");
             let mut client = Client::start_sync(binary, &project, true, Some(profile_path));
             client.initialize().await;
+            eprintln!("Synthetic capture stage: first_ready.");
             diagnostic(&mut client, "sync capture ready").await;
+            eprintln!("Synthetic capture stage: first_call.");
             client.call(2, json!({"value":"argument-canary"})).await;
             assert_eq!(
                 client.result(2).await.0["result"]["structuredContent"]["ok"],
                 true
             );
+            eprintln!("Synthetic capture stage: first_commit.");
             pending(&queue, &partition, 2).await;
             let first = events(&queue);
             assert_eq!(first[0]["facts"]["call_ref"], first[1]["facts"]["call_ref"]);
@@ -119,10 +124,13 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
             }
             client.finish(0).await;
 
+            eprintln!("Synthetic capture stage: restart.");
             let mut client =
                 Client::start_capture(binary, &project, true, Some(profile_path), true);
             client.initialize().await;
+            eprintln!("Synthetic capture stage: second_ready.");
             diagnostic(&mut client, "sync capture ready").await;
+            eprintln!("Synthetic capture stage: second_call.");
             client.call(2, json!({})).await;
             assert_eq!(
                 client.result(2).await.0["result"]["structuredContent"]["ok"],
@@ -141,6 +149,7 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
                     assert_eq!(event["facts"][field], first[0]["facts"][field]);
                 }
             }
+            eprintln!("Synthetic capture stage: policy_denial.");
             project.policy(2, "deny");
             client.call(3, json!({})).await;
             assert_eq!(client.result(3).await.0["error"]["code"], -32001);
@@ -148,7 +157,9 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
             assert!(events(&queue).iter().any(
                 |e| e["facts"]["decision"] == "deny" && e["facts"]["outcome"] == "not_invoked"
             ));
+            eprintln!("Synthetic capture stage: inventory.");
             inventory(&mut client, &project, &profile, &queue, &partition).await;
+            eprintln!("Synthetic capture stage: pause.");
             assert!(profile.pause().unwrap().paused);
             diagnostic(&mut client, "sync capture is paused").await;
             client
@@ -159,9 +170,11 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
             client.call(4, json!({})).await;
             assert_eq!(client.result(4).await.0["error"]["code"], -32001);
             assert_eq!(profile.inspect().unwrap().pending, 8);
+            eprintln!("Synthetic capture stage: purge.");
             assert_eq!(profile.purge().unwrap().pending, 0);
             client.finish(0).await;
 
+            eprintln!("Synthetic capture stage: unavailable_profile.");
             project.policy(3, "allow");
             let mut client = Client::start_sync(
                 binary,
@@ -178,6 +191,7 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
             );
             client.finish(0).await;
             project.private();
+            eprintln!("Synthetic capture stage: complete.");
         });
     println!(
         "Live capture verified: audited calls and inventory, random references, restart, pause/purge and unavailable-worker isolation. No Platform requests."
