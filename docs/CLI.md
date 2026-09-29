@@ -7,6 +7,7 @@ Build with `cargo build --workspace --locked`. Run `cargo run --locked -- COMMAN
 | Task | Command | Side effect |
 | --- | --- | --- |
 | Check installed version | `mitigate version` | None |
+| Collect a support report | `mitigate diagnostics --output NEW_FILE --json` | Creates a checked local report; explicit configuration/synthetic checks only; no upload; [contract](DIAGNOSTICS.md) |
 | Connect to an organization | `mitigate enroll start --platform ORIGIN --state NEW_FILE` | Prompts for a hidden code, saves a native credential, sends one HTTPS proof; sync stays off; [setup and recovery](ENROLLMENT_CLI.md) |
 | Recover enrollment | `mitigate enroll retry --platform ORIGIN --state FILE` | Sends the original pending proof, or returns a confirmed local receipt |
 | Inspect enrollment | `mitigate enroll status --platform ORIGIN --state FILE` | Reads local state and native receipt; no network |
@@ -52,6 +53,11 @@ For report commands, `--json` can appear before or after the command. It emits o
 
 Every error JSON has exactly `schema_version: 1`, a fixed `error` code and a `message` with fixed corrective guidance. Parser failures use `cli_invalid_arguments` without echoing invalid values or paths. Avoid credentials in command arguments: shell history and process listings are outside this output guarantee.
 
+`diagnostics` returns 0 when collection succeeds, including an unavailable or
+failed requested check. Inspect each nested status and `passed` field. A refused
+export returns 2 with no report; it does not bypass the privacy gate. See the
+[support runbook](SUPPORT.md).
+
 `enroll start --json` requires `--stdin` and a secure pipe. Interactive code entry
 uses a hidden terminal prompt only in human mode, so machine output stays closed.
 
@@ -60,6 +66,7 @@ uses a hidden terminal prompt only in human mode, so machine output stays closed
 | Command | Schema | Fields (besides `schema_version`) |
 | --- | --- | --- |
 | `version` | 1 | `product`, `version`, `config_schema_version` |
+| `diagnostics` | 1 | `kind`, `runtime_version`, `operating_system`, `architecture`, `configuration_schema`, `configuration`, `storage_check`; [closed export fields](DIAGNOSTICS.md) |
 | `egress inspect` | 3 | `delivery_status`, `destination`, `supported_events`, `observed_event_types`, `observed_schema_versions`, `observed_scope`, `queue`; [pending-only inspection](PRIVACY_COMMANDS.md) |
 | `enroll start/retry/status/forget` | 1 | `status`, `sync_enabled`; pending/confirmed add `runtime_ref`, `enrollment_ref`; confirmed adds `enrolled_at_ms`; [contract](ENROLLMENT_CLI.md) |
 | `config check` | 1 | `valid`, validated `config` |

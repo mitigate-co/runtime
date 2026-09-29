@@ -43,6 +43,15 @@ Mitigation: executable + argv arrays, no shell interpolation, path checks, tests
 
 Mitigation: OS secret store, narrow child env, no secret logs/sync, redaction/egress guards.
 
+The explicit [support report](DIAGNOSTICS.md) has a separate exact field/type/value
+allowlist before file or JSON output, capped at 4 KiB. It collects compiled version,
+coarse platform, optional bounded configuration limits and an optional synthetic
+storage result. It never opens native credentials, policy/audit/enrollment stores,
+logs or workload files automatically; no upload path exists. New collector fields
+are refused until the export contract is reviewed. File creation refuses existing
+targets; callers must choose a trusted parent directory. Same-user/root filesystem
+tampering and human-written issue text remain outside this report's guarantee.
+
 ### Tool poisoning/schema drift
 
 Mitigation: normalized fingerprints, change alerts, reclassification, configurable reapproval.
@@ -289,3 +298,74 @@ exact previous mode on normal completion/cancellation and drains rejected paste
 input before restoring echo. It creates no credential if restoration fails. A
 forced kill or OS/console failure can prevent restoration; closing that terminal
 is then required. No protection against a hostile terminal host is claimed.
+
+Release-file authentication delegates signature/certificate/transparency checks
+to a trusted GitHub CLI with fixed Runtime repository/workflow/issuer and exact
+tag/source/signer identity. Bounded input files are copied to private temporary
+storage before verification; consumers may use only that snapshot. No package
+bytes are extracted or executed by the authenticator. Original-path replacement,
+unknown identity and unavailable verification fail closed. This is separate from
+source CI gates, Apple notarization, safe installation and rollback. A compromised
+local host or publisher workflow remains outside this guarantee. See
+[release authentication](RELEASE_AUTHENTICATION.md) and ADR 0043.
+
+The [local installer](VERIFIED_INSTALL.md) authenticates both manifest and archive
+before creating the chosen destination. Exact native source/version/target,
+bounded ZIP directory/expanded sizes, static regular-file paths, modes and every
+digest are checked independently. Apple targets additionally require a trusted
+team's Developer ID signature and notarization through the system verifier.
+An existing destination cannot be replaced; source-path replacement cannot change
+the authenticated copies. The installer does not execute or activate code, change
+PATH, migrate data or claim automatic downgrade protection. Disk/cleanup failures
+remain failures even if receipt bytes exist. Host/parent-directory trust and
+release signing acceptance remain prerequisites; see ADR 0044.
+
+[Native release staging](RELEASE_STAGING.md) checks a private snapshot of the
+same-run native candidate before invoking any Apple signing operation. The
+workflow must compile/smoke-test on separate runners without signing authority,
+then download exact immutable artifacts with mandatory digest checks. The signing
+job never compiles or executes a candidate. Only the public
+binary is submitted for notarization; the explicit runner Keychain remains local.
+The Apple command environment excludes workload secrets and alternate tool hooks.
+Source/CI evidence is rechecked after notarization, and final digests/layout
+must satisfy the installer contract. Context environment strings and staged
+manifest fields are not publisher authentication. No failed/partial output may
+be attested, and no protected signing workflow is enabled here; see ADR 0045.
+
+The [signing prerequisite check](RELEASE_SIGNING_GATES.md) requires valid empty
+failure policies from both the selected source and current protected main, plus
+observed source/CI/workflow and environment protections. Issue closure, retries
+or a later success cannot clear a source-controlled unresolved failure. GitHub
+approval enforcement and repository administrators remain trusted. Configuration
+checks and saved JSON reports are not signing/publication authority; see ADR 0046.
+
+[Apple signing credentials](APPLE_SIGNING_RUNNER.md) are confined to an explicitly
+protected ephemeral signing runner. The wrapper removes credential inputs before
+child processes can inherit them, rechecks release prerequisites and uses only a
+new owned Keychain. Private import files are removed before staging; native
+Keychain cleanup is required before success. Process argv/memory inspection and
+hard-kill cleanup remain trusted-host limitations. No compiler or candidate
+execution is permitted on that runner, and no real keys are configured here.
+
+## Isolated release pipeline
+
+The direct manual release workflow separates native compilation/execution from
+signing keys and OIDC authority, then installs and executes only authenticated
+bytes on new read-only acceptance runners. Same-run immutable artifacts require
+provider digest verification; all four final assets require exact publisher
+identity and consistent manifest/SBOM/checksum bytes. Current source and unresolved
+failure policies remain signing gates. No repository-write permission or release
+publication step is granted. GitHub, pinned actions, trusted release source and
+native hosted tools remain the provider trust boundary; synthetic tests do not
+prove genuine Apple/Sigstore success. See [release pipeline](RELEASE_PIPELINE.md).
+
+## Homebrew draft trust transition
+
+A macOS-only generator verifies both Apple archives and all publisher sidecars
+before writing a cask with fixed release origins and authenticated archive hashes.
+It verifies Developer ID/team/notarization and parses only bounded minimum-OS/CPU
+facts; no fixture/downloaded binary is executed. Both targets must succeed.
+Homebrew then relies on the reviewed protected tap digest and native Apple trust.
+No tap mutation, installer script, service, migration or customer-state deletion
+is generated. Package acceptance and state-compatible rollback remain independent
+release decisions. See [Homebrew](HOMEBREW.md).

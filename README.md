@@ -1,12 +1,15 @@
 # Mitigate Runtime
 
-Tool calls through the library validate arguments and structured results using
-the [bounded local JSON Schema profile](docs/SCHEMA_VALIDATION.md). The CLI offers
-explicit inventory-only and [governed-call modes](docs/ENFORCEMENT.md).
+Find MCP servers in a project, inspect their tools, and control tool calls locally.
+Mitigate Runtime is Apache-2.0 and works without a Platform account. Credentials
+and tool payloads stay on the customer side.
 
-The Apache-2.0 customer-side MCP scanner and gateway for Mitigate. Local operation must work without a Platform account. Credentials and tool payloads stay on the customer side.
+No supported release binaries are published yet. Start with the
+[tested source quickstart](docs/QUICKSTART.md). The [implementation status](docs/IMPLEMENTATION.md)
+records verified scope and remaining production gates.
 
-Development has started. No release binaries or production-ready gateway are published yet. The executable work packages and acceptance gates are in [the MCP specification](docs/modules/mcp/LOW_LEVEL.md). See [implementation status](docs/IMPLEMENTATION.md) for verified scope.
+For a local problem, use the [support report and recovery instructions](docs/SUPPORT.md).
+Reports are checked before export and shared only when you choose.
 
 [Native CI candidates](docs/RELEASE_CANDIDATES.md) include checksums, dependency
 inventories and license notices. They are unsigned test artifacts; public signed
@@ -91,6 +94,11 @@ See [fingerprints and snapshots](docs/FINGERPRINTS.md) for the complete tested e
 Use `--details` for full human reports, or `--json` for the versioned machine contract. Add `--fail-on-risk` to scan/inspect or `--fail-on-change` to diff for opt-in exit 3 on findings. The [CLI reference](docs/CLI.md) includes exit codes, examples and recovery steps.
 
 ## Verify
+
+The [adversarial test guide](docs/ADVERSARIAL_TESTING.md) describes the synthetic
+input corpus and its limits. The [research methodology](docs/RESEARCH_METHODS.md)
+defines what fixture results and source-attributed observations can support.
+Report vulnerabilities through the [private disclosure process](SECURITY.md).
 
 Look up [source-attributed public registry facts](docs/REGISTRY.md) offline:
 

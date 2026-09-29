@@ -3,6 +3,7 @@ mod approvals;
 mod args;
 mod audit;
 mod controls;
+mod diagnostics;
 mod egress;
 mod enrollment;
 mod gateway;
@@ -54,6 +55,20 @@ fn findings_exit(found: bool, fail: bool) -> ExitCode {
 
 fn execute(cli: Cli) -> io::Result<ExitCode> {
     match cli.command {
+        Command::Diagnostics {
+            output,
+            config,
+            check_storage,
+            work_dir,
+        } => {
+            return diagnostics::run(
+                output.as_deref(),
+                config.as_deref(),
+                check_storage,
+                work_dir.as_deref(),
+                cli.json,
+            );
+        }
         Command::Sync { command } => return sync::run(command, cli.json),
         Command::Enroll { command } => return enrollment::run(command, cli.json),
         Command::Privacy { command } => return egress::privacy(command, cli.json),

@@ -18,6 +18,21 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
+    /// Create a local support report with a privacy-checked field set.
+    Diagnostics {
+        /// Save JSON to a new file; existing files are never replaced.
+        #[arg(long)]
+        output: Option<PathBuf>,
+        /// Check only this Runtime configuration and include its bounded limits.
+        #[arg(long)]
+        config: Option<PathBuf>,
+        /// Run the synthetic privacy/storage test in an isolated temporary queue.
+        #[arg(long)]
+        check_storage: bool,
+        /// Existing writable parent for the synthetic test's private directory.
+        #[arg(long, requires = "check_storage")]
+        work_dir: Option<PathBuf>,
+    },
     /// Enable, inspect, pause or explicitly send optional content-free events.
     Sync {
         #[command(subcommand)]

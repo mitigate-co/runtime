@@ -53,7 +53,18 @@ installer verification, backup/rollback safety, absence of known security bugs o
 fresh-machine acceptance. Those remain separate required gates in the
 [release standard](engineering/RELEASE_STANDARD.md). In particular, successful CI
 does not resolve Runtime issue #46's still-unexplained Windows governance fault.
-There is no release publication or production deployment in this change.
+Runtime issue #50 also retains an unexplained pre-transport readiness failure.
+Neither is cleared by a later successful run. There is no release publication or
+production deployment in this change.
+
+The [release-file authenticator](RELEASE_AUTHENTICATION.md) applies the fixed
+publisher policy to a bounded local file and attestation bundle. It is independent
+of these source checks; both are required, and neither is a production-ready flag.
+
+The [signing prerequisite check](RELEASE_SIGNING_GATES.md) adds the exact workflow
+context, clean selected checkout, checked-in unresolved failure policy and an
+existing protected signing environment. It does not acquire credentials or enable
+a signing workflow.
 
 The provider interfaces are GitHub's REST
 [workflow runs](https://docs.github.com/en/rest/actions/workflow-runs),
