@@ -28,6 +28,7 @@ jobs:
           cargo run -p mitigate-enrollment --example event_proof --locked > target/event-fixture.json
           node scripts/verify-event-proof.mjs target/event-fixture.json
       - run: cargo run -p mitigate-egress --example outbox --locked
+      - run: cargo run -p mitigate-egress --example reference_mapping --locked
       - run: cargo run --locked -- privacy self-test --json
       - run: cargo run --locked -- egress inspect --json
       - run: cargo run --locked -- registry lookup --catalog examples/registry/catalog.json --subject io.example/synthetic-server --json

@@ -8,6 +8,7 @@ mod guard;
 mod model;
 pub mod outbox;
 mod reference;
+pub mod references;
 pub mod self_test;
 #[cfg(test)]
 mod tests;
