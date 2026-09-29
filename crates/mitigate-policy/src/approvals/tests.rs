@@ -315,14 +315,24 @@ fn busy_corrupt_or_missing_storage_never_returns_a_permit() {
     let dir = Directory::new();
     let mut store = ApprovalStore::create(&dir.db()).unwrap();
     let r = pending(&mut store);
-    store
-        .decide(&r.approval_ref, Choice::Approve, operator(), 1000)
-        .unwrap();
     let conn = rusqlite::Connection::open(dir.db()).unwrap();
     conn.execute_batch("BEGIN IMMEDIATE").unwrap();
     assert!(matches!(
+        store.decide(&r.approval_ref, Choice::Approve, operator(), 1000),
+        Err(Error::Busy)
+    ));
+    conn.execute_batch("ROLLBACK").unwrap();
+    assert_eq!(
+        store.get(&r.approval_ref, 1000).unwrap().state,
+        State::Requested
+    );
+    store
+        .decide(&r.approval_ref, Choice::Approve, operator(), 1000)
+        .unwrap();
+    conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+    assert!(matches!(
         store.consume(&r.approval_ref, &binding(), 1001),
-        Err(Error::Storage)
+        Err(Error::Busy)
     ));
     conn.execute_batch("ROLLBACK").unwrap();
     assert_eq!(

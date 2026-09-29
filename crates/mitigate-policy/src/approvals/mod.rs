@@ -20,7 +20,11 @@ pub enum Error {
     Input,
     /// Unsafe, inaccessible or already existing local file.
     Path,
-    /// Busy, corrupt, full, incompatible or unavailable local storage.
+    /// A competing SQLite operation prevented acquiring or completing a lock.
+    Busy,
+    /// SQLite interrupted the operation, including an exhausted execution budget.
+    Interrupted,
+    /// Corrupt, full, incompatible or otherwise unavailable local storage.
     Storage,
     /// No matching request exists.
     Missing,
@@ -37,6 +41,8 @@ impl Error {
         match self {
             Self::Input => "approval_input_invalid",
             Self::Path => "approval_path_unavailable",
+            Self::Busy => "approval_store_busy",
+            Self::Interrupted => "approval_store_interrupted",
             Self::Storage => "approval_store_unavailable",
             Self::Missing => "approval_missing",
             Self::State => "approval_state_conflict",
@@ -50,6 +56,8 @@ impl std::fmt::Display for Error {
         f.write_str(match self {
             Self::Input => "Invalid approval metadata. Check the closed schema, reference and duration.",
             Self::Path => "Cannot use the approval file. Check its type, permissions and whether the destination already exists.",
+            Self::Busy => "Approval storage is busy. Inspect the request after the competing local operation finishes; execution is not authorized.",
+            Self::Interrupted => "Approval storage was interrupted. Inspect local resource availability and request state; execution is not authorized.",
             Self::Storage => "Approval storage failed closed. Check access, disk space and database integrity before retrying.",
             Self::Missing => "Approval request not found. List current requests and use the exact reference.",
             Self::State => "Approval state changed. Inspect the request; do not reuse a completed approval.",

@@ -171,10 +171,17 @@ impl Project {
         .unwrap_or_else(|_| panic!("pending approval timed out in {}", self.0.display()))
     }
     fn decide(&self, record: &Record, choice: Choice) {
-        ApprovalStore::open(&self.path("approvals.sqlite"))
-            .unwrap()
-            .decide(&record.approval_ref, choice, reference('3'), SystemClock)
-            .unwrap();
+        let mut store = ApprovalStore::open(&self.path("approvals.sqlite")).unwrap();
+        let started = std::time::Instant::now();
+        if let Err(error) = store.decide(&record.approval_ref, choice, reference('3'), SystemClock)
+        {
+            eprintln!(
+                "Synthetic approval decision failure: {} elapsed_ms={}",
+                error.code(),
+                started.elapsed().as_millis()
+            );
+            panic!("synthetic approval decision must commit");
+        }
     }
     fn events(&self) -> Vec<Value> {
         AuditStore::open(&self.path("audit.sqlite"))
@@ -325,6 +332,8 @@ impl Client {
             for code in [
                 "approval_input_invalid",
                 "approval_path_unavailable",
+                "approval_store_busy",
+                "approval_store_interrupted",
                 "approval_store_unavailable",
                 "approval_missing",
                 "approval_state_conflict",

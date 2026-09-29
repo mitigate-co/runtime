@@ -334,14 +334,39 @@ fn read(conn: &Connection) -> Result<(u64, Records), Error> {
     Ok((clock as u64, records))
 }
 impl From<rusqlite::Error> for Error {
-    fn from(_: rusqlite::Error) -> Self {
-        Self::Storage
+    fn from(error: rusqlite::Error) -> Self {
+        // Retain only reviewed categories, never backend text, SQL or paths.
+        match error.sqlite_error_code() {
+            Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked) => {
+                Self::Busy
+            }
+            Some(rusqlite::ErrorCode::OperationInterrupted) => Self::Interrupted,
+            _ => Self::Storage,
+        }
     }
 }
 
 #[cfg(test)]
 mod failure_tests {
     use super::*;
+    #[test]
+    fn sqlite_categories_discard_all_backend_diagnostics() {
+        for (code, expected) in [
+            (rusqlite::ffi::SQLITE_BUSY, Error::Busy),
+            (rusqlite::ffi::SQLITE_LOCKED, Error::Busy),
+            (rusqlite::ffi::SQLITE_INTERRUPT, Error::Interrupted),
+            (rusqlite::ffi::SQLITE_IOERR, Error::Storage),
+            (rusqlite::ffi::SQLITE_CORRUPT, Error::Storage),
+            (rusqlite::ffi::SQLITE_FULL, Error::Storage),
+        ] {
+            let failure = Error::from(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(code),
+                Some("private-sql-and-path-canary".into()),
+            ));
+            assert_eq!(failure, expected);
+            assert!(!format!("{failure} {failure:?} {}", failure.code()).contains("canary"));
+        }
+    }
     fn binding() -> Binding {
         Binding::from_bytes(include_bytes!(
             "../../../../examples/approvals/context.json"
