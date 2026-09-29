@@ -2,6 +2,7 @@
 import copy
 import json
 import pathlib
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -44,6 +45,18 @@ with tempfile.TemporaryDirectory(prefix="mitigate-approvals-cli-") as tmp:
     assert run("show", "--db", db, "--reference", ref)["state"] == "requested"
     assert "No tool invoked" in run("show", "--db", db, "--reference", ref, machine=False)
     run("approve", "--db", db, "--reference", ref, "--operator-ref", "e" * 64, expected=2)
+    assert run("show", "--db", db, "--reference", ref)["state"] == "requested"
+    # Hold a real competing writer until the child exits; no sleep or retry can
+    # turn an ambiguous write into a passing approval assertion.
+    competing = sqlite3.connect(db, timeout=0)
+    try:
+        competing.execute("BEGIN IMMEDIATE")
+        refused = run("approve", "--db", db, "--reference", ref, "--operator-ref", "e" * 64, "--confirm", expected=2)
+        assert refused["error"] == "approval_store_busy"
+        assert str(directory) not in json.dumps(refused)
+    finally:
+        competing.rollback()
+        competing.close()
     assert run("show", "--db", db, "--reference", ref)["state"] == "requested"
     approved = run("approve", "--db", db, "--reference", ref, "--operator-ref", "e" * 64, "--confirm")
     assert approved["state"] == "approved"

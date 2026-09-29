@@ -56,3 +56,10 @@ Native gateway-capture issue [#57](https://github.com/mitigate-co/runtime/issues
 also remains unresolved. Its [bounded failure diagnostics](SYNC_CAPTURE.md#verification)
 are regression tested without forwarding arbitrary child output. The diagnostic
 fix must not be represented as a fix for an unproven clock, storage or timeout cause.
+
+Windows approval-decision issue [#67](https://github.com/mitigate-co/runtime/issues/67)
+retains a generic storage failure during the governance schema-drift fixture.
+The [approval storage contract](APPROVALS.md#storage-failures) now distinguishes
+fixed lock and interruption categories and verifies refusal against an explicitly
+held competing SQLite transaction. That deterministic refusal does not identify
+the historical failure's cause or clear the release blocker.
