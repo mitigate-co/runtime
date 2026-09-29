@@ -28,6 +28,27 @@ impl Outbox {
         };
         store.inspect()
     }
+    /// Prepare a scheduling hint without opening a writable connection unless
+    /// verified expiry maintenance is due. Never create, repair or migrate files.
+    pub fn prepare_delivery_file(
+        path: &Path,
+        partition: Partition,
+        budget_ms: u64,
+    ) -> Result<Readiness, Error> {
+        let mut store = Self {
+            conn: db::readonly(path)?,
+            partition: partition.clone(),
+            #[cfg(test)]
+            test_time: None,
+        };
+        let (hint, maintenance) = store.readiness_hint(budget_ms)?;
+        drop(store);
+        if maintenance {
+            Self::open(path, partition)?.prepare_delivery(budget_ms)
+        } else {
+            Ok(hint)
+        }
+    }
     #[cfg(test)]
     pub(super) fn connection(&self) -> &Connection {
         &self.conn
@@ -135,13 +156,25 @@ impl Outbox {
     /// Claim one ready event for thirty seconds. Dropping a lease never marks it
     /// delivered. Expiry schedules a delayed retry with the same event ID/body.
     pub fn claim(&mut self) -> Result<Option<Lease>, Error> {
+        self.claim_ready(0)
+    }
+    /// Claim only a candidate with enough retention for the sender's complete
+    /// exchange budget. Near-expiry records remain queued for normal expiry;
+    /// they cannot repeatedly consume leases ahead of deliverable candidates.
+    pub fn claim_for_delivery(&mut self, budget_ms: u64) -> Result<Option<Lease>, Error> {
+        if !(1..=LEASE_MS).contains(&budget_ms) {
+            return Err(Error::Input);
+        }
+        self.claim_ready(budget_ms)
+    }
+    fn claim_ready(&mut self, budget_ms: u64) -> Result<Option<Lease>, Error> {
         self.update(|state, rows, _| {
             if state.paused {
                 return Ok(None);
             }
             let id = rows
                 .iter()
-                .filter(|(_, r)| r.lease.is_none() && r.next_ms <= state.last_time)
+                .filter(|(_, r)| ready_record(r, state, state.last_time, budget_ms))
                 .min_by_key(|(id, r)| (r.admitted_ms, *id))
                 .map(|(id, _)| id.clone());
             let Some(id) = id else {
@@ -305,6 +338,58 @@ impl Outbox {
             state.capture.map(CapturePermit)
         })
     }
+    /// Prepare a local scheduling hint before opening native credentials. Retain
+    /// exact IDs/bodies and retry delays; prune observed expiry through the usual
+    /// transaction only when due. Idle/ready reads do not rewrite the database.
+    /// This does not claim an event, renew consent or authorize network I/O.
+    /// A sender must still claim and recheck its lease after restoring enrollment.
+    pub fn prepare_delivery(&mut self, budget_ms: u64) -> Result<Readiness, Error> {
+        let (hint, maintenance) = self.readiness_hint(budget_ms)?;
+        if maintenance {
+            // The write path acquires a fresh lock, samples time again and
+            // revalidates everything; never carry the read snapshot into a write.
+            self.update(|state, rows, _| Ok(readiness(state, rows, state.last_time, budget_ms)))
+        } else {
+            Ok(hint)
+        }
+    }
+    fn readiness_hint(&mut self, budget_ms: u64) -> Result<(Readiness, bool), Error> {
+        if !(1..=LEASE_MS).contains(&budget_ms) {
+            return Err(Error::Input);
+        }
+        #[cfg(test)]
+        let override_time = self.test_time;
+        #[cfg(not(test))]
+        let override_time = None;
+        let deadline = db::budget(&self.conn)?;
+        let tx = self.conn.transaction()?;
+        let (state, rows, receipts) = db::load(&tx, deadline)?;
+        if state.partition != self.partition {
+            return Err(Error::Partition);
+        }
+        if state.paused {
+            tx.commit()?;
+            return Ok((Readiness::Paused, false));
+        }
+        let now = observed_time(&state, override_time)?;
+        let age = state.limits.max_age_ms;
+        let maintenance = rows.values().any(|record| {
+            now - record.admitted_ms >= age
+                || record
+                    .lease
+                    .as_ref()
+                    .is_some_and(|lease| lease.until_ms <= now)
+        }) || receipts
+            .values()
+            .any(|receipt| now - receipt.finished_ms >= age)
+            || state
+                .journal
+                .first()
+                .is_some_and(|entry| now - entry.time_ms >= age);
+        let hint = readiness(&state, &rows, now, budget_ms);
+        tx.commit()?;
+        Ok((hint, maintenance))
+    }
     fn update<T>(
         &mut self,
         operation: impl FnOnce(&mut State, &mut Rows, &mut Receipts) -> Result<T, Error>,
@@ -323,20 +408,7 @@ impl Outbox {
         let override_time = self.test_time;
         #[cfg(not(test))]
         let override_time: Option<u64> = None;
-        let now = match override_time {
-            Some(value) => value,
-            None => SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map_err(|_| Error::Clock)?
-                .as_millis()
-                .try_into()
-                .map_err(|_| Error::Clock)?,
-        };
-        if now < state.last_time
-            || now > MAX_TIME - MAX_BACKOFF_MS - LEASE_MS - state.limits.max_age_ms
-        {
-            return Err(Error::Clock);
-        }
+        let now = observed_time(&state, override_time)?;
         state.last_time = now;
         let old_events = rows.keys().cloned().collect::<Vec<_>>();
         let old_receipts = receipts.keys().cloned().collect::<Vec<_>>();
@@ -363,6 +435,39 @@ impl Outbox {
         tx.commit()?;
         result
     }
+}
+fn observed_time(state: &State, override_time: Option<u64>) -> Result<u64, Error> {
+    let now = match override_time {
+        Some(value) => value,
+        None => SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| Error::Clock)?
+            .as_millis()
+            .try_into()
+            .map_err(|_| Error::Clock)?,
+    };
+    if now < state.last_time || now > MAX_TIME - MAX_BACKOFF_MS - LEASE_MS - state.limits.max_age_ms
+    {
+        return Err(Error::Clock);
+    }
+    Ok(now)
+}
+fn readiness(state: &State, rows: &Rows, now: u64, budget_ms: u64) -> Readiness {
+    if state.paused {
+        Readiness::Paused
+    } else if rows
+        .values()
+        .any(|record| ready_record(record, state, now, budget_ms))
+    {
+        Readiness::Ready
+    } else {
+        Readiness::Waiting
+    }
+}
+fn ready_record(record: &Record, state: &State, now: u64, budget_ms: u64) -> bool {
+    record.lease.is_none()
+        && record.next_ms <= now
+        && (record.admitted_ms + state.limits.max_age_ms).saturating_sub(now) > budget_ms
 }
 fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))

@@ -77,7 +77,10 @@ The receiver remains responsible for tenant isolation and event retention.
 preflight, signed HTTPS exchange and local completion. Restore the native owner
 first, before a claim: an OS unlock prompt must not consume lease time. Pending
 native state or a mismatched queue fails before any claim. The owner remains
-borrowed through the final queue commit.
+borrowed through the final queue commit. The claim excludes candidates with too
+little retention for the full exchange, keeping a nearly expired record from
+consuming leases ahead of a deliverable one. The final exact-lease preflight still
+runs immediately before network I/O.
 
 The runner returns `Idle` for an empty, paused or backoff-delayed queue. An exact
 receipt produces `Accepted` only after local completion commits. Permanent
@@ -105,7 +108,11 @@ This synchronous API has no mid-flight cancellation handle. The
 using the original native owner lock. It commits withdrawal before waiting for
 drain and never reports shutdown while that operation is outstanding. Closing a
 connection cannot retract bytes already transmitted. There is no continuous
-sender or gateway producer; future workers must use this same ownership path.
+sender; the gateway's separate capture worker owns no network handle. Future
+senders must use this same ownership path. `SyncProfile::delivery_readiness`
+performs local queue preparation without a native owner; empty, paused or delayed
+work does not prompt the OS credential store. Every ready attempt still restores
+the original confirmed identity before obtaining a lease.
 
 ## Verification
 

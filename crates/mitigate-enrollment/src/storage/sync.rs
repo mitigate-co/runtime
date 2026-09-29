@@ -9,6 +9,8 @@ pub use capture::CaptureSession;
 
 use super::{EnrollmentStore, Session, Status, Vault, anchor::Anchor};
 use crate::PlatformOrigin;
+#[cfg(feature = "https")]
+use mitigate_egress::outbox::Readiness;
 use mitigate_egress::{
     outbox::{self, Limits, Outbox, Partition, Report},
     references::{self, ReferenceMap},
@@ -127,11 +129,26 @@ impl SyncProfile {
     pub fn purge(&self) -> Result<Report, Error> {
         self.stop(true, Duration::from_secs(25))
     }
+    /// Inspect readiness and perform due local expiry maintenance without native
+    /// credential access. No enrollment lock is held while waiting. The result
+    /// is a scheduling hint only; every actual send independently restores the
+    /// original confirmed enrollment, claims and rechecks its exact lease.
+    #[cfg(feature = "https")]
+    pub fn delivery_readiness(&self) -> Result<Readiness, Error> {
+        let budget_ms = crate::transport::EXCHANGE_TIMEOUT.as_millis() as u64 + 5000;
+        Outbox::prepare_delivery_file(
+            &self.record.outbox_file,
+            self.record.partition.clone(),
+            budget_ms,
+        )
+        .map_err(Error::Outbox)
+    }
     /// One explicit attempt. No native prompt occurs after a lease is claimed.
     /// The enrollment lock serializes sends, resume, stop and credential deletion.
+    /// Empty, paused and backing-off queues do not unlock native credentials.
     #[cfg(feature = "https")]
     pub fn deliver_next(&self) -> Result<crate::event_https::Delivery, DeliveryError> {
-        if self.inspect().map_err(DeliveryError::Control)?.paused {
+        if self.delivery_readiness().map_err(DeliveryError::Control)? != Readiness::Ready {
             return Ok(crate::event_https::Delivery::Idle);
         }
         let store = self.enrollment().map_err(DeliveryError::Control)?;

@@ -64,12 +64,29 @@ unlimited history or an exactly-once delivery guarantee.
 Full queues refuse new events without evicting pending events. Retention uses the
 trusted admission clock, never the event-provided timestamp. Mutating operations
 apply expiry before their own work; `claim` does this even while paused. An active
-integration must run maintenance through periodic claims. An inactive process
+integration must run maintenance through periodic preparation or claims. An inactive process
 cannot erase an offline disk on a timer. `inspect` reports retained state without
 pruning or extending retention. Correct a backward/unavailable OS clock before
 resuming; rollback observations are rejected, never clamped.
 
 ## Delivery lifecycle
+
+`prepare_delivery_file(path, partition, budget_ms)` returns only `Paused`,
+`Waiting` or `Ready` before a sender accesses native credentials. Empty, leased,
+backing-off and insufficient-retention queues wait. Ordinary polls use read-only
+connections without rewriting even SQLite's header. If verified events, receipts,
+journal entries or leases have expired, a fresh bounded write transaction applies
+the existing expiry rules. Expired leases receive one normal delayed retry; polls
+cannot shorten or repeatedly reschedule it. Pause remains explicit and no migration
+occurs. On an existing connection, `prepare_delivery` has the same semantics.
+
+This is a scheduling hint, never transmission permission or a lease. A later
+claim must still recheck current state. `claim_for_delivery(budget_ms)` considers
+only events with retention strictly exceeding the complete exchange budget, so
+a nearly expired event cannot consume leases ahead of a deliverable event. Such
+events remain queued until ordinary expiry. The final lease preflight remains
+required. Invalid state, rollback, scope or maintenance commit fails explicitly;
+it never becomes an idle success.
 
 `claim` commits an exclusive random lease before returning the exact checked
 event. Dropping a handle does not acknowledge delivery. An expired lease schedules

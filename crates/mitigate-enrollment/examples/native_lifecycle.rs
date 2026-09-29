@@ -195,6 +195,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Limits::default(),
         )?
     };
+    #[cfg(feature = "https")]
+    {
+        let native_owner = EnrollmentStore::open(&cleanup.path, &cleanup.origin)?;
+        // A second native open would fail on this held owner. An empty sender
+        // must inspect only its local queue and must not begin any exchange.
+        require(sync.deliver_next()? == mitigate_enrollment::event_https::Delivery::Idle)?;
+        drop(native_owner);
+    }
     let mut sync_queue = Outbox::open(&sync_queue_path, sync.inspect()?.partition)?;
     require(sync_queue.admit(&serde_json::to_vec(&event)?)? == Admission::Queued)?;
     require(sync.pause()?.paused)?;
