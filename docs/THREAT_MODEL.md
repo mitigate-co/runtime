@@ -337,3 +337,15 @@ new owned Keychain. Private import files are removed before staging; native
 Keychain cleanup is required before success. Process argv/memory inspection and
 hard-kill cleanup remain trusted-host limitations. No compiler or candidate
 execution is permitted on that runner, and no real keys are configured here.
+
+## Isolated release pipeline
+
+The direct manual release workflow separates native compilation/execution from
+signing keys and OIDC authority, then installs and executes only authenticated
+bytes on new read-only acceptance runners. Same-run immutable artifacts require
+provider digest verification; all four final assets require exact publisher
+identity and consistent manifest/SBOM/checksum bytes. Current source and unresolved
+failure policies remain signing gates. No repository-write permission or release
+publication step is granted. GitHub, pinned actions, trusted release source and
+native hosted tools remain the provider trust boundary; synthetic tests do not
+prove genuine Apple/Sigstore success. See [release pipeline](RELEASE_PIPELINE.md).

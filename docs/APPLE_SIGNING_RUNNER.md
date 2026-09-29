@@ -1,9 +1,10 @@
 # Ephemeral Apple signing credentials
 
-`scripts/release/ci_stage.py` is the entrypoint for the future direct release
+`scripts/release/ci_stage.py` is the entrypoint for the direct release
 workflow's protected `sign` job. It composes the
 [signing prerequisites](RELEASE_SIGNING_GATES.md), a temporary native Keychain and
-[release staging](RELEASE_STAGING.md). No workflow or credential is enabled here.
+[release staging](RELEASE_STAGING.md). The [pipeline](RELEASE_PIPELINE.md) is defined;
+no credential has been configured and no signing run has been dispatched.
 
 The job must run on a fresh GitHub-hosted runner after all unprivileged native
 build/smoke jobs succeed and a maintainer approves the signing environment. Never

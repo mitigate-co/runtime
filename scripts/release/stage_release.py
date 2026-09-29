@@ -41,7 +41,7 @@ class BuildArchive:
 
 def workflow_context(commit, tag, environment, *, job="sign"):
     require(expected_source(commit, tag) and len(tag) <= 64, "invalid_source")
-    require(job in {"preflight", "sign"}, "release_workflow_context")
+    require(job in {"preflight", "sign", "accept"}, "release_workflow_context")
     required = {
         "GITHUB_ACTIONS": "true",
         "GITHUB_REPOSITORY": REPOSITORY,

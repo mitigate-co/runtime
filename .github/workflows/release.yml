@@ -1,0 +1,211 @@
+name: Prepare signed release
+on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Reviewed full commit SHA at the selected signed tag
+        required: true
+        type: string
+      tag:
+        description: Signed stable tag, also selected as this workflow's ref
+        required: true
+        type: string
+
+# No release creation or repository writes. Dispatch still requires owner approval.
+permissions: {}
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+env:
+  SOURCE_COMMIT: ${{ inputs.source_commit }}
+  RELEASE_TAG: ${{ inputs.tag }}
+
+jobs:
+  preflight:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+    # Deliberately no environment: a misspelling must never auto-create one.
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0, MIT
+        with:
+          python-version: '3.13.14'
+      - name: Require exact tag, protected source, CI and cleared blockers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/release/signing_gate.py --commit "$SOURCE_COMMIT" --tag "$RELEASE_TAG"
+
+  build:
+    needs: preflight
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0, MIT
+        with:
+          python-version: '3.13.14'
+      - name: Build and execute without signing authority
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          python scripts/release/package.py --target "$TARGET" --output dist/candidate
+          python scripts/release/smoke.py dist/candidate --target "$TARGET" --commit "$SOURCE_COMMIT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, MIT
+        with:
+          name: release-candidate-${{ matrix.target }}
+          path: dist/candidate/*
+          if-no-files-found: error
+          retention-days: 7
+
+  sign:
+    needs: [preflight, build]
+    environment: release-signing
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0, MIT
+        with:
+          python-version: '3.13.14'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8, MIT
+        with:
+          # Exact immutable artifact from this successful workflow run only.
+          name: release-candidate-${{ matrix.target }}
+          path: dist/candidate
+          digest-mismatch: error
+      - name: Stage Linux or Windows without compilation or execution
+        if: runner.os != 'macOS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/release/ci_stage.py --candidate dist/candidate --output dist/release --commit "$SOURCE_COMMIT" --tag "$RELEASE_TAG"
+      - name: Sign and notarize macOS with temporary credentials
+        if: runner.os == 'macOS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: python scripts/release/ci_stage.py --candidate dist/candidate --output dist/release --commit "$SOURCE_COMMIT" --tag "$RELEASE_TAG"
+      - name: Attest final bytes after native signing and Keychain cleanup
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2, MIT
+        with:
+          subject-path: |
+            dist/release/*.zip
+            dist/release/*.manifest.json
+            dist/release/*.spdx.json
+            dist/release/SHA256SUMS
+      - name: Verify every signature and recheck release blockers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: python scripts/release/release_bundle.py --directory dist/release --bundle "$BUNDLE_PATH" --commit "$SOURCE_COMMIT" --tag "$RELEASE_TAG"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, MIT
+        with:
+          name: signed-release-${{ matrix.target }}
+          path: |
+            dist/release/*.zip
+            dist/release/*.manifest.json
+            dist/release/*.spdx.json
+            dist/release/SHA256SUMS
+            dist/release/attestation.jsonl
+          if-no-files-found: error
+          retention-days: 7
+
+  accept:
+    needs: [preflight, sign]
+    permissions:
+      contents: read
+      attestations: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0, MIT
+        with:
+          python-version: '3.13.14'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8, MIT
+        with:
+          name: signed-release-${{ matrix.target }}
+          path: dist/release
+          digest-mismatch: error
+      - name: Verify and install on a separate runner without signing authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Public, independently reviewed repository variable; no environment keys.
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          args=()
+          if [ "$RUNNER_OS" = macOS ]; then args+=(--apple-team "$APPLE_TEAM_ID"); fi
+          python scripts/release/accept_release.py --directory dist/release --commit "$SOURCE_COMMIT" --tag "$RELEASE_TAG" "${args[@]}"
+
+  complete:
+    needs: [preflight, build, sign, accept]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 1
+    permissions: {}
+    steps:
+      - run: echo 'All native release acceptance checks passed. No GitHub Release or package publication was performed.'

@@ -3,8 +3,8 @@
 `scripts/release/stage_release.py` prepares the native release archive, manifest,
 SBOM and checksum list that a later publisher-attestation step must authenticate.
 It never compiles code, executes a candidate, creates a GitHub release, uploads an
-attestation, installs an executable or changes an existing installation. No release workflow
-is enabled by this implementation.
+attestation, installs an executable or changes an existing installation. The
+[release pipeline](RELEASE_PIPELINE.md) composes it without automatic dispatch.
 
 This is build tooling for the direct `.github/workflows/release.yml` identity
 reserved by [publisher verification](RELEASE_AUTHENTICATION.md). It refuses a
@@ -102,10 +102,10 @@ layouts, changed sources, failed notary checks, corrupt candidates,
 destination races and safe errors. They do not prove a real Developer ID signature
 or a public attestation. Native candidate CI remains independent.
 
-The direct signing workflow still needs protected-environment approval, narrowly
-scoped credentials and OIDC permissions, current unresolved-failure checks,
-attestation of exact final files, authenticated installation/smoke checks and
-reviewed publication. A real owned Apple identity, real positive Apple/Sigstore
+The direct [signing workflow](RELEASE_PIPELINE.md) defines protected-environment
+approval, scoped permissions, current unresolved-failure checks, attestation of
+exact final files and authenticated installation/smoke checks. Reviewed
+publication, a real owned Apple identity, real positive Apple/Sigstore
 verification, release notes, rollback policy, supported-platform decisions and
 fresh-machine acceptance remain release gates. Issues #46, #50 and #57 remain
 unresolved; closing an issue or a later passing CI run does not establish a fix.

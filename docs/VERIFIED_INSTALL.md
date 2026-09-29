@@ -7,7 +7,7 @@ state, overwrites an existing install or selects `latest`. It refuses the unsign
 test candidates produced by the current packaging workflow.
 
 There is no supported signed release yet. This implements the install boundary;
-the actual signing workflow, Apple credentials, positive signature/notarization
+the [signing workflow](RELEASE_PIPELINE.md) still requires Apple credentials, positive signature/notarization
 evidence and fresh-user acceptance remain required. Do not present mock tests or
 an unsigned candidate smoke test as proof that a distributed release works.
 

@@ -34,9 +34,9 @@ transparency evidence. Every invocation requires:
 - SHA-256 and a GitHub-hosted runner.
 
 There is no custom trusted root, alternate workflow, branch, digest, `latest`
-lookup, skip-verification switch or fallback to checksums. The release workflow
-identity is reserved here; its implementation and an authentic positive signed
-artifact remain acceptance work. Candidate packaging has no signing authority,
+lookup, skip-verification switch or fallback to checksums. The direct
+[release workflow](RELEASE_PIPELINE.md) implements this identity; an authentic
+positive signed artifact remains acceptance work. Candidate packaging has no signing authority,
 and its passing checks do not create a trusted release.
 
 GitHub CLI and its Sigstore trust material are part of the trusted verification

@@ -126,6 +126,7 @@ def signing_gate(root, commit, tag, read=github, environment=None, *, job="prefl
     require(expected_source(commit, tag) and len(tag) <= 64, "invalid_source")
     environment = os.environ if environment is None else environment
     try:
+        require(job in {"preflight", "sign"}, "release_workflow_context")
         workflow_context(commit, tag, environment, job=job)
         context_valid = True
     except VerificationError:

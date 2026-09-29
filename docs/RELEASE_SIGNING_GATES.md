@@ -1,6 +1,6 @@
 # Signing prerequisites
 
-`scripts/release/signing_gate.py` is a read-only check for the future direct
+`scripts/release/signing_gate.py` is a read-only check for the direct
 release workflow's unprivileged `preflight` job. It does not sign, approve,
 publish, create an environment or change repository settings.
 
@@ -76,7 +76,7 @@ database and must never contain private reports or customer data.
 
 ## Workflow boundary and remaining acceptance
 
-The [staging helper](RELEASE_STAGING.md) still needs a direct workflow that keeps
+The [release pipeline](RELEASE_PIPELINE.md) composes the staging helper and keeps
 compilation and candidate execution on separate unprivileged runners, uses exact
 same-run immutable artifact handoffs, isolates Apple credentials, attests final
 bytes and verifies/executes installed releases on fresh acceptance runners.
@@ -86,8 +86,8 @@ Current-source checks must run again before signing/publishing because policy,
 tag state, CI evidence and environment configuration can change. This preflight
 does not prove an authentic signature, credential availability, approval,
 notarization, a safe rollback, fresh-machine acceptance or production readiness.
-No signing environment, workflow, tag, public release or deployment has been
-created by this change.
+The workflow is defined but has not been dispatched. No signing environment,
+tag, public release or deployment has been created by this change.
 
 Provider contracts: GitHub's [environment API](https://docs.github.com/en/rest/deployments/environments),
 [deployment branch/tag policies](https://docs.github.com/en/rest/deployments/branch-policies)
