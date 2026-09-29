@@ -13,7 +13,8 @@ confirmed native state, current consent or authority to send. The native lifecyc
 provides a separate signing method that requires a confirmed local receipt and
 uses only its restored key, identity and pinned origin.
 The explicit [event HTTPS API](EVENT_HTTPS.md) holds that native owner through one
-authenticated exchange; it does not enable continuous sync or complete a queue entry.
+authenticated exchange. Its one-attempt runner additionally completes the current
+queue lease; neither API enables continuous sync.
 
 ## Bootstrap boundary
 

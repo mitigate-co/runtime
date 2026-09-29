@@ -69,11 +69,20 @@ fixed outcome:
 - `Unauthorized`: pause admission/delivery until explicit operator recovery.
 
 A crash after receiver acceptance but before the local completion commit can
-redeliver. The future receiver must independently deduplicate stable event IDs.
+redeliver. The receiver must independently deduplicate stable event IDs.
 The sender must verify enrollment/consent, destination and signature immediately
 before transmission, use a timeout shorter than the lease and classify responses
 without passing their bodies into this API. The queue alone does not authenticate
 a destination or authorize any network action.
+
+`delivery_ready(&Lease, budget_ms)` checks the exact committed token/body and
+partition, current pause state, and remaining lease and retention time. Budgets
+must be 1–30,000 ms; both remaining times must be strictly greater. It commits
+clock/expiry maintenance before returning and never extends a deadline. Failure
+or `false` forbids submission. [Event HTTPS](EVENT_HTTPS.md) uses a 25-second
+budget and offers a one-attempt runner that persists only classified outcomes.
+The preflight does not hold a transaction across network I/O or coordinate
+shutdown: a sender owner must still drain outstanding work on opt-out.
 
 The pure [event signing contract](SIGNED_EVENTS.md) takes this committed lease and
 checks both partition references before signing. It binds the exact canonical

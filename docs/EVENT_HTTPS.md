@@ -1,16 +1,23 @@
 # Explicit event HTTPS exchange
 
 With the optional `mitigate-enrollment/https` feature,
-`event_https::submit(&EnrollmentStore, &Lease)` signs and submits exactly one
+`event_https::submit(&EnrollmentStore, &mut Outbox, &Lease)` signs and submits exactly one
 checked outbox event. A pending enrollment or different queue partition fails
 before any network operation. The confirmed native owner selects its original
 key, identity and pinned Platform origin and remains borrowed, holding the
 enrollment operation lock, until the synchronous exchange returns.
 
-This is a transport component, not an active sync service. It does not obtain
-consent, validate current queue leases, create events, run a background worker,
-schedule retries or change queue/native state. Local MCP operation does not call
-it automatically. Run it on the owning blocking worker, outside an async reactor.
+The final preflight reads committed consent and exact lease ownership, then
+requires more than 25 seconds remaining in both lease and event retention. That
+reserves the 20-second exchange plus five seconds for completion. It does not
+extend either deadline. Preflight commits clock/expiry maintenance before sending;
+storage failure releases no permission. A paused queue, purged/replaced claim,
+clock rollback or insufficient time sends nothing.
+
+This is not an active sync service. Neither API obtains consent, creates events,
+runs a background worker or changes native credentials. Local MCP operation does
+not call it automatically. Run it on the owning blocking worker, outside an async
+reactor. Enrollment alone never activates delivery.
 
 ## Fixed destination and shared transport policy
 
@@ -49,6 +56,7 @@ references and canonical event digest must match the original signed request.
 | Response/failure | Fixed result | Caller responsibility |
 | --- | --- | --- |
 | Native pending/integrity/scope failure | `Enrollment` | Send nothing; resolve local enrollment/configuration |
+| Queue preflight failure | `Outbox` / `NotReady` | Send nothing; preserve/reconcile local state |
 | 200 with exact bound receipt | `HttpsEventReceipt` | Complete only the original current lease |
 | 401, 403, 404, 410 | `Unauthorized` | Pause optional delivery and check current authority |
 | 400, 409, 413, 422 | `Rejected` | Do not retry the unchanged event automatically |
@@ -58,17 +66,38 @@ references and canonical event digest must match the original signed request.
 | Timeout/connection failure | `Timeout` / `Connection` | Acceptance may be uncertain; retain the exact event |
 | Other status or invalid receipt/framing | `Response` | Acceptance is unconfirmed; retain the exact event |
 
-No outcome in this table automatically mutates the outbox. A crash after remote
+`submit` leaves outcome completion to its caller. A crash after remote
 acceptance can redeliver the same event; the hosted receiver must durably deduplicate
 it. A local receipt never establishes current remote authorization after revocation.
 The receiver remains responsible for tenant isolation and event retention.
 
-## Consent and lease integration boundary
+## One-attempt queue runner
 
-The caller must obtain explicit current consent and validate its lease immediately
-before submission. The global HTTP limit is shorter than the outbox's thirty-second
-lease, but time spent before the request counts too. A stale response must not
-complete a renewed lease. Enrollment locking prevents cooperating local credential
+`event_https::deliver_next(&EnrollmentStore, &mut Outbox)` composes a claim,
+preflight, signed HTTPS exchange and local completion. Restore the native owner
+first, before a claim: an OS unlock prompt must not consume lease time. Pending
+native state or a mismatched queue fails before any claim. The owner remains
+borrowed through the final queue commit.
+
+The runner returns `Idle` for an empty, paused or backoff-delayed queue. An exact
+receipt produces `Accepted` only after local completion commits. Permanent
+refusals produce `Rejected` and a duplicate receipt; unchanged events do not retry.
+Unauthorized responses and redirects pause the entire outbox. Connection, timeout,
+rate-limit, server and malformed-receipt failures retain the same event with bounded
+backoff. It makes at most one request and never resumes the queue.
+
+A local completion failure returns an error, even after remote acceptance. Reopen
+to reconcile; never manufacture an acknowledgment. A purge after transmission wins
+over a late response. Local preflight failures retain an uncompleted claim for
+normal expiry, without changing consent or treating it as remote rejection.
+
+## Shutdown integration boundary
+
+The caller must obtain explicit consent before creating/resuming an outbox.
+Preflight observes that queue state immediately before transmission; it is not
+an atomic lock spanning the network. OS scheduling or suspension can consume the
+remaining deadline after the check. A stale response cannot complete a renewed
+lease. Enrollment locking prevents cooperating local credential
 deletion during the request; it is not an outbox lock or remote authorization.
 
 This synchronous API has no mid-flight cancellation handle. A future owning sync
@@ -85,7 +114,8 @@ cargo run -p mitigate-enrollment --all-features --example native_lifecycle --loc
 ```
 
 The native demonstration uses only its own synthetic OS credential/queue and
-checks pending submission refusal without opening a connection. It requires an
+checks pending submission/claim refusal and confirmed paused refusal without
+opening a connection. It requires an
 unlocked native store and deletes its exact credential; it never prints secrets.
 
 Loopback TLS tests use ephemeral in-memory certificates and a private test-only
@@ -93,5 +123,9 @@ agent. They verify the exact transmitted checked body and headers, certificate
 rejection before HTTP, unchanged queues, redirect refusal, proxy isolation,
 status classification, receipt binding, malformed/oversized/truncated framing
 and stalled response deadlines. Production has no test-root injection API. The
+composed runner additionally tests durable acceptance, permanent refusal, backoff,
+authority/redirect pause, withdrawal after claim, and purge before local completion.
+Outbox tests cover independent-connection controls, exact time boundaries, retention,
+foreign/replaced claims, modified bytes, rollback and injected commit failure. The
 existing bootstrap transport suite runs against the same extracted policy and
 reader so the shared implementation cannot silently weaken enrollment.

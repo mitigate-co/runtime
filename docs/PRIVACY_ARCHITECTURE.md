@@ -192,7 +192,10 @@ The explicit [event HTTPS exchange](EVENT_HTTPS.md) borrows that confirmed nativ
 owner, sends only its signed checked lease to the pinned endpoint and returns an
 exact bound receipt. It reuses the bootstrap's TLS/proxy/redirect/logging controls
 and bounded JSON reader. No background producer, consent activation or queue
-completion is implicit. Coordinated opt-out remains required before continuous sync.
+completion is implicit in `submit`. It now requires committed consent and lease
+preflight. The explicit `deliver_next` runner composes one attempt with local
+completion, fixed retry categories and authority-induced pause. It cannot enable
+or resume consent. Coordinated opt-out remains required before continuous sync.
 
 The optional [HTTPS transport](ENROLLMENT_HTTPS.md) explicitly sends the bootstrap
 claim to its signed audience with certificate verification, no redirects or

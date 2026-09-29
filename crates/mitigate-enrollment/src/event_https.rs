@@ -1,11 +1,12 @@
 //! One explicit signed event exchange using a confirmed, locked native enrollment.
-//! No consent mutation, background worker, queue completion or automatic retry.
+//! Composes one bounded attempt with exact lease checks and durable completion.
+//! No consent activation, background worker or automatic retry loop.
 use crate::{
     event::{EVENT_PATH, EventReceipt, MAX_EVENT_RECEIPT_BYTES, SignedEvent},
     storage::{self, EnrollmentStore},
     transport,
 };
-use mitigate_egress::outbox::Lease;
+use mitigate_egress::outbox::{self, DeliveryOutcome, Lease, Outbox};
 use std::fmt;
 use ureq::{Agent, Body, http::Response};
 
@@ -17,6 +18,10 @@ mod tests;
 pub enum Error {
     /// Confirmed native state or matching lease was unavailable; nothing was sent.
     Enrollment(storage::Error),
+    /// Queue state could not authorize or durably finish this attempt.
+    Outbox(outbox::Error),
+    /// Consent was paused or too little lease/retention time remains. Nothing sent.
+    NotReady,
     /// Verified HTTPS could not be established or completed; acceptance is uncertain.
     Connection,
     /// A bounded request phase timed out; preserve the same event for recovery.
@@ -39,6 +44,8 @@ impl Error {
     pub const fn code(self) -> &'static str {
         match self {
             Self::Enrollment(error) => error.code(),
+            Self::Outbox(_) => "sync_outbox",
+            Self::NotReady => "sync_not_ready",
             Self::Connection => "sync_connection",
             Self::Timeout => "sync_timeout",
             Self::Redirect => "sync_redirect",
@@ -54,6 +61,8 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Enrollment(error) => error.fmt(f),
+            Self::Outbox(error) => error.fmt(f),
+            Self::NotReady => f.write_str("Delivery is paused or its time budget expired. No request was sent."),
             Self::Connection => f.write_str("Could not complete verified HTTPS delivery. Retain this event and check the Platform address, network and clock."),
             Self::Timeout => f.write_str("Event delivery timed out. Retry the same queued event after backoff."),
             Self::Redirect => f.write_str("Platform redirected event delivery. No redirect was followed. Pause sync and check its address."),
@@ -79,13 +88,100 @@ impl HttpsEventReceipt {
 
 /// Sign and send one lease with its confirmed native enrollment, keeping the
 /// owner's operation lock borrowed for the entire exchange. Pending/wrong-scope
-/// state fails before network I/O. The caller must separately obtain current sync
-/// consent, validate the lease, coordinate opt-out/cancellation and persist the
-/// outcome. Twenty-second HTTP deadline is shorter than the outbox's 30-second
-/// lease, but time spent before submission still counts against that lease.
-pub fn submit(store: &EnrollmentStore, lease: &Lease) -> Result<HttpsEventReceipt, Error> {
+/// state fails before network I/O. Rechecks the committed outbox immediately
+/// before transmission, reserving the HTTP deadline plus five seconds for local
+/// completion. The caller still coordinates shutdown and persists the outcome.
+/// This cannot retract an already dispatched request or extend the lease.
+pub fn submit(
+    store: &EnrollmentStore,
+    outbox: &mut Outbox,
+    lease: &Lease,
+) -> Result<HttpsEventReceipt, Error> {
     let signed = store.sign_event(lease).map_err(Error::Enrollment)?;
-    exchange(&transport::config().build().into(), &signed)
+    let agent = transport::config().build().into();
+    checked_exchange(outbox, lease, &signed, &agent)
+}
+
+fn checked_exchange(
+    outbox: &mut Outbox,
+    lease: &Lease,
+    signed: &SignedEvent,
+    agent: &Agent,
+) -> Result<HttpsEventReceipt, Error> {
+    let budget_ms = transport::EXCHANGE_TIMEOUT.as_millis() as u64 + 5000;
+    if !outbox
+        .delivery_ready(lease, budget_ms)
+        .map_err(Error::Outbox)?
+    {
+        return Err(Error::NotReady);
+    }
+    exchange(agent, signed)
+}
+
+/// One completed queue operation, never an event/response payload. Retry and
+/// pause report only fixed transport categories; local commit failure is Err.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Delivery {
+    /// Paused, empty or waiting for a retained event's backoff.
+    Idle,
+    /// Exact authenticated acknowledgment and local completion both committed.
+    Accepted,
+    /// Permanent refusal recorded; unchanged bytes will not be retried.
+    Rejected,
+    /// Same event retained with bounded retry backoff.
+    Retry(Error),
+    /// Enrollment refusal or redirect paused the entire queue.
+    Paused(Error),
+}
+
+/// Send at most one ready event, with no loop, implicit resume or producer.
+/// Open the enrollment before calling: native credential prompts must finish
+/// before claiming a short-lived lease. Its exclusive owner stays borrowed until
+/// the receipt/outcome commit finishes. Call only on an optional sync worker;
+/// queue/network failures must never control local MCP authorization.
+pub fn deliver_next(store: &EnrollmentStore, outbox: &mut Outbox) -> Result<Delivery, Error> {
+    if !matches!(store.status(), storage::Status::Confirmed { .. }) {
+        return Err(Error::Enrollment(storage::Error::Pending));
+    }
+    let report = outbox.inspect().map_err(Error::Outbox)?;
+    if &report.partition.runtime_ref != store.identity().runtime_ref()
+        || &report.partition.enrollment_ref != store.identity().enrollment_ref()
+    {
+        return Err(Error::Enrollment(storage::Error::Scope));
+    }
+    deliver_with(outbox, |outbox, lease| submit(store, outbox, lease))
+}
+
+// Private seam injects failures after real claims without granting callers a
+// configurable transport or an acknowledgment constructor.
+fn deliver_with(
+    outbox: &mut Outbox,
+    send: impl FnOnce(&mut Outbox, &Lease) -> Result<HttpsEventReceipt, Error>,
+) -> Result<Delivery, Error> {
+    let Some(lease) = outbox.claim().map_err(Error::Outbox)? else {
+        return Ok(Delivery::Idle);
+    };
+    let (outcome, result) = match send(outbox, &lease) {
+        Ok(_) => (DeliveryOutcome::Accepted, Delivery::Accepted),
+        Err(Error::Rejected) => (DeliveryOutcome::Rejected, Delivery::Rejected),
+        Err(reason @ (Error::Unauthorized | Error::Redirect)) => {
+            (DeliveryOutcome::Unauthorized, Delivery::Paused(reason))
+        }
+        Err(
+            reason @ (Error::Connection
+            | Error::Timeout
+            | Error::RateLimited
+            | Error::Unavailable
+            | Error::Response),
+        ) => (DeliveryOutcome::Transient, Delivery::Retry(reason)),
+        // Nothing was sent. Retain the claim for normal expiry/recovery without
+        // rewriting consent or mistaking a local failure for receiver rejection.
+        Err(error @ (Error::Enrollment(_) | Error::Outbox(_) | Error::NotReady)) => {
+            return Err(error);
+        }
+    };
+    outbox.complete(lease, outcome).map_err(Error::Outbox)?;
+    Ok(result)
 }
 
 fn exchange(agent: &Agent, event: &SignedEvent) -> Result<HttpsEventReceipt, Error> {

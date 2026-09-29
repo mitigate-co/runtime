@@ -142,6 +142,31 @@ impl Outbox {
             }))
         })
     }
+    /// Recheck consent, exact ownership and remaining time immediately before a
+    /// sender starts I/O. The budget must cover its entire bounded exchange and
+    /// completion. A false result forbids sending; this never extends a lease.
+    /// Pause/purge can still race after return, so the sender must coordinate
+    /// shutdown separately and never claim an in-flight request was retracted.
+    pub fn delivery_ready(&mut self, lease: &Lease, budget_ms: u64) -> Result<bool, Error> {
+        if !(1..=LEASE_MS).contains(&budget_ms) {
+            return Err(Error::Input);
+        }
+        self.update(|state, rows, _| {
+            let id = lease.event.event_id().as_str();
+            let record = rows.get(id).ok_or(Error::StaleLease)?;
+            let current = record.lease.as_ref().ok_or(Error::StaleLease)?;
+            if state.partition != lease.partition || current.token != lease.token {
+                return Err(Error::StaleLease);
+            }
+            if record.event.as_bytes() != lease.event.as_bytes() {
+                return Err(Error::Integrity);
+            }
+            Ok(!state.paused
+                && current.until_ms.saturating_sub(state.last_time) > budget_ms
+                && (record.admitted_ms + state.limits.max_age_ms).saturating_sub(state.last_time)
+                    > budget_ms)
+        })
+    }
     /// Record a classified response only for the still-current lease. Completion
     /// consumes the handle; stale acknowledgements cannot remove a newer attempt.
     /// Transient delivery is at-least-once: the receiver must deduplicate event IDs.

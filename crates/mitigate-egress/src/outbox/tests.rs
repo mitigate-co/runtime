@@ -219,6 +219,86 @@ fn clock_rollback_cannot_revive_an_observed_expired_lease() {
 }
 
 #[test]
+fn delivery_preflight_observes_pause_purge_and_other_connections() {
+    let fixture = Fixture::new();
+    let mut store = fixture.store(Limits::default());
+    store.admit(&event('1')).unwrap();
+    let lease = store.claim().unwrap().unwrap();
+    assert_eq!(store.delivery_ready(&lease, 25_000), Ok(true));
+    let mut control = Outbox::open(&fixture.db(), partition()).unwrap();
+    control.test_time = Some(1000);
+    control.set_paused(true).unwrap();
+    assert_eq!(store.delivery_ready(&lease, 25_000), Ok(false));
+    control.purge().unwrap();
+    assert_eq!(store.delivery_ready(&lease, 25_000), Err(Error::StaleLease));
+    control.set_paused(false).unwrap();
+    control.admit(&event('1')).unwrap();
+    let replacement = control.claim().unwrap().unwrap();
+    assert_eq!(store.delivery_ready(&lease, 25_000), Err(Error::StaleLease));
+    assert_eq!(store.delivery_ready(&replacement, 25_000), Ok(true));
+    assert_eq!(store.inspect().unwrap().pending, 1);
+}
+
+#[test]
+fn delivery_preflight_reserves_lease_and_retention_time_without_extending_either() {
+    for age in [30_000, 7 * 86_400_000] {
+        let fixture = Fixture::new();
+        let mut store = fixture.store(Limits {
+            max_events: 1,
+            max_age_ms: age,
+        });
+        store.admit(&event('1')).unwrap();
+        let lease = store.claim().unwrap().unwrap();
+        store.test_time = Some(4999);
+        assert_eq!(store.delivery_ready(&lease, 26_000), Ok(true));
+        store.test_time = Some(5000);
+        assert_eq!(store.delivery_ready(&lease, 26_000), Ok(false));
+        store.test_time = Some(31_000);
+        assert_eq!(store.delivery_ready(&lease, 1), Err(Error::StaleLease));
+        store.test_time = Some(30_999);
+        assert_eq!(store.delivery_ready(&lease, 1), Err(Error::Clock));
+    }
+    let fixture = Fixture::new();
+    let mut store = fixture.store(Limits {
+        max_events: 1,
+        max_age_ms: 1000,
+    });
+    store.admit(&event('1')).unwrap();
+    let lease = store.claim().unwrap().unwrap();
+    assert_eq!(store.delivery_ready(&lease, 25_000), Ok(false));
+    assert_eq!(store.delivery_ready(&lease, 999), Ok(true));
+    assert_eq!(store.delivery_ready(&lease, 1000), Ok(false));
+}
+
+#[test]
+fn delivery_preflight_rejects_foreign_claims_modified_bytes_and_failed_commits() {
+    let fixture = Fixture::new();
+    let other = Fixture::new();
+    let mut store = fixture.store(Limits::default());
+    let mut unrelated = other.store(Limits::default());
+    store.admit(&event('1')).unwrap();
+    unrelated.admit(&event('1')).unwrap();
+    let mut lease = store.claim().unwrap().unwrap();
+    let foreign = unrelated.claim().unwrap().unwrap();
+    assert_eq!(store.delivery_ready(&foreign, 1), Err(Error::StaleLease));
+    assert_eq!(store.delivery_ready(&lease, 0), Err(Error::Input));
+    assert_eq!(store.delivery_ready(&lease, 30_001), Err(Error::Input));
+    let original = lease.event.as_bytes().to_vec();
+    let mut changed: Value = serde_json::from_slice(&original).unwrap();
+    changed["facts"]["duration_ms"] = json!(42);
+    lease.event = CheckedEvent::from_bytes(&serde_json::to_vec(&changed).unwrap()).unwrap();
+    assert_eq!(store.delivery_ready(&lease, 1), Err(Error::Integrity));
+    lease.event = CheckedEvent::from_bytes(&original).unwrap();
+    store.connection().commit_hook(Some(|| true)).unwrap();
+    assert_eq!(store.delivery_ready(&lease, 1), Err(Error::Storage));
+    store
+        .connection()
+        .commit_hook(None::<fn() -> bool>)
+        .unwrap();
+    assert_eq!(store.delivery_ready(&lease, 1), Ok(true));
+}
+
+#[test]
 fn write_and_commit_failures_return_no_admission_or_delivery_lease() {
     let fixture = Fixture::new();
     let mut store = fixture.store(Limits::default());

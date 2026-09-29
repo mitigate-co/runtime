@@ -70,6 +70,188 @@ fn receipt() -> String {
     })
     .to_string()
 }
+
+fn ready_fixture(origin: &PlatformOrigin) -> EventFixture {
+    let mut fixture = event_fixture(origin);
+    // Discard the setup lease. The runner must obtain its own committed claim.
+    fixture.outbox.purge().unwrap();
+    fixture.outbox.set_paused(false).unwrap();
+    assert_eq!(fixture.outbox.admit(event_bytes()), Ok(Admission::Queued));
+    fixture
+}
+
+#[test]
+fn composed_delivery_commits_only_the_exact_authenticated_receipt() {
+    let tls = Fixture::start(response(200, "", &receipt()));
+    let mut fixture = ready_fixture(&tls.origin);
+    assert_eq!(
+        deliver_with(&mut fixture.outbox, |outbox, lease| {
+            checked_exchange(outbox, lease, &fixture.signed, &tls.agent)
+        }),
+        Ok(Delivery::Accepted)
+    );
+    let report = fixture.outbox.inspect().unwrap();
+    assert_eq!((report.pending, report.leased, report.receipts), (0, 0, 1));
+    assert_eq!(
+        fixture.outbox.admit(event_bytes()),
+        Ok(Admission::Duplicate)
+    );
+    let request = tls.finish().unwrap();
+    assert!(request.ends_with(fixture.signed.as_bytes()));
+}
+
+#[test]
+fn composed_delivery_retains_uncertain_events_and_pauses_refused_authority() {
+    for (status, reason, expected) in [
+        (
+            401,
+            Error::Unauthorized,
+            Delivery::Paused(Error::Unauthorized),
+        ),
+        (302, Error::Redirect, Delivery::Paused(Error::Redirect)),
+        (429, Error::RateLimited, Delivery::Retry(Error::RateLimited)),
+        (503, Error::Unavailable, Delivery::Retry(Error::Unavailable)),
+        (200, Error::Response, Delivery::Retry(Error::Response)),
+    ] {
+        let tls = Fixture::start(response(status, "", "private-response-canary"));
+        let mut fixture = ready_fixture(&tls.origin);
+        assert_eq!(
+            deliver_with(&mut fixture.outbox, |outbox, lease| {
+                checked_exchange(outbox, lease, &fixture.signed, &tls.agent)
+            }),
+            Ok(expected)
+        );
+        let report = fixture.outbox.inspect().unwrap();
+        assert_eq!((report.pending, report.leased, report.receipts), (1, 0, 0));
+        assert_eq!(
+            report.paused,
+            matches!(reason, Error::Unauthorized | Error::Redirect)
+        );
+        assert!(!serde_json::to_string(&report).unwrap().contains("canary"));
+        let request = tls.finish().unwrap();
+        assert!(request.ends_with(fixture.signed.as_bytes()));
+    }
+}
+
+#[test]
+fn composed_permanent_refusal_is_not_retried_and_idle_never_opens_transport() {
+    let tls = Fixture::start(response(422, "", "private-response-canary"));
+    let mut fixture = ready_fixture(&tls.origin);
+    assert_eq!(
+        deliver_with(&mut fixture.outbox, |outbox, lease| {
+            checked_exchange(outbox, lease, &fixture.signed, &tls.agent)
+        }),
+        Ok(Delivery::Rejected)
+    );
+    assert_eq!(fixture.outbox.inspect().unwrap().pending, 0);
+    assert_eq!(
+        fixture.outbox.admit(event_bytes()),
+        Ok(Admission::Duplicate)
+    );
+    assert_eq!(
+        deliver_with(&mut fixture.outbox, |_, _| panic!("empty queue sent")),
+        Ok(Delivery::Idle)
+    );
+    fixture.outbox.purge().unwrap();
+    fixture.outbox.set_paused(false).unwrap();
+    fixture.outbox.admit(event_bytes()).unwrap();
+    fixture.outbox.set_paused(true).unwrap();
+    assert_eq!(
+        deliver_with(&mut fixture.outbox, |_, _| panic!("paused queue sent")),
+        Ok(Delivery::Idle)
+    );
+    tls.finish().unwrap();
+}
+
+#[test]
+fn consent_withdrawal_after_claim_prevents_network_and_cannot_be_overridden() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let origin = PlatformOrigin::parse(&format!(
+        "https://127.0.0.1:{}",
+        listener.local_addr().unwrap().port()
+    ))
+    .unwrap();
+    for purge in [false, true] {
+        let mut fixture = ready_fixture(&origin);
+        let result = deliver_with(&mut fixture.outbox, |outbox, lease| {
+            if purge {
+                outbox.purge().unwrap();
+            } else {
+                outbox.set_paused(true).unwrap();
+            }
+            checked_exchange(
+                outbox,
+                lease,
+                &fixture.signed,
+                &transport::config().build().into(),
+            )
+        });
+        assert_eq!(
+            result,
+            Err(if purge {
+                Error::Outbox(outbox::Error::StaleLease)
+            } else {
+                Error::NotReady
+            })
+        );
+        let report = fixture.outbox.inspect().unwrap();
+        assert!(report.paused);
+        assert_eq!(report.pending, usize::from(!purge));
+        assert_eq!(
+            listener.accept().err().unwrap().kind(),
+            io::ErrorKind::WouldBlock
+        );
+    }
+}
+
+#[test]
+fn acceptance_cannot_be_reported_after_local_completion_loses_ownership() {
+    let tls = Fixture::start(response(200, "", &receipt()));
+    let mut fixture = ready_fixture(&tls.origin);
+    assert_eq!(
+        deliver_with(&mut fixture.outbox, |outbox, lease| {
+            let accepted = checked_exchange(outbox, lease, &fixture.signed, &tls.agent)?;
+            // A concurrent opt-out can purge after the server accepted bytes.
+            // Its local state wins; the response cannot recreate/acknowledge it.
+            outbox.purge().unwrap();
+            Ok(accepted)
+        }),
+        Err(Error::Outbox(outbox::Error::StaleLease))
+    );
+    let report = fixture.outbox.inspect().unwrap();
+    assert!(report.paused);
+    assert_eq!((report.pending, report.receipts), (0, 0));
+    tls.finish().unwrap();
+}
+
+#[test]
+fn local_failures_preserve_claims_and_transport_failures_schedule_recovery() {
+    let origin = PlatformOrigin::parse("https://mitigate.example").unwrap();
+    for reason in [
+        Error::Connection,
+        Error::Timeout,
+        Error::Enrollment(storage::Error::Scope),
+        Error::Outbox(outbox::Error::Busy),
+        Error::NotReady,
+    ] {
+        let mut fixture = ready_fixture(&origin);
+        let result = deliver_with(&mut fixture.outbox, |_, _| Err(reason));
+        let retry = matches!(reason, Error::Connection | Error::Timeout);
+        assert_eq!(
+            result,
+            if retry {
+                Ok(Delivery::Retry(reason))
+            } else {
+                Err(reason)
+            }
+        );
+        let report = fixture.outbox.inspect().unwrap();
+        assert_eq!(report.pending, 1);
+        assert_eq!(report.leased, usize::from(!retry));
+        assert!(!report.paused);
+    }
+}
 #[track_caller]
 fn rejected(reply: Vec<u8>, expected: Error) {
     let fixture = Fixture::start(reply);
