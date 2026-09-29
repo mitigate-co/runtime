@@ -107,6 +107,11 @@ pub(crate) enum SyncCommand {
         #[arg(long)]
         profile: PathBuf,
     },
+    /// Run the optional sender until paused or interrupted; never enables consent.
+    Run {
+        #[arg(long)]
+        profile: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]

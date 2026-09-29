@@ -238,6 +238,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         require(sync.inspect()?.paused && sync.inspect()?.pending == 0)?;
         println!("Actual CLI sync capture fixture passed.");
+        require(!sync.resume()?.paused)?;
+        let output = Command::new(cli.with_file_name(if cfg!(windows) {
+            "mitigate-test-mcp.exe"
+        } else {
+            "mitigate-test-mcp"
+        }))
+        .arg("sync-sender-contract")
+        .arg(cli)
+        .arg(&profile_path)
+        .stdin(std::process::Stdio::null())
+        .output()?;
+        if !output.status.success() {
+            return Err("actual CLI sync-sender fixture failed".into());
+        }
+        require(sync.inspect()?.paused && sync.inspect()?.pending == 0)?;
+        println!("Actual CLI continuous sender fixture passed.");
     }
     // Missing mapping state must never rotate identifiers or resume consent.
     // Shutdown/purge remain usable without this optional local catalog.

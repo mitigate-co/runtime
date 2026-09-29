@@ -7,6 +7,7 @@ fn sync_help_explains_explicit_delivery_and_local_controls() {
         ("enable", "without starting a sender"),
         ("pause", "wait for active delivery"),
         ("send", "at most one"),
+        ("run", "until paused or interrupted"),
         ("purge", "--confirm"),
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_mitigate"))
@@ -90,6 +91,10 @@ fn invalid_sync_requests_never_echo_input_or_create_partial_state() {
         ),
         (
             vec!["sync", "send", "--profile", path, "--json"],
+            "sync_profile",
+        ),
+        (
+            vec!["sync", "run", "--profile", path, "--json"],
             "sync_profile",
         ),
         (

@@ -332,3 +332,21 @@ maintenance commit. The existing concurrent pause test now treats documented
 SQLite `Busy` as contention while retaining its original deadline and requiring
 the actual committed pause. No runtime timeout, clock guard, wire/profile/storage
 version or consent rule changes. A continuous sender remains the next slice.
+
+The explicit `sync run` CLI now continuously delivers through the existing native
+owner, checked lease and signed HTTPS path. It requires a passing actual privacy
+probe, polls idle queues without credential access, honors durable backoff and
+stops on observed pause, authority refusal or fatal storage errors. Signals wait
+for current work without changing consent. A ready manual send applies the same
+privacy gate. See [controls](SYNC_CONTROLS.md) and ADR 0039.
+
+The full Linux workspace passed 339 tests, including compile-fail contracts;
+the native lock helper runs through its parent. Strict workspace Clippy and
+executable builds passed. An isolated Linux native-store fixture exercised real
+continuous CLI instances, failed-probe refusal, unchanged idle queue bytes,
+Ctrl-C/SIGTERM and durable pause, plus the existing capture/enrollment lifecycle.
+Seven deterministic driver tests cover cancellation boundaries, in-flight drain,
+backoff, permanent/authority refusals, output failure and fatal native/storage
+errors. No dependency, wire, profile or SQLite version changes. Three-OS CI remains
+the merge gate; inventory/fleet composition and issue #36 remain open. The preceding
+preparation change passed all ten CI checks and merged as PR #42 at `85ed4ad`.

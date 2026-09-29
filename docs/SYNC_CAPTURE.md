@@ -15,15 +15,16 @@ from MCP client metadata or workload content.
 
 This producer captures governed call decisions, approval waiting, dispatch and
 observed completion. It does not export audit files, historical calls or inventory
-snapshots. Automatic network delivery is still separate work; the existing
-`mitigate sync send --profile SYNC` attempts one queued event.
+snapshots. Start `mitigate sync run --profile SYNC` separately for continuous
+delivery, or use `mitigate sync send --profile SYNC` to attempt one queued event.
+The gateway never starts a sender automatically.
 
 ## Availability and consent
 
 A dedicated metadata thread opens the selected profile and runs the real
 synthetic privacy self-test before advertising capture readiness. A failed or
 unavailable probe leaves capture disabled until restart; it is never silently
-retried or interpreted as passing. Run `mitigate privacy test` and investigate
+retried or interpreted as passing. Run `mitigate privacy self-test` and investigate
 failures before restarting capture. Missing/invalid configuration cannot disable
 local MCP protection or required local auditing.
 

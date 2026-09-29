@@ -151,7 +151,7 @@ fn run(path: PathBuf, receiver: Receiver<Envelope>, shared: &Shared) {
         Ok(report) if report.passed => (),
         _ => {
             eprintln!(
-                "Mitigate: sync capture disabled because the privacy self-test did not pass. Run mitigate privacy test before restarting sync capture."
+                "Mitigate: sync capture disabled because the privacy self-test did not pass. Run mitigate privacy self-test before restarting sync capture."
             );
             return;
         }

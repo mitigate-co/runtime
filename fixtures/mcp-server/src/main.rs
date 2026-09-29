@@ -7,6 +7,7 @@ mod governance_contract;
 mod listener_contract;
 mod schema_contract;
 mod secret_contract;
+mod sync_sender_contract;
 mod upstream_contract;
 
 use serde_json::{Value, json};
@@ -82,6 +83,13 @@ fn main() {
     }
     if mode == "sync-capture-contract" {
         governance_contract::verify_capture(
+            std::path::Path::new(args.get(2).expect("explicit CLI binary path")),
+            std::path::Path::new(args.get(3).expect("synthetic sync profile")),
+        );
+        return;
+    }
+    if mode == "sync-sender-contract" {
+        sync_sender_contract::verify(
             std::path::Path::new(args.get(2).expect("explicit CLI binary path")),
             std::path::Path::new(args.get(3).expect("synthetic sync profile")),
         );
