@@ -39,7 +39,7 @@ impl Outbox {
         db::create_file(path)?;
         let mut conn = db::connect(path)?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        db::initialize(&tx, &State::new(partition.clone(), limits))?;
+        db::initialize(&tx, &State::new(partition.clone(), limits)?)?;
         tx.commit()?;
         Ok(Self {
             conn,
@@ -64,9 +64,30 @@ impl Outbox {
     /// journal commit together. Rejections retain only bounded counts/reasons.
     /// They are not queued for retry, and rejected bytes/IDs/digests are discarded.
     pub fn admit(&mut self, bytes: &[u8]) -> Result<Admission, Error> {
+        self.admit_with_permit(bytes, None)
+    }
+    /// Admit a typed local capture only if its original consent is still current.
+    /// The comparison and admission share the same SQLite write transaction.
+    /// A rejected capture must be discarded, never retried with a fresh permit.
+    pub fn admit_captured(
+        &mut self,
+        event: &CheckedEvent,
+        permit: &CapturePermit,
+    ) -> Result<Admission, Error> {
+        self.admit_with_permit(event.as_bytes(), Some(permit))
+    }
+    fn admit_with_permit(
+        &mut self,
+        bytes: &[u8],
+        permit: Option<&CapturePermit>,
+    ) -> Result<Admission, Error> {
         let candidate = CheckedEvent::from_bytes(bytes);
         let observed = bytes.len().min(MAX_EVENT_BYTES + 1);
         self.update(|state, rows, receipts| {
+            if permit.is_some_and(|p| state.capture.as_ref() != Some(&p.0)) {
+                state.record(Action::Paused, 1, 0, None)?;
+                return Ok(Admission::ConsentChanged);
+            }
             let event = match candidate {
                 Ok(event) => event,
                 Err(reason) => {
@@ -206,6 +227,7 @@ impl Outbox {
                 }
                 DeliveryOutcome::Unauthorized => {
                     record.retry(state.last_time)?;
+                    state.invalidate_capture()?;
                     state.paused = true;
                     Action::Paused
                 }
@@ -216,9 +238,16 @@ impl Outbox {
     }
     /// Explicitly pause/resume admission and future claims. This cannot retract
     /// a request already sent by a lease owner. Enrollment remains independently checked.
+    /// Explicit resume upgrades legacy queue storage to schema two atomically;
+    /// earlier binaries cannot open the upgraded queue. No other operation upgrades it.
     pub fn set_paused(&mut self, paused: bool) -> Result<(), Error> {
         self.update(|state, _, _| {
-            if state.paused != paused {
+            let upgrade = !paused && state.capture.is_none();
+            if upgrade {
+                state.capture = Some(CaptureConsent::new()?);
+            }
+            if state.paused != paused || upgrade {
+                state.invalidate_capture()?;
                 state.paused = paused;
                 state.record(
                     if paused {
@@ -242,6 +271,7 @@ impl Outbox {
             let bytes = rows.values().map(|r| r.event.len()).sum();
             rows.clear();
             receipts.clear();
+            state.invalidate_capture()?;
             state.paused = true;
             state.record(Action::Purged, count, bytes, None)
         })
@@ -257,6 +287,23 @@ impl Outbox {
         }
         tx.commit()?;
         Ok(state.report(&rows, receipts.len()))
+    }
+    /// Read consent before capturing any optional producer metadata. Returns
+    /// None while paused or for legacy stores awaiting an explicit resume.
+    /// Does not renew consent, migrate, prune, unlock credentials or contact Platform.
+    pub fn capture_permit(&mut self) -> Result<Option<CapturePermit>, Error> {
+        let deadline = db::budget(&self.conn)?;
+        let tx = self.conn.transaction()?;
+        let (state, _, _) = db::load(&tx, deadline)?;
+        if state.partition != self.partition {
+            return Err(Error::Partition);
+        }
+        tx.commit()?;
+        Ok(if state.paused {
+            None
+        } else {
+            state.capture.map(CapturePermit)
+        })
     }
     fn update<T>(
         &mut self,

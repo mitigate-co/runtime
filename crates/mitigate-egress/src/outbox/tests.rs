@@ -10,9 +10,9 @@ use std::{
 };
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
-struct Fixture(PathBuf);
+pub(super) struct Fixture(PathBuf);
 impl Fixture {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let path = std::env::temp_dir().join(format!(
             "mitigate-outbox-{}-{}",
             std::process::id(),
@@ -21,10 +21,10 @@ impl Fixture {
         fs::create_dir(&path).unwrap();
         Self(path)
     }
-    fn db(&self) -> PathBuf {
+    pub(super) fn db(&self) -> PathBuf {
         self.0.join("outbox.sqlite")
     }
-    fn store(&self, limits: Limits) -> Outbox {
+    pub(super) fn store(&self, limits: Limits) -> Outbox {
         let mut store = Outbox::create(&self.db(), partition(), limits).unwrap();
         store.test_time = Some(1000);
         store
@@ -38,13 +38,13 @@ impl Drop for Fixture {
 fn reference(ch: char) -> SyncRef {
     serde_json::from_value(json!(format!("ref_{}", ch.to_string().repeat(32)))).unwrap()
 }
-fn partition() -> Partition {
+pub(super) fn partition() -> Partition {
     Partition {
         runtime_ref: reference('2'),
         enrollment_ref: reference('e'),
     }
 }
-fn event(ch: char) -> Vec<u8> {
+pub(super) fn event(ch: char) -> Vec<u8> {
     let mut value: Value =
         serde_json::from_slice(include_bytes!("../../../../examples/egress/decision.json"))
             .unwrap();

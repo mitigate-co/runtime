@@ -281,3 +281,17 @@ all 38 egress tests and two compile-fail checks. Synthetic Windows and isolated
 Linux native fixtures verified missing/wrong-scope catalog refusal and legacy
 resume without recreation; Linux exercised the setup controls through the actual
 CLI. No gateway producer or background sender is activated by this change.
+
+Buffered captures now require an opaque queue-specific consent permit. Queue
+admission checks it atomically; pause, purge and authentication withdrawal
+invalidate old captures even after resume, restart or journal eviction. New
+queues use storage version two; legacy queue upgrade occurs only on explicit
+resume, with commit-veto rollback and accepted-record preservation covered.
+Profiles and wire events do not change. See [outbox](OUTBOX.md) and ADR 0037.
+Windows and Linux passed 44 egress tests, 53 enrollment tests and six compile-fail
+checks; the native lock helper runs through its parent. Strict workspace Clippy
+passed, and the executable mapping example verified stale-capture refusal.
+The first Linux run returned `Storage(Clock)` in the privacy self-test before a
+subsequent full run passed. This narrows that recurrence to the clock guard; it
+does not establish the original cause or close issue #36. No timeout, clock
+tolerance, retry or privacy assertion was relaxed.

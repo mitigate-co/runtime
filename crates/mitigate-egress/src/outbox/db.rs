@@ -110,7 +110,7 @@ pub(super) fn initialize(conn: &Connection, state: &State) -> Result<(), Error> 
     conn.execute_batch(EVENTS)?;
     conn.execute_batch(RECEIPTS)?;
     conn.execute("INSERT INTO state VALUES(1,?1)", [encode(state)?])?;
-    conn.execute_batch("PRAGMA user_version=1")?;
+    conn.execute_batch("PRAGMA user_version=2")?;
     Ok(())
 }
 fn decode<T: DeserializeOwned>(bytes: &[u8], max: usize) -> Result<T, Error> {
@@ -123,8 +123,9 @@ fn decode<T: DeserializeOwned>(bytes: &[u8], max: usize) -> Result<T, Error> {
 fn encode<T: Serialize>(value: &T) -> Result<Vec<u8>, Error> {
     serde_json_canonicalizer::to_vec(value).map_err(|_| Error::Integrity)
 }
-fn schema(conn: &Connection) -> Result<(), Error> {
-    if conn.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))? != 1 {
+fn schema(conn: &Connection) -> Result<i64, Error> {
+    let version = conn.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?;
+    if !matches!(version, 1 | 2) {
         return Err(Error::Integrity);
     }
     let mut stmt = conn.prepare("SELECT name,sql FROM sqlite_schema ORDER BY name")?;
@@ -138,15 +139,18 @@ fn schema(conn: &Connection) -> Result<(), Error> {
     if rows.next()?.is_some() {
         return Err(Error::Integrity);
     }
-    Ok(())
+    Ok(version)
 }
 pub(super) fn load(conn: &Connection, deadline: Instant) -> Result<(State, Rows, Receipts), Error> {
-    schema(conn)?;
+    let version = schema(conn)?;
     if conn.query_row("SELECT count(*) FROM state", [], |r| r.get::<_, i64>(0))? != 1 {
         return Err(Error::Integrity);
     }
     let bytes: Vec<u8> = conn.query_row("SELECT record FROM state WHERE id=1", [], |r| r.get(0))?;
     let state: State = decode(&bytes, 65_536)?;
+    if (version == 2) != state.capture.is_some() {
+        return Err(Error::Integrity);
+    }
     state.validate()?;
     let mut events = Rows::new();
     let mut stmt = conn.prepare("SELECT id,record FROM events ORDER BY id")?;
@@ -231,5 +235,10 @@ pub(super) fn save(
         stmt.execute(params![id, encode(record)?])?;
     }
     conn.execute("UPDATE state SET record=?1 WHERE id=1", [encode(state)?])?;
+    // Only explicit resume introduces capture consent into a legacy state.
+    // The version and full record commit atomically in the caller's transaction.
+    if state.capture.is_some() {
+        conn.execute_batch("PRAGMA user_version=2")?;
+    }
     Ok(())
 }

@@ -1,5 +1,7 @@
 //! Optional customer-local queue and egress admission journal. Never owns a
 //! network handle, workload invocation or an enrollment credential.
+#[cfg(test)]
+mod consent_tests;
 pub(crate) mod db;
 mod state;
 mod storage;
@@ -73,7 +75,15 @@ pub enum Admission {
     Full,
     /// Explicitly paused outbox; no event was queued.
     Paused,
+    /// The capture predates a consent change or belongs to another queue.
+    ConsentChanged,
 }
+
+/// Opaque consent snapshot for bounded, customer-local producer buffers.
+/// Obtain before capture and present unchanged at admission. Cloning does not
+/// renew consent. This is not an enrollment credential or a wire identifier.
+#[derive(Clone)]
+pub struct CapturePermit(state::CaptureConsent);
 
 /// A delivery result classification supplied by the trusted sender. Never pass
 /// a response body/error message. Only transient failures are retried.
@@ -125,7 +135,7 @@ pub enum Action {
     IdConflict,
     /// Pending capacity exhausted.
     CapacityRejected,
-    /// Explicit or authorization-induced pause; admission also records this action.
+    /// Explicit/authorization-induced pause, paused admission or stale capture.
     Paused,
     /// Deliberate operator resume.
     Resumed,

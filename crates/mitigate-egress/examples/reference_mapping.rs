@@ -29,6 +29,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         runtime_ref: SyncRef::fresh()?,
         enrollment_ref: SyncRef::fresh()?,
     };
+    let mut queue = Outbox::create(
+        &fixture.0.join("outbox.sqlite"),
+        partition.clone(),
+        Limits::default(),
+    )?;
+    let consent = queue.capture_permit()?.ok_or("synthetic consent missing")?;
     let keys = [
         Kind::Client,
         Kind::Server,
@@ -74,12 +80,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             duration_ms: 0,
         },
     )?;
-    let mut queue = Outbox::create(
-        &fixture.0.join("outbox.sqlite"),
-        partition,
-        Limits::default(),
-    )?;
-    if queue.admit(event.as_bytes())? != Admission::Queued {
+    if queue.admit_captured(&event, &consent)? != Admission::Queued {
         return Err("synthetic admission failed".into());
     }
     let lease = queue.claim()?.ok_or("synthetic lease missing")?;
@@ -89,10 +90,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Err("synthetic mapping boundary failed".into());
     }
     queue.purge()?;
+    queue.set_paused(false)?;
+    if queue.admit_captured(&event, &consent)? != Admission::ConsentChanged
+        || queue.inspect()?.pending != 0
+    {
+        return Err("synthetic consent boundary failed".into());
+    }
+    queue.purge()?;
     drop(queue);
     drop(reopened);
     println!(
-        "Reference mapping verified: independent IDs, restart recovery and checked queue admission. No network requests."
+        "Reference mapping verified: independent IDs, restart recovery, checked admission and stale capture refusal. No network requests."
     );
     Ok(())
 }

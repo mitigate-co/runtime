@@ -73,7 +73,17 @@ controls. They are not silently migrated and no missing catalog is created on
 open/resume. A version-one profile cannot carry `reference_file`; version two
 requires it. Null, relative paths and catalog paths equal to the queue or anchor
 path are rejected. The profile
-change does not change version-one CLI reports, queue storage or wire events.
+change does not change version-one CLI reports or wire events. Queue storage
+versioning is independent of the immutable profile.
+
+Queue storage now has its own version-two consent guard (ADR 0037). New queues
+use it immediately. Explicit `resume` upgrades a valid version-one queue
+atomically, retaining its accepted events and receipts; status, pause, purge and
+send do not upgrade it. The immutable profile is unchanged. Earlier binaries
+cannot open the upgraded queue: pause/drain with the matching binary before a
+rollback and preserve its files. Buffered producers must present the consent
+permit captured with each event; pause/purge followed by resume cannot restore
+permission for an older buffered capture.
 
 Status, pause and purge intentionally do not open the reference catalog. They
 remain available if that optional store is missing or damaged. Preserve a damaged

@@ -77,7 +77,7 @@ enrollment and [explicit sync controls](SYNC_CONTROLS.md) are separate actions.
 
 The report shows retained event/byte/lease/receipt counts, fixed admission/delivery
 counters, bounded recent rejection reasons, observed type/version and retention
-settings. Version-one outboxes admit only `mcp_tool_decision` v1; observed types
+settings. Supported outboxes admit only `mcp_tool_decision` v1; observed types
 and versions derive from validated queue state, never arbitrary database strings.
 Lifetime accepted counters can remain after purge. The report is local diagnostic
 metadata and must not be sent directly to Platform.
@@ -92,8 +92,9 @@ Inspection report version 2 returns `destination: null` and
 `delivery_status: "not_checked"`: this read-only command does not open a sync
 profile or native enrollment. It must not infer that delivery is unconfigured.
 Use `sync status --profile PROFILE` to inspect consent for the selected binding.
-Version 1's unconditional unconfigured claim is replaced; the event contract,
-outbox schema and privacy self-test report remain version 1. Queue acceptance and
+Version 1's unconditional unconfigured claim is replaced; the event contract
+and privacy self-test report remain version 1; queue storage versions are
+documented in [Outbox](OUTBOX.md). Queue acceptance and
 an independently reported delivery acknowledgment are distinct facts.
 
 ## Development verification
