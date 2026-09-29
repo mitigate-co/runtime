@@ -47,6 +47,19 @@ def archive_bytes(path, files):
             archive.writestr(item, data, compresslevel=9)
 
 
+def verify_compiler(toolchain, target, channel, environment):
+    compiler = dict(line.split(": ", 1) for line in toolchain.splitlines()[1:] if ": " in line)
+    if compiler.get("host") != target or compiler.get("release") != channel:
+        raise ValueError("Candidate requires the pinned compiler on its native target")
+    overrides = {"RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "RUSTC", "RUSTC_WRAPPER",
+                 "RUSTC_WORKSPACE_WRAPPER", "CARGO_BUILD_RUSTFLAGS",
+                 "CARGO_TARGET_" + target.upper().replace("-", "_") + "_RUSTFLAGS"}
+    if any(value and (name in overrides or name.startswith("CARGO_PROFILE_RELEASE_"))
+           for name, value in environment.items()):
+        raise ValueError("Custom compiler flags, wrappers and profiles are not release inputs")
+    return compiler
+
+
 def package(root, target, output):
     import json
 
@@ -57,11 +70,8 @@ def package(root, target, output):
         raise ValueError("Output must be a new directory")
     commit = source_revision(root)
     toolchain = run(root, "rustc", "-vV")
-    if f"host: {target}" not in toolchain.splitlines():
-        raise ValueError("Candidate must be built and smoke-tested on its native target")
-    for name in ("RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER"):
-        if os.environ.get(name):
-            raise ValueError("Custom compiler flags/wrappers are not release inputs")
+    channel = tomllib.loads((root / "rust-toolchain.toml").read_text())["toolchain"]["channel"]
+    compiler = verify_compiler(toolchain, target, channel, os.environ)
     version = tomllib.loads((root / "Cargo.toml").read_text())["workspace"]["package"]["version"]
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         raise ValueError("Expected stable numeric candidate version")
@@ -85,7 +95,6 @@ def package(root, target, output):
     rust_notices = (sysroot / "share/doc/rust/COPYRIGHT-library.html").read_bytes()
     if not 0 < len(rust_notices) <= 4 * 1024 * 1024:
         raise ValueError("Missing or oversized Rust standard library notices")
-    compiler = dict(line.split(": ", 1) for line in toolchain.splitlines()[1:] if ": " in line)
     sbom["packages"].append({
         "SPDXID": "SPDXRef-RustStandardLibrary", "name": "Rust standard library",
         "versionInfo": compiler["release"], "filesAnalyzed": False,

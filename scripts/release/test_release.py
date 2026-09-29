@@ -10,7 +10,7 @@ import unittest
 import warnings
 import zipfile
 
-from package import archive_bytes, source_revision
+from package import archive_bytes, source_revision, verify_compiler
 from sbom import build_sbom, cli_graph, json_bytes, sha256, source_identity
 from smoke import verify_candidate
 
@@ -20,6 +20,18 @@ NAME = "mitigate-0.1.0-" + TARGET
 
 
 class CandidateTests(unittest.TestCase):
+    def test_compiler_target_version_flags_and_profiles_are_bound(self):
+        compiler = f"rustc fixture\nhost: {TARGET}\nrelease: 1.98.1\ncommit-hash: {COMMIT}"
+        self.assertEqual(verify_compiler(compiler, TARGET, "1.98.1", {})["release"], "1.98.1")
+        for target, channel in ((TARGET, "1.99.0"), ("aarch64-apple-darwin", "1.98.1")):
+            with self.assertRaises(ValueError):
+                verify_compiler(compiler, target, channel, {})
+        for name in ("RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "RUSTC", "RUSTC_WRAPPER",
+                     "CARGO_BUILD_RUSTFLAGS", "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS",
+                     "CARGO_PROFILE_RELEASE_LTO"):
+            with self.assertRaises(ValueError):
+                verify_compiler(compiler, TARGET, "1.98.1", {name: "override"})
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
