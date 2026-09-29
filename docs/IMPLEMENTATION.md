@@ -350,3 +350,21 @@ backoff, permanent/authority refusals, output failure and fatal native/storage
 errors. No dependency, wire, profile or SQLite version changes. Three-OS CI remains
 the merge gate; inventory/fleet composition and issue #36 remain open. The preceding
 preparation change passed all ten CI checks and merged as PR #42 at `85ed4ad`.
+
+A separate version-two inventory candidate now validates fixed classification
+facts in four-tool parts, with at most 512 tools per observation. Pure assembly
+requires every part, matching scope/time/counts and distinct ordered tools.
+Missing/conflicting parts cannot produce a complete snapshot. This type is not
+accepted by the decision outbox, signer, sender or inspector; producer and hosted
+composition remain required before activation. See [inventory protocol](INVENTORY_PROTOCOL.md)
+and ADR 0040. No active wire/queue/command behavior is widened.
+
+Windows and Linux each passed all 61 egress tests and three compile-fail checks.
+Eleven new tests cover every snapshot size, full-taxonomy byte limits, private
+input refusal, exact nested schemas and complete/partial/conflicting assembly.
+Strict workspace Clippy and formatting passed. The executable candidate example
+validated the synthetic part while explicitly reporting zero admission/network
+requests. No dependency or storage migration was added. Three-OS CI remains the
+merge gate; MCP-018 and the privacy-probe issue remain open.
+Continuous sender PR #43 passed all ten three-OS/security checks and merged at
+`d267dc7`; its tests do not close the outstanding inventory or release gates.

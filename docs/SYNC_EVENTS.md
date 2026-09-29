@@ -9,6 +9,10 @@ Validating or signing a candidate does not authorize delivery. Local audit/snaps
 exports are not accepted events.
 See [ADR 0024](decisions/0024-closed-events-before-durable-sync.md).
 
+The separate [inventory candidate protocol](INVENTORY_PROTOCOL.md) validates
+version-two bounded parts and complete observations. It is not yet an admitted
+outbox event and does not widen this active decision contract.
+
 ## Version 1: `mcp_tool_decision`
 
 The top-level object has exactly six required fields:
