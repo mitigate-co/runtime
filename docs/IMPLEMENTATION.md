@@ -31,6 +31,17 @@ Updated 2026-09-29. Follow the canonical ordered work packages. This file report
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
 
+## Approval storage failure evidence
+
+Windows Verify `36608722466` at `76c9914` failed during the existing governance
+schema-drift case: opening the approval store succeeded, but recording the
+operator's approval returned generic `Storage`. Issue #67 and the release blocker
+policy retain this failure. Its cause is not established; the benchmark check had
+not run. Approval errors now distinguish fixed SQLite busy/locked and interrupted
+categories without forwarding database text. Lock/budget/clock limits, refusal
+semantics and assertions remain unchanged. A later successful run does not resolve
+this failure or issues #36, #46, #50 and #57.
+
 Enforcing-gateway prerequisite merged in PR #16, main `eab5a6b`: exact private launch review binds
 executable/selected artifact bytes, argv, cwd, ordinary environment and native
 credential references. Optional reviewed inventory connections detect code drift

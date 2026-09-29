@@ -5,6 +5,27 @@ never executes a tool by itself. The [governed gateway](ENFORCEMENT.md) joins
 approval waiting and consumption with reviewed launch, policy, grants and limits.
 The library and CLI support review and decisions independently of Platform.
 
+## Storage failures
+
+`approval_store_busy` means SQLite refused a competing lock;
+`approval_store_interrupted` means SQLite interrupted the operation, including
+its bounded execution budget. Other database or integrity failures remain
+`approval_store_unavailable`. These fixed categories contain no SQLite text,
+SQL, request metadata or paths. All refuse authority; there is no automatic retry
+or changed lock/operation deadline. Inspect the current request before making
+another operator decision. A failed consumption never supplies a permit.
+
+Windows [issue #67](https://github.com/mitigate-co/runtime/issues/67) records a
+schema-drift fixture decision that returned the previous generic storage error.
+The new categories improve subsequent evidence; they do not establish that
+failure's cause or resolve it. The original failed run remains a release gate.
+
+The real CLI contract holds a separate SQLite write transaction while an approval
+command runs. The command must return the fixed busy code, omit paths and leave
+the request unapproved. Library tests separately require lock-refused consumption
+to return no permit and retain the existing approved state. A failed commit still
+rolls back, and all original clock, expiry and one-use checks remain enforced.
+
 ## Try the local workflow
 
 Build with `cargo build --locked`. Use a private local directory for the database.
