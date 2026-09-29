@@ -104,36 +104,90 @@ def smoke(directory, target, commit):
         executable = root / binary
         executable.write_bytes(files[binary])
         executable.chmod(0o700)
+        exercise(executable, manifest["version"])
+    print(
+        "Packaged native CLI passed fresh-state version/config/scan/privacy/egress checks."
+    )
+
+
+def exercise(executable, version):
+    """Execute an already trusted native binary with fresh, isolated test state."""
+    executable = executable.resolve()
+    with tempfile.TemporaryDirectory(prefix="mitigate-installed-smoke-") as temporary:
+        root = Path(temporary)
         project = root / "project"
         project.mkdir()
         config = root / "config.json"
         config.write_text('{"schema_version":1}', encoding="utf-8")
-        environment = {key: value for key, value in os.environ.items()
-                       if key.upper() in ("SYSTEMROOT", "WINDIR", "PATH", "TMP", "TEMP", "TMPDIR")}
-        environment.update({"HOME": str(root), "USERPROFILE": str(root), "XDG_DATA_HOME": str(root)})
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key.upper() in ("SYSTEMROOT", "WINDIR", "PATH", "TMP", "TEMP", "TMPDIR")
+        }
+        environment.update(
+            {"HOME": str(root), "USERPROFILE": str(root), "XDG_DATA_HOME": str(root)}
+        )
 
         def report(*args):
-            result = subprocess.run([str(executable), *args, "--json"], cwd=root, env=environment,
-                                    capture_output=True, timeout=30)
-            require(result.returncode == 0 and not result.stderr, "Packaged CLI command failed")
+            result = subprocess.run(
+                [str(executable), *args, "--json"],
+                cwd=root,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=30,
+            )
+            require(
+                result.returncode == 0 and not result.stderr,
+                "Packaged CLI command failed",
+            )
             return json.loads(result.stdout)
 
-        require(report("version")["version"] == manifest["version"], "Packaged version mismatch")
-        require(report("config", "check", "--config", str(config))["valid"] is True, "Config check failed")
+        require(report("version")["version"] == version, "Packaged version mismatch")
+        require(
+            report("config", "check", "--config", str(config))["valid"] is True,
+            "Config check failed",
+        )
         scan = report("mcp", "scan", "--root", str(project))
         require(scan["servers"] == [], "Fresh scan was not empty")
         privacy = report("privacy", "self-test", "--work-dir", str(root))
-        require(all(privacy[key] is True for key in ("passed", "positive_control", "queue_isolation",
-                    "persisted_canaries_absent")) and privacy["network_requests"] == 0, "Privacy probe failed")
+        require(
+            all(
+                privacy[key] is True
+                for key in (
+                    "passed",
+                    "positive_control",
+                    "queue_isolation",
+                    "persisted_canaries_absent",
+                )
+            )
+            and privacy["network_requests"] == 0,
+            "Privacy probe failed",
+        )
         egress = report("egress", "inspect")
-        require(egress["destination"] is None and egress["queue"] is None
-                and egress["observed_event_types"] == [], "Fresh egress state is not empty")
-        config.write_text('{"schema_version":1,"credential":"private-smoke-canary"}', encoding="utf-8")
-        result = subprocess.run([str(executable), "config", "check", "--config", str(config), "--json"],
-                                cwd=root, env=environment, capture_output=True, timeout=30)
-        require(result.returncode == 2 and not result.stdout
-                and b"private-smoke-canary" not in result.stderr, "Invalid config failed unsafely")
-    print("Packaged native CLI passed fresh-state version/config/scan/privacy/egress checks.")
+        require(
+            egress["destination"] is None
+            and egress["queue"] is None
+            and egress["observed_event_types"] == [],
+            "Fresh egress state is not empty",
+        )
+        config.write_text(
+            '{"schema_version":1,"credential":"private-smoke-canary"}', encoding="utf-8"
+        )
+        result = subprocess.run(
+            [str(executable), "config", "check", "--config", str(config), "--json"],
+            cwd=root,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            timeout=30,
+        )
+        require(
+            result.returncode == 2
+            and not result.stdout
+            and b"private-smoke-canary" not in result.stderr,
+            "Invalid config failed unsafely",
+        )
 
 
 if __name__ == "__main__":

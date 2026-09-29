@@ -34,9 +34,9 @@ transparency evidence. Every invocation requires:
 - SHA-256 and a GitHub-hosted runner.
 
 There is no custom trusted root, alternate workflow, branch, digest, `latest`
-lookup, skip-verification switch or fallback to checksums. The release workflow
-identity is reserved here; its implementation and an authentic positive signed
-artifact remain acceptance work. Candidate packaging has no signing authority,
+lookup, skip-verification switch or fallback to checksums. The direct
+[release workflow](RELEASE_PIPELINE.md) implements this identity; an authentic
+positive signed artifact remains acceptance work. Candidate packaging has no signing authority,
 and its passing checks do not create a trusted release.
 
 GitHub CLI and its Sigstore trust material are part of the trusted verification
@@ -58,11 +58,17 @@ verified snapshot. Unix directory/file modes are 0700/0600; Windows uses the
 current user's temporary-directory ACL. A trusted local host and no malicious
 same-user process remain prerequisites.
 
-Future consumers must use `authenticated_snapshot` and consume its private path
+Consumers must use `authenticated_snapshot` and consume its private path
 inside the context. The context removes the copy on success or failure. Reopening
 the original path based on a prior JSON report would reintroduce a race and is
 forbidden. Authentication alone does not authorize extracting an archive, running
 a binary, changing PATH, downgrading, or replacing an existing installation.
+
+The [verified local installer](VERIFIED_INSTALL.md) composes two authenticated
+snapshots with a closed signed-release layout, file digests, native Apple checks
+and exclusive new-directory creation. It does not accept unsigned candidates or
+activate/run the installed binary. Authentic positive release acceptance remains
+required.
 
 ## Acceptance evidence
 
@@ -78,6 +84,10 @@ The [source gate](RELEASE_SOURCE_GATES.md), Apple signing/notarization, signed
 manifest and archive, current unresolved security issues, safe installation,
 rollback and fresh-machine checks remain separate requirements. Do not clear the
 [release standard](engineering/RELEASE_STANDARD.md) from this report alone.
+
+[Native release staging](RELEASE_STAGING.md) prepares final native files and
+implements the Apple signing/notarization tool boundary. It returns no publisher
+authentication claim and cannot substitute for this verifier's real attestation.
 
 Policy follows the official [GitHub CLI verification interface](https://cli.github.com/manual/gh_attestation_verify),
 including its warning that editable provenance predicates are not certificate
