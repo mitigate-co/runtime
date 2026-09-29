@@ -162,7 +162,7 @@ def build_sbom(metadata, lockfile, root, commit, target, created):
         "name": f"mitigate-{target}-build-inputs",
         "documentNamespace": f"https://github.com/mitigate-co/runtime/sbom/{commit}/{target}",
         "creationInfo": {"created": created, "creators": ["Tool: mitigate-release-sbom-1"]},
-        "documentComment": "Resolved normal and build dependencies for the native CLI target. "
+        "comment": "Resolved normal and build dependencies for the native CLI target. "
             "Includes conservative build inputs; excludes dev-only crates. Not a reachability analysis. "
             "The packager adds the Rust standard library and its upstream notices separately. "
             "System libraries and compiler executables are build prerequisites, not bundled packages.",
