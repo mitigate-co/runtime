@@ -1,5 +1,5 @@
 //! Developer-only contract demonstration: bounded stdin, safe summary, no delivery.
-use mitigate_egress::{CheckedEvent, EVENT_FIELDS, MAX_EVENT_BYTES};
+use mitigate_egress::{CheckedEvent, MAX_EVENT_BYTES};
 use std::{
     io::{self, Read},
     process::ExitCode,
@@ -19,8 +19,8 @@ fn main() -> ExitCode {
         Ok(event) => {
             println!(
                 "{}",
-                serde_json::json!({"schema_version":1,"event_type":"mcp_tool_decision",
-                "bytes":event.as_bytes().len(),"fields":EVENT_FIELDS})
+                serde_json::json!({"schema_version":event.kind().schema_version(),"event_type":event.kind(),
+                "bytes":event.as_bytes().len(),"fields":event.kind().fields()})
             );
             ExitCode::SUCCESS
         }

@@ -1,7 +1,7 @@
 //! Actual CLI privacy diagnostics, with isolated synthetic storage only.
 use mitigate_egress::{
     SyncRef,
-    outbox::{Admission, Limits, Outbox, Partition},
+    outbox::{Admission, DeliveryOutcome, Limits, Outbox, Partition},
 };
 use serde_json::{Value, json};
 use std::{
@@ -50,7 +50,8 @@ fn report(output: &Output) -> Value {
 fn schema_inspection_distinguishes_supported_fields_from_observed_delivery() {
     let result = cli(&["egress", "inspect", "--json"]);
     let value = report(&result);
-    assert_eq!(value["schema_version"], 2);
+    assert_eq!(value["schema_version"], 3);
+    assert_eq!(value["observed_scope"], "pending");
     assert_eq!(value["delivery_status"], "not_checked");
     assert!(value["destination"].is_null() && value["queue"].is_null());
     assert_eq!(value["observed_event_types"], json!([]));
@@ -60,6 +61,12 @@ fn schema_inspection_distinguishes_supported_fields_from_observed_delivery() {
         json!(mitigate_egress::EVENT_FIELDS)
     );
     assert_eq!(value["supported_events"][0]["max_event_bytes"], 4096);
+    assert_eq!(value["supported_events"].as_array().unwrap().len(), 2);
+    assert_eq!(value["supported_events"][1]["schema_version"], 2);
+    assert_eq!(
+        value["supported_events"][1]["fields"],
+        json!(mitigate_egress::inventory::EVENT_FIELDS)
+    );
     let human = cli(&["egress", "inspect"]);
     assert!(human.status.success());
     let text = String::from_utf8(human.stdout).unwrap();
@@ -91,7 +98,7 @@ fn shipped_privacy_probe_rejects_every_family_and_preserves_neighbor_files() {
             .iter()
             .map(|c| c["attempted"].as_u64().unwrap())
             .sum::<u64>(),
-        147
+        260
     );
     assert!(checks.iter().all(|c| c["attempted"] == c["rejected"]));
     assert!(!String::from_utf8_lossy(&result.stdout).contains("canary"));
@@ -130,6 +137,16 @@ fn queue_inspection_is_content_free_exactly_scoped_and_read_only() {
         store.admit(br#"{"arguments":"private-arguments-canary"}"#),
         Ok(Admission::Rejected(_))
     ));
+    let mut inventory: Value = serde_json::from_slice(include_bytes!(
+        "../../../examples/egress/inventory-part.json"
+    ))
+    .unwrap();
+    inventory["runtime_ref"] = json!(partition.runtime_ref);
+    inventory["event_id"] = json!(SyncRef::fresh().unwrap());
+    assert_eq!(
+        store.admit(&serde_json::to_vec(&inventory).unwrap()),
+        Ok(Admission::Queued)
+    );
     drop(store);
     let before = fs::read(&path).unwrap();
     let args = [
@@ -145,9 +162,13 @@ fn queue_inspection_is_content_free_exactly_scoped_and_read_only() {
     ];
     let result = cli(&args);
     let value = report(&result);
-    assert_eq!(value["queue"]["pending"], 1);
-    assert_eq!(value["observed_event_types"], json!(["mcp_tool_decision"]));
-    assert_eq!(value["observed_schema_versions"], json!([1]));
+    assert_eq!(value["queue"]["pending"], 2);
+    assert_eq!(value["observed_scope"], "pending");
+    assert_eq!(
+        value["observed_event_types"],
+        json!(["mcp_tool_decision", "mcp_inventory_snapshot"])
+    );
+    assert_eq!(value["observed_schema_versions"], json!([1, 2]));
     assert_eq!(value["queue"]["recent"][1]["action"], "privacy_rejected");
     assert_eq!(value["queue"]["recent"][1]["rejection"], "prohibited_field");
     assert!(!String::from_utf8_lossy(&result.stdout).contains("canary"));
@@ -160,6 +181,19 @@ fn queue_inspection_is_content_free_exactly_scoped_and_read_only() {
     assert!(result.stdout.is_empty());
     assert!(!String::from_utf8_lossy(&result.stderr).contains("canary"));
     assert_eq!(fs::read(&path).unwrap(), before);
+    let mut store = Outbox::open(&path, partition.clone()).unwrap();
+    for _ in 0..2 {
+        let lease = store.claim().unwrap().unwrap();
+        store.complete(lease, DeliveryOutcome::Accepted).unwrap();
+    }
+    drop(store);
+    let delivered = fs::read(&path).unwrap();
+    let value = report(&cli(&args));
+    assert_eq!(value["observed_event_types"], json!([]));
+    assert_eq!(value["observed_schema_versions"], json!([]));
+    assert_eq!(value["queue"]["pending_contracts"], json!([]));
+    assert_eq!(value["queue"]["receipts"], 2);
+    assert_eq!(fs::read(&path).unwrap(), delivered);
     fs::write(&path, b"corrupt-content-canary").unwrap();
     let result = cli(&args);
     assert_eq!(result.status.code(), Some(2));

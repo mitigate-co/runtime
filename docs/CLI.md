@@ -60,6 +60,7 @@ uses a hidden terminal prompt only in human mode, so machine output stays closed
 | Command | Schema | Fields (besides `schema_version`) |
 | --- | --- | --- |
 | `version` | 1 | `product`, `version`, `config_schema_version` |
+| `egress inspect` | 3 | `delivery_status`, `destination`, `supported_events`, `observed_event_types`, `observed_schema_versions`, `observed_scope`, `queue`; [pending-only inspection](PRIVACY_COMMANDS.md) |
 | `enroll start/retry/status/forget` | 1 | `status`, `sync_enabled`; pending/confirmed add `runtime_ref`, `enrollment_ref`; confirmed adds `enrolled_at_ms`; [contract](ENROLLMENT_CLI.md) |
 | `config check` | 1 | `valid`, validated `config` |
 | `mcp scan` | 2 | `sources`, `servers`; [declaration contract](SCANNER.md) |

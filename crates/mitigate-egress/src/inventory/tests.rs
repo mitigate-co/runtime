@@ -8,7 +8,15 @@ fn sample() -> Value {
     .unwrap()
 }
 fn check(value: &Value) -> Result<CheckedPart, Rejection> {
-    CheckedPart::from_bytes(&serde_json::to_vec(value).unwrap())
+    let bytes = serde_json::to_vec(value).unwrap();
+    let candidate = CheckedPart::from_bytes(&bytes);
+    let event = crate::CheckedEvent::from_bytes(&bytes);
+    assert_eq!(candidate.is_ok(), event.is_ok());
+    if let (Ok(part), Ok(event)) = (&candidate, &event) {
+        assert_eq!(part.as_bytes(), event.as_bytes());
+        assert_eq!(event.kind(), crate::EventKind::McpInventorySnapshot);
+    }
+    candidate
 }
 fn rejected(value: &Value) -> Rejection {
     check(value).err().expect("candidate must fail closed")
@@ -131,7 +139,7 @@ fn repeated_or_globally_out_of_order_tool_references_never_assemble() {
 }
 
 #[test]
-fn typed_and_untrusted_candidates_match_but_are_not_admitted_decision_events() {
+fn typed_and_untrusted_candidates_match_the_inventory_event_contract() {
     let value = sample();
     let parsed = check(&value).unwrap();
     let built = CheckedPart::new(
@@ -158,7 +166,9 @@ fn typed_and_untrusted_candidates_match_but_are_not_admitted_decision_events() {
     );
     assert_eq!(parsed.occurred_at_ms(), 1_800_000_000_000);
     assert_eq!(parsed.facts().part_count(), 1);
-    assert!(crate::CheckedEvent::from_bytes(parsed.as_bytes()).is_err());
+    let admitted = crate::CheckedEvent::from_bytes(parsed.as_bytes()).unwrap();
+    assert_eq!(admitted.kind(), crate::EventKind::McpInventorySnapshot);
+    assert_eq!(admitted.as_bytes(), parsed.as_bytes());
     assert!(
         CheckedPart::from_bytes(include_bytes!("../../../../examples/egress/decision.json"))
             .is_err()

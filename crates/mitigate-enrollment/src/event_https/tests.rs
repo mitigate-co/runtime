@@ -28,6 +28,9 @@ fn event_bytes() -> &'static [u8] {
     include_bytes!("../../../../examples/egress/decision.json")
 }
 fn event_fixture(origin: &PlatformOrigin) -> EventFixture {
+    event_fixture_for(origin, event_bytes())
+}
+fn event_fixture_for(origin: &PlatformOrigin, input: &[u8]) -> EventFixture {
     let dir = std::env::temp_dir().join(format!(
         "mitigate-event-https-{}",
         SyncRef::fresh().unwrap().as_str()
@@ -48,7 +51,7 @@ fn event_fixture(origin: &PlatformOrigin) -> EventFixture {
         Limits::default(),
     )
     .unwrap();
-    assert_eq!(outbox.admit(event_bytes()), Ok(Admission::Queued));
+    assert_eq!(outbox.admit(input), Ok(Admission::Queued));
     let lease = outbox.claim().unwrap().unwrap();
     let key = EnrollmentKey::from_secret(
         Secret::from_bytes(URL_SAFE_NO_PAD.encode([23; 32]).into_bytes()).unwrap(),
@@ -61,7 +64,10 @@ fn event_fixture(origin: &PlatformOrigin) -> EventFixture {
     }
 }
 fn receipt() -> String {
-    let event = CheckedEvent::from_bytes(event_bytes()).unwrap();
+    receipt_for(event_bytes())
+}
+fn receipt_for(input: &[u8]) -> String {
+    let event = CheckedEvent::from_bytes(input).unwrap();
     json!({
         "schema_version":1, "event_id":event.event_id(), "runtime_ref":event.runtime_ref(),
         "enrollment_ref":"ref_99999999999999999999999999999999",
@@ -69,6 +75,42 @@ fn receipt() -> String {
         "status":"accepted"
     })
     .to_string()
+}
+
+#[test]
+fn inventory_https_requires_its_own_digest_and_classifies_unsupported_receivers() {
+    let input = include_bytes!("../../../../examples/egress/inventory-part.json");
+    for (status, body, expected, pending) in [
+        (200, receipt_for(input), Delivery::Accepted, 0),
+        (200, receipt(), Delivery::Retry(Error::Response), 1),
+        (
+            422,
+            "synthetic-private-refusal".to_owned(),
+            Delivery::Rejected,
+            0,
+        ),
+    ] {
+        let tls = Fixture::start(response(status, "", &body));
+        let mut fixture = event_fixture_for(&tls.origin, input);
+        fixture.outbox.purge().unwrap();
+        fixture.outbox.set_paused(false).unwrap();
+        assert_eq!(fixture.outbox.admit(input), Ok(Admission::Queued));
+        assert_eq!(
+            deliver_with(&mut fixture.outbox, |outbox, lease| {
+                checked_exchange(outbox, lease, &fixture.signed, &tls.agent)
+            }),
+            Ok(expected)
+        );
+        let report = fixture.outbox.inspect().unwrap();
+        assert_eq!(report.pending, pending);
+        assert_eq!(report.receipts, usize::from(pending == 0));
+        assert!(
+            !serde_json::to_string(&report)
+                .unwrap()
+                .contains("synthetic-private")
+        );
+        assert!(tls.finish().unwrap().ends_with(fixture.signed.as_bytes()));
+    }
 }
 
 fn ready_fixture(origin: &PlatformOrigin) -> EventFixture {

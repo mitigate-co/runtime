@@ -24,6 +24,16 @@ bounded observed byte count, trusted time and local sequence are retained. No
 rejected payload, identifier, digest or backend exception is stored or printed.
 Every candidate runtime must match the configured runtime reference.
 
+The accepted closed set contains v1 tool decisions and v2 inventory parts. Parts
+use the same queue, consent and retention limits; they do not receive a second
+capacity budget. Queue admission of one part does not establish a complete
+inventory. The report's `pending_contracts` gives exact positive counts and bytes
+by type/version from revalidated pending rows, including leases and unpruned expiry.
+Receipts and lifetime action counters cannot establish historical event types.
+This report is version 2; persisted storage is unchanged. An older binary cannot
+open a queue with v2 parts. Pause and drain or explicitly purge using the current
+binary before downgrading; never repair or silently drop unsupported events.
+
 A buffered producer must call `capture_permit` before taking optional metadata,
 then use `admit_captured` with the original opaque permit and typed checked event.
 The worker checks the permit in the same write transaction as admission. Pause,

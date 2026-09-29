@@ -111,15 +111,36 @@ impl State {
         });
         Ok(())
     }
-    pub fn report(self, rows: &Rows, receipts: usize) -> Report {
-        Report {
-            schema_version: 1,
+    pub fn report(
+        self,
+        rows: &Rows,
+        receipts: usize,
+        deadline: std::time::Instant,
+    ) -> Result<Report, Error> {
+        let mut pending = BTreeMap::new();
+        for (id, record) in rows {
+            if std::time::Instant::now() >= deadline {
+                return Err(Error::Budget);
+            }
+            let kind = record.checked(id, &self)?.kind();
+            let count = pending.entry(kind).or_insert(PendingContract {
+                event_type: kind,
+                schema_version: kind.schema_version(),
+                events: 0,
+                bytes: 0,
+            });
+            count.events += 1;
+            count.bytes += record.event.len();
+        }
+        Ok(Report {
+            schema_version: 2,
             partition: self.partition,
             paused: self.paused,
             limits: self.limits,
             pending: rows.len(),
             leased: rows.values().filter(|r| r.lease.is_some()).count(),
             payload_bytes: rows.values().map(|r| r.event.len()).sum(),
+            pending_contracts: pending.into_values().collect(),
             receipts,
             counters: ACTIONS
                 .into_iter()
@@ -127,7 +148,7 @@ impl State {
                 .map(|(action, totals)| Counter { action, totals })
                 .collect(),
             recent: self.journal,
-        }
+        })
     }
 }
 

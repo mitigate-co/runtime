@@ -318,8 +318,9 @@ impl Outbox {
         if state.partition != self.partition {
             return Err(Error::Partition);
         }
+        let report = state.report(&rows, receipts.len(), deadline)?;
         tx.commit()?;
-        Ok(state.report(&rows, receipts.len()))
+        Ok(report)
     }
     /// Read consent before capturing any optional producer metadata. Returns
     /// None while paused or for legacy stores awaiting an explicit resume.

@@ -1,6 +1,6 @@
-//! Closed version-two inventory candidate protocol. Not yet an admitted outbox
-//! event: adding a producer/receiver must also compose complete snapshots,
-//! consent, egress diagnostics, signing, tenant isolation and retention.
+//! Closed version-two inventory candidate protocol. Checked parts can enter the
+//! ordinary consent/journal/outbox boundary; producers and hosted receivers must
+//! additionally compose complete snapshots, tenant isolation and retention.
 //! A valid part alone never establishes a complete or current fleet inventory.
 use crate::{MAX_EVENT_BYTES, Rejection, SyncRef, model::Capability};
 use serde::{Deserialize, Serialize};
@@ -14,6 +14,25 @@ pub use snapshot::{AssemblyError, CheckedSnapshot};
 pub const MAX_TOOLS: u16 = 512;
 /// Fixed part size keeps worst-case taxonomy facts inside the existing 4 KiB cap.
 pub const TOOLS_PER_PART: usize = 4;
+/// Fixed field paths exposed by the inspector, never input-provided names.
+pub const EVENT_FIELDS: &[&str] = &[
+    "schema_version",
+    "event_type",
+    "event_id",
+    "occurred_at_ms",
+    "runtime_ref",
+    "facts.snapshot_ref",
+    "facts.server_ref",
+    "facts.tools_supported",
+    "facts.tool_count",
+    "facts.part_index",
+    "facts.tools[].tool_ref",
+    "facts.tools[].schema_ref",
+    "facts.tools[].capabilities",
+    "facts.tools[].risk_flags",
+    "facts.tools[].classification_sources",
+    "facts.tools[].confidence",
+];
 
 /// Closed source of a local classification; not remote authentication or consent.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -106,7 +125,8 @@ struct Envelope {
     facts: Facts,
 }
 /// A validated canonical candidate part. No generic Debug/Serialize/Deserialize.
-/// It cannot be passed to signing or admitted into the existing decision outbox.
+/// Conversion to CheckedEvent still requires consent and journaled queue admission
+/// before signing; the candidate alone is never permission to transmit.
 ///
 /// ```compile_fail
 /// fn accidental_export(part: &mitigate_egress::inventory::CheckedPart) {
@@ -126,6 +146,9 @@ impl CheckedPart {
             return Err(Rejection::Size);
         }
         let value = mitigate_json::parse(bytes).map_err(|_| Rejection::Json)?;
+        Self::from_value(value)
+    }
+    pub(crate) fn from_value(value: serde_json::Value) -> Result<Self, Rejection> {
         // This protocol has no free-form string fields. Its exact deserializer
         // rejects all unknown objects/keys, including prohibited content fields.
         let envelope = serde_json::from_value(value).map_err(|_| Rejection::Schema)?;

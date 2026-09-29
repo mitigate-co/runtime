@@ -16,6 +16,20 @@ impl Drop for Fixture {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let arguments: Vec<_> = std::env::args_os().skip(1).collect();
+    let input: &[u8] = match arguments.as_slice() {
+        [] => include_bytes!("../../../examples/egress/decision.json"),
+        [flag] if flag == "--inventory" => {
+            include_bytes!("../../../examples/egress/inventory-part.json")
+        }
+        _ => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "use no arguments or --inventory for a fixed public fixture",
+            )
+            .into());
+        }
+    };
     let path = std::env::temp_dir().join(format!(
         "mitigate-event-proof-{}",
         SyncRef::fresh()?.as_str()
@@ -37,10 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         Limits::default(),
     )?;
-    assert_eq!(
-        outbox.admit(include_bytes!("../../../examples/egress/decision.json"))?,
-        Admission::Queued
-    );
+    assert_eq!(outbox.admit(input)?, Admission::Queued);
     let lease = outbox.claim()?.expect("synthetic queued event");
     let event = key.sign_event(
         &PlatformOrigin::parse("https://mitigate.example")?,

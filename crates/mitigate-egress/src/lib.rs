@@ -6,6 +6,7 @@
 //! transport and cannot forward local audit exports.
 mod guard;
 pub mod inventory;
+mod kind;
 mod model;
 pub mod outbox;
 mod reference;
@@ -14,6 +15,7 @@ pub mod self_test;
 #[cfg(test)]
 mod tests;
 
+pub use kind::EventKind;
 pub use model::{Attribution, Capability, Decision, DecisionFacts, Outcome, Phase};
 pub use reference::SyncRef;
 use serde::{Deserialize, Serialize};
@@ -110,7 +112,10 @@ struct Envelope {
 /// }
 /// ```
 pub struct CheckedEvent {
-    envelope: Envelope,
+    event_id: SyncRef,
+    runtime_ref: SyncRef,
+    occurred_at_ms: u64,
+    kind: EventKind,
     bytes: Vec<u8>,
 }
 impl CheckedEvent {
@@ -122,6 +127,15 @@ impl CheckedEvent {
             return Err(Rejection::Size);
         }
         let value = mitigate_json::parse(bytes).map_err(|_| Rejection::Json)?;
+        if value
+            .get("schema_version")
+            .and_then(serde_json::Value::as_u64)
+            == Some(2)
+            && value.get("event_type").and_then(serde_json::Value::as_str)
+                == Some("mcp_inventory_snapshot")
+        {
+            return inventory::CheckedPart::from_value(value).map(Self::inventory);
+        }
         guard::inspect(&value)?;
         let envelope: Envelope = serde_json::from_value(value).map_err(|_| Rejection::Schema)?;
         Self::check(envelope)
@@ -159,20 +173,43 @@ impl CheckedEvent {
         if bytes.len() > MAX_EVENT_BYTES {
             return Err(Rejection::Size);
         }
-        Ok(Self { envelope, bytes })
+        Ok(Self {
+            event_id: envelope.event_id,
+            runtime_ref: envelope.runtime_ref,
+            occurred_at_ms: envelope.occurred_at_ms,
+            kind: EventKind::McpToolDecision,
+            bytes,
+        })
+    }
+
+    /// Convert a checked inventory part for the same consent/journal/signing
+    /// boundary as decisions. This does not admit it or establish a full snapshot.
+    pub fn inventory(part: inventory::CheckedPart) -> Self {
+        Self {
+            event_id: part.event_id().clone(),
+            runtime_ref: part.runtime_ref().clone(),
+            occurred_at_ms: part.occurred_at_ms(),
+            kind: EventKind::McpInventorySnapshot,
+            bytes: part.as_bytes().to_vec(),
+        }
+    }
+
+    /// Closed type/version pair for diagnostics; never inferred from action counts.
+    pub fn kind(&self) -> EventKind {
+        self.kind
     }
 
     /// Stable identifier for idempotent delivery, generated independently of content.
     pub fn event_id(&self) -> &SyncRef {
-        &self.envelope.event_id
+        &self.event_id
     }
     /// Enrollment-scoped runtime reference for local queue partition checks.
     pub fn runtime_ref(&self) -> &SyncRef {
-        &self.envelope.runtime_ref
+        &self.runtime_ref
     }
     /// Trusted event observation time. Queue retention must use its own clock.
     pub fn occurred_at_ms(&self) -> u64 {
-        self.envelope.occurred_at_ms
+        self.occurred_at_ms
     }
     /// Explicit canonical bytes. These still require consent, recorded egress
     /// acceptance and enrollment integrity before optional Platform delivery.

@@ -12,14 +12,15 @@ mitigate privacy self-test
 mitigate privacy self-test --json
 ```
 
-The probe injects 147 hostile candidates across eleven fixture families into the
+The probe injects 260 hostile candidates across eleven fixture families into the
 production queue admission path. It includes synthetic API keys, unsigned JWT-like
 tokens, email, SSN/card-shaped values, source code, high-entropy/long text, nested
 unknown objects, prohibited fields and ambiguous/oversized JSON. Each string
-family is tried in every supported string-reference/enum position and capabilities.
+family is tried in every decision and inventory string-reference/enum position,
+including capability, risk-flag and classification-source arrays.
 
-A known-safe event must still be accepted and deduplicated. Every hostile event
-must be rejected, only that positive control may remain pending, rejection counts
+One known-safe event of each kind must be accepted and deduplicated. Every hostile
+event must be rejected, only those two positive controls may remain pending, rejection counts
 must match and none of the synthetic content markers may appear in database bytes.
 There are no real customer inputs or sender calls. Reports contain category names
 and counts only, never synthetic secret values, raw queue payloads or paths.
@@ -58,7 +59,7 @@ mitigate egress inspect
 mitigate egress inspect --json
 ```
 
-This shows the exact supported event type, schema version, field paths and byte
+This shows the exact supported event types, schema versions, field paths and byte
 limit. With no queue selected, observed types/versions are empty and the queue is
 null. Supported fields are not evidence that any event has been sent.
 
@@ -77,9 +78,12 @@ enrollment and [explicit sync controls](SYNC_CONTROLS.md) are separate actions.
 
 The report shows retained event/byte/lease/receipt counts, fixed admission/delivery
 counters, bounded recent rejection reasons, observed type/version and retention
-settings. Supported outboxes admit only `mcp_tool_decision` v1; observed types
-and versions derive from validated queue state, never arbitrary database strings.
-Lifetime accepted counters can remain after purge. The report is local diagnostic
+settings. Supported outboxes admit `mcp_tool_decision` v1 and closed
+`mcp_inventory_snapshot` v2 parts. Observed types/versions and `pending_contracts`
+derive only from revalidated retained pending rows, never arbitrary database
+strings or journal action totals. `observed_scope: "pending"` is explicit: completed
+receipts and lifetime counters have no type breakdown. After draining or purging,
+observed types are empty even when lifetime counters remain. The report is local diagnostic
 metadata and must not be sent directly to Platform.
 
 Inspection opens SQLite read-only, verifies the full bounded store and checks the
@@ -88,12 +92,13 @@ permissions or modify database bytes. Expired rows/leases may remain until the
 queue worker applies maintenance. A corrupt, wrong-scope, unsafe or unavailable
 store exits 2 with a fixed error and no partial report or path/content echo.
 
-Inspection report version 2 returns `destination: null` and
+Inspection report version 3 preserves `destination: null` and
 `delivery_status: "not_checked"`: this read-only command does not open a sync
 profile or native enrollment. It must not infer that delivery is unconfigured.
 Use `sync status --profile PROFILE` to inspect consent for the selected binding.
-Version 1's unconditional unconfigured claim is replaced; the event contract
-and privacy self-test report remain version 1; queue storage versions are
+Version 2's type inference from accepted totals is replaced by pending-only
+observations. The nested queue report is version 2; the privacy self-test report
+stays version 1. Queue storage versions are
 documented in [Outbox](OUTBOX.md). Queue acceptance and
 an independently reported delivery acknowledgment are distinct facts.
 
