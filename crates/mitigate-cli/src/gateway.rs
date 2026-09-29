@@ -55,6 +55,11 @@ impl ToolService for GatewayService {
             request => request,
         };
         let started = Instant::now();
+        let inventory_permit = if matches!(&request, ToolRequest::List { cursor: None }) {
+            self.enforcement.as_ref().and_then(|e| e.inventory_permit())
+        } else {
+            None
+        };
         let detail = if self.audit.is_some() {
             Some(self.audit_details(caller, &request)?)
         } else {
@@ -69,7 +74,7 @@ impl ToolService for GatewayService {
                 Err(_) => (Decision::Error, ResultClass::Error),
             };
             let audit = Arc::clone(audit);
-            tokio::task::spawn_blocking(move || {
+            let receipt = tokio::task::spawn_blocking(move || {
                 audit
                     .lock()
                     .map_err(|_| mitigate_audit::Error::Unavailable)?
@@ -78,6 +83,15 @@ impl ToolService for GatewayService {
             .await
             .map_err(|_| Fault::AuditUnavailable)?
             .map_err(|_| Fault::AuditUnavailable)?;
+            if result.is_ok()
+                && let (Some(enforcement), Some(permit)) = (&self.enforcement, inventory_permit)
+            {
+                enforcement.publish_inventory(
+                    permit,
+                    self.upstream.inventory().tools_supported,
+                    receipt.event.time_ms,
+                );
+            }
         }
         result
     }
@@ -214,6 +228,7 @@ pub(crate) fn run(
     review_path: Option<&Path>,
     enforcement_path: Option<&Path>,
     sync_path: Option<&Path>,
+    sync_inventory: bool,
 ) -> io::Result<ExitCode> {
     // Reject profile/config before opening stdin or executing the upstream.
     let caller = match profile(profile_path) {
@@ -263,7 +278,7 @@ pub(crate) fn run(
     let _sync_worker = match (sync_path, enforcement.as_mut()) {
         (Some(path), Some(enforcement)) => match sync::start(path.to_owned()) {
             Ok((producer, worker)) => {
-                enforcement.attach_sync(producer);
+                enforcement.attach_sync(producer, sync_inventory);
                 Some(worker)
             }
             Err(_) => {

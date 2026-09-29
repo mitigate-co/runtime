@@ -3,10 +3,12 @@
 `mitigate_egress::inventory::CheckedPart` validates individual parts and the pure
 assembler requires complete observations. `CheckedEvent` accepts those same
 closed parts into the existing consent, journal, outbox and signing boundary.
-The inspector reports exact retained pending types. Live inventory capture and
-hosted inventory ingestion remain unimplemented: this preparation does not start
-a producer or sender. An older receiver rejects inventory under its existing
-permanent schema-refusal behavior; do not enable a producer before receiver rollout.
+The inspector reports exact retained pending types. The explicit gateway
+`--sync-inventory` flag captures fresh audited tool listings through the existing
+optional worker; it never starts a sender or enables consent. See
+[capture semantics](SYNC_CAPTURE.md) for coverage and failure limits. An older
+receiver rejects inventory under its existing permanent schema-refusal behavior;
+do not enable inventory capture before receiver rollout.
 
 ## Version 2: `mcp_inventory_snapshot`
 

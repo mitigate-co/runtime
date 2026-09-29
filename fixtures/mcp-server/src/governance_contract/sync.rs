@@ -14,6 +14,19 @@ async fn diagnostic(client: &mut Client, expected: &str) {
             let bytes = client.diagnostics.read_line(&mut line).await.unwrap();
             assert!(bytes > 0 && bytes < 1024);
             assert!(!line.contains("canary"));
+            for category in [
+                "assertion",
+                "workspace",
+                "setup",
+                "cleanup",
+                "storage_clock",
+                "storage_budget",
+                "storage",
+            ] {
+                if line.trim() == format!("Mitigate: sync privacy check category: {category}.") {
+                    eprintln!("Synthetic capture privacy category: {category}.");
+                }
+            }
             assert!(
                 !line.contains("privacy self-test did not pass"),
                 "installed privacy probe must pass before capture"
@@ -106,7 +119,8 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
             }
             client.finish(0).await;
 
-            let mut client = Client::start_sync(binary, &project, true, Some(profile_path));
+            let mut client =
+                Client::start_capture(binary, &project, true, Some(profile_path), true);
             client.initialize().await;
             diagnostic(&mut client, "sync capture ready").await;
             client.call(2, json!({})).await;
@@ -134,11 +148,17 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
             assert!(events(&queue).iter().any(
                 |e| e["facts"]["decision"] == "deny" && e["facts"]["outcome"] == "not_invoked"
             ));
+            inventory(&mut client, &project, &profile, &queue, &partition).await;
             assert!(profile.pause().unwrap().paused);
             diagnostic(&mut client, "sync capture is paused").await;
+            client
+                .send(json!({"jsonrpc":"2.0","id":15,"method":"tools/list"}))
+                .await;
+            assert!(client.read().await["result"].is_object());
+            assert_eq!(profile.inspect().unwrap().pending, 8);
             client.call(4, json!({})).await;
             assert_eq!(client.result(4).await.0["error"]["code"], -32001);
-            assert_eq!(profile.inspect().unwrap().pending, 5);
+            assert_eq!(profile.inspect().unwrap().pending, 8);
             assert_eq!(profile.purge().unwrap().pending, 0);
             client.finish(0).await;
 
@@ -160,6 +180,104 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
             project.private();
         });
     println!(
-        "Live capture verified: actual audited CLI calls, random references, restart, pause/purge and unavailable-worker isolation. No Platform requests."
+        "Live capture verified: audited calls and inventory, random references, restart, pause/purge and unavailable-worker isolation. No Platform requests."
+    );
+}
+
+async fn inventory(
+    client: &mut Client,
+    project: &Project,
+    profile: &SyncProfile,
+    queue: &Path,
+    partition: &Partition,
+) {
+    // The parent native fixture owns credential resume (including macOS ACLs).
+    // This child uses already-consented local metadata state only.
+    assert!(!profile.inspect().unwrap().paused);
+    assert_eq!(profile.inspect().unwrap().pending, 5);
+    let list = |id| json!({"jsonrpc":"2.0","id":id,"method":"tools/list"});
+    let lock = rusqlite::Connection::open(project.path("audit.sqlite")).unwrap();
+    lock.execute_batch("BEGIN IMMEDIATE").unwrap();
+    client.send(list(10)).await;
+    assert_eq!(client.read().await["error"]["code"], -32007);
+    lock.execute_batch("ROLLBACK").unwrap();
+    assert_eq!(profile.inspect().unwrap().pending, 5);
+
+    client.send(list(11)).await;
+    assert_eq!(
+        client.read().await["result"]["tools"][0]["name"],
+        "read_status"
+    );
+    pending(queue, partition, 6).await;
+    let first = events(queue)
+        .into_iter()
+        .find(|e| e["event_type"] == "mcp_inventory_snapshot")
+        .unwrap();
+    assert_eq!(first["event_type"], "mcp_inventory_snapshot");
+    assert_eq!(first["facts"]["tool_count"], 1);
+    assert_eq!(first["facts"]["tools_supported"], true);
+    assert_eq!(
+        first["facts"]["tools"][0]["capabilities"],
+        json!(["read_data"])
+    );
+    assert_eq!(
+        first["facts"]["tools"][0]["classification_sources"],
+        json!(["deterministic"])
+    );
+    assert!(!first.to_string().contains("read_status"));
+    assert!(!first.to_string().contains("canary"));
+    assert!(
+        mitigate_egress::inventory::CheckedSnapshot::from_parts(&[
+            mitigate_egress::inventory::CheckedPart::from_bytes(
+                &serde_json::to_vec(&first).unwrap()
+            )
+            .unwrap()
+        ])
+        .is_ok()
+    );
+
+    client
+        .send(json!({"jsonrpc":"2.0","id":12,"method":"tools/list","params":{"cursor":"m1:0"}}))
+        .await;
+    assert!(client.read().await["result"].is_object());
+    assert_eq!(profile.inspect().unwrap().pending, 6);
+
+    client
+        .call(13, json!({"value":"inventory-argument-canary"}))
+        .await;
+    assert_eq!(client.result(13).await.0["error"]["code"], -32001);
+    pending(queue, partition, 7).await;
+    let decisions: Vec<_> = events(queue)
+        .into_iter()
+        .filter(|e| e["event_type"] == "mcp_tool_decision")
+        .collect();
+    assert_eq!(decisions.len(), 6);
+    for event in decisions {
+        assert_eq!(event["facts"]["server_ref"], first["facts"]["server_ref"]);
+        assert_eq!(
+            event["facts"]["tool_ref"],
+            first["facts"]["tools"][0]["tool_ref"]
+        );
+        // Inventory tracks the full definition; v1 decisions retain input-schema identity.
+        assert_ne!(
+            event["facts"]["schema_ref"],
+            first["facts"]["tools"][0]["schema_ref"]
+        );
+    }
+    client.send(list(14)).await;
+    assert!(client.read().await["result"].is_object());
+    pending(queue, partition, 8).await;
+    let observations: Vec<_> = events(queue)
+        .into_iter()
+        .filter(|e| e["event_type"] == "mcp_inventory_snapshot")
+        .collect();
+    assert_eq!(observations.len(), 2);
+    assert_ne!(
+        observations[0]["facts"]["snapshot_ref"],
+        observations[1]["facts"]["snapshot_ref"]
+    );
+    assert_eq!(
+        observations[0]["facts"]["tools"],
+        observations[1]["facts"]["tools"]
     );
 }

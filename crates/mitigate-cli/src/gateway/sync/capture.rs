@@ -78,30 +78,10 @@ impl Capture {
         .enumerate()
         {
             if let Some(local) = local {
-                let mut digest = [0; 32];
-                for (i, byte) in digest.iter_mut().enumerate() {
-                    *byte = u8::from_str_radix(&local.as_str()[i * 2..i * 2 + 2], 16).ok()?;
-                }
-                keys[index] = Some(LocalKey::new(kind, digest));
+                keys[index] = Some(local_key(kind, local)?);
             }
         }
-        let mut capabilities: Vec<_> = detail
-            .capability_classes
-            .iter()
-            .map(|capability| match capability {
-                CapabilityClass::ReadData => Capability::ReadData,
-                CapabilityClass::WriteData => Capability::WriteData,
-                CapabilityClass::DeleteData => Capability::DeleteData,
-                CapabilityClass::ExecuteCode => Capability::ExecuteCode,
-                CapabilityClass::CredentialAccess => Capability::CredentialAccess,
-                CapabilityClass::ExternalCommunication => Capability::ExternalCommunication,
-                CapabilityClass::BrowserAction => Capability::BrowserAction,
-                CapabilityClass::IdentityAdmin => Capability::IdentityAdmin,
-                CapabilityClass::FinancialAction => Capability::FinancialAction,
-                CapabilityClass::InfrastructureChange => Capability::InfrastructureChange,
-                CapabilityClass::Unknown => Capability::Unknown,
-            })
-            .collect();
+        let mut capabilities: Vec<_> = detail.capability_classes.iter().map(capability).collect();
         capabilities.sort_unstable();
         capabilities.dedup();
         Some(Self {
@@ -183,5 +163,29 @@ impl Capture {
                 duration_ms: self.duration_ms,
             },
         )
+    }
+}
+
+pub(super) fn local_key(kind: Kind, local: &Fingerprint) -> Option<LocalKey> {
+    let mut digest = [0; 32];
+    for (i, byte) in digest.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&local.as_str()[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(LocalKey::new(kind, digest))
+}
+
+pub(super) fn capability(value: &CapabilityClass) -> Capability {
+    match value {
+        CapabilityClass::ReadData => Capability::ReadData,
+        CapabilityClass::WriteData => Capability::WriteData,
+        CapabilityClass::DeleteData => Capability::DeleteData,
+        CapabilityClass::ExecuteCode => Capability::ExecuteCode,
+        CapabilityClass::CredentialAccess => Capability::CredentialAccess,
+        CapabilityClass::ExternalCommunication => Capability::ExternalCommunication,
+        CapabilityClass::BrowserAction => Capability::BrowserAction,
+        CapabilityClass::IdentityAdmin => Capability::IdentityAdmin,
+        CapabilityClass::FinancialAction => Capability::FinancialAction,
+        CapabilityClass::InfrastructureChange => Capability::InfrastructureChange,
+        CapabilityClass::Unknown => Capability::Unknown,
     }
 }

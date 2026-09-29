@@ -109,6 +109,7 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                     launch_review,
                     enforce,
                     sync_profile,
+                    sync_inventory,
                 },
         } => {
             return gateway::run(
@@ -118,6 +119,7 @@ fn execute(cli: Cli) -> io::Result<ExitCode> {
                 launch_review.as_deref(),
                 enforce.as_deref(),
                 sync_profile.as_deref(),
+                sync_inventory,
             );
         }
         Command::Mcp {

@@ -1,6 +1,6 @@
 # MCP implementation status
 
-Updated 2026-09-28. Follow the canonical ordered work packages. This file reports implementation evidence, not production readiness.
+Updated 2026-09-29. Follow the canonical ordered work packages. This file reports implementation evidence, not production readiness.
 
 | Package | State | Evidence or next acceptance |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ Updated 2026-09-28. Follow the canonical ordered work packages. This file report
 | MCP-015 — Offline behavior | Local authority and safe queue merged | PR #22 at `def9772` and PR #24 at `e952779` passed final Windows/macOS/Linux and security CI. Cached policy and unavailable approvals remain local; the durable queue validates before persistence. Enrolled delivery remains MCP-018 work. |
 | MCP-016 — Privacy boundary | Local boundary and CLI merged | PR #23 at `22244f5`, PR #24 at `e952779` and PR #25 at `2ef62f0` passed final Windows/macOS/Linux and security CI. The 147-candidate privacy self-test and read-only scoped inspector work with real storage. Enrolled integrity remains MCP-018 work. |
 | MCP-017 — Registry v0 | Runtime contract/client merged | PR #26, main `768a4e0`; final cross-platform/security CI passed. Closed source-attributed catalogs and offline CLI lookup preserve conflicts and stale/unknown status. Hosted integration remains a separate gate. |
-| MCP-018 — Optional Platform sync | Enrollment, signed delivery and explicit controls merged | Through PR #35 at `a126eeb`, confirmed native enrollment, checked one-attempt delivery and consent/pause/drain/purge controls passed three-OS/security CI. The local reference catalog is implemented separately; gateway production, continuous sending and fleet composition remain open. |
+| MCP-018 — Optional Platform sync | Enrollment, decision capture, continuous delivery and inventory boundary merged; inventory producer under verification | Through PR #45 at `62bd9a4`, native enrollment, consent/pause/drain/purge, random reference catalog, governed decision capture, continuous signed delivery and shared inventory egress passed three-OS/security CI. Explicit fresh inventory capture is implemented in this change. Hosted inventory/fleet composition and release acceptance remain open. |
 | MCP-019 through MCP-024 | Not started in this repository | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Existing prototype evidence does not establish acceptance in this repository. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
@@ -402,3 +402,27 @@ approval-clock regression confirms the invocation remains undispatched when
 approval inspection and cancellation both fail. Authorization, clock guards,
 timeouts and expected fixture results are unchanged; the intermittent failure
 still needs a demonstrated cause before release.
+
+Inventory egress PR #45 passed all ten three-OS/security checks and merged at
+`62bd9a4`. The explicit `--sync-inventory` gateway flag now captures fresh initial
+tool listings only after inventory review and required local audit. Original
+consent is reserved before the request, and a single bounded observation shares
+the decision worker. Small mapping/admission steps release enrollment ownership
+between operations; partial capture never claims completeness or renews consent.
+Existing commands remain decision-only. See ADR 0042 and [capture](SYNC_CAPTURE.md).
+
+The Linux workspace passed 362 tests, including compile-fail contracts; strict
+all-target/all-feature Clippy and formatting passed. The native lock helper runs
+through its parent. The actual isolated native-store CLI fixture
+passed decision/inventory capture, denied calls, audit-failure refusal, continuation
+exclusion, restart-stable references, new observation IDs, pause/purge, continuous
+sending and enrollment/TLS-refusal checks. Inventory unit tests cover 512 tools,
+all parts, taxonomy preservation, oversize refusal and revoked original consent.
+No dependency, storage schema, authority or automatic sync activation changed.
+
+An earlier native fixture attempt stopped at the installed privacy probe. The
+capture worker now retains fixed assertion/workspace/setup/cleanup/storage/clock/
+budget categories, with no backend text or workload content. That attempt did not
+preserve its cause; the successful final run does not close issue #36.
+Issues #36 and #46 remain release
+gates. Three-OS CI and hosted fleet composition remain required.

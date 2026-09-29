@@ -94,6 +94,11 @@ impl Fixture {
                     schema: reference('d'),
                     definition: reference('e'),
                     capabilities: vec![CapabilityClass::ReadData],
+                    risk_flags: vec![],
+                    classification_sources: vec![
+                        mitigate_mcp::classification::ClassificationSource::Deterministic,
+                    ],
+                    confidence: mitigate_mcp::classification::Confidence::Low,
                 }),
                 reference('1'),
                 Arc::clone(&cancelled),

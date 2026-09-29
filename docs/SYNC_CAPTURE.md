@@ -1,4 +1,4 @@
-# Capture governed calls for optional sync
+# Capture calls and inventory for optional sync
 
 First create a consented profile with [sync enable](SYNC_CONTROLS.md). Add its
 path to the same reviewed gateway command used for local enforcement:
@@ -14,10 +14,41 @@ caller profile and sync profile have different purposes; neither is inferred
 from MCP client metadata or workload content.
 
 This producer captures governed call decisions, approval waiting, dispatch and
-observed completion. It does not export audit files, historical calls or inventory
-snapshots. Start `mitigate sync run --profile SYNC` separately for continuous
+observed completion. It does not export audit files or historical calls.
+Add `--sync-inventory` to opt into fresh inventory observations after installing a
+receiver that accepts the v2 inventory contract. Existing capture commands keep
+their decision-only behavior. Start `mitigate sync run --profile SYNC` separately for continuous
 delivery, or use `mitigate sync send --profile SYNC` to attempt one queued event.
 The gateway never starts a sender automatically.
+
+## Inventory observations
+
+With `--sync-inventory`, a successful initial `tools/list` request can capture the
+complete bounded upstream inventory after its fresh review check and required
+local audit commit. Continuation pages do not create repeated observations. The
+worker must already be ready and consent must exist before the request starts.
+There is no background enumeration, retrospective capture or historical replay.
+Servers that do not advertise tools have no listing to capture; their absence is
+not a complete zero-tool observation. Servers advertising tools with an empty
+list can produce an explicit complete empty observation.
+
+One observation may be reserved or buffered at a time, with at most 512 tools.
+Local identity/definition digests and closed classification enums are the only
+copied facts. The worker resolves at most 16 keys per step, sorts the complete
+mapped inventory by independent random tool reference, then admits one four-tool
+part per step. It processes at most one queued decision alongside that step and
+releases local enrollment ownership before continuing. Calls never wait for the
+optional queue. Failed listing/audit, overload, storage failure, shutdown or a
+changed consent generation discards unfinished capture. Already admitted parts
+remain incomplete until every part arrives; no failure fabricates completion.
+
+Server/tool mappings are shared with decision events. Inventory `schema_ref`
+maps the full observed definition revision, including input/output/description;
+v1 decision `schema_ref` retains its existing input-schema mapping. They must not
+be equated as revision identifiers across event kinds. Hashes stay local. Closed
+capability, risk, source and confidence values preserve the classifier's
+conservative flags and declared evidence. No names, rule matches, definitions,
+free text or workload values enter the projection. See [inventory protocol](INVENTORY_PROTOCOL.md).
 
 ## Availability and consent
 
@@ -40,7 +71,8 @@ Consent is sampled at the record boundary before the audit write. Publication
 still requires that write to succeed. A resume during a delayed commit cannot
 retroactively enable capture of a record begun without consent.
 
-Each capture carries its original opaque consent permit. The worker uses the
+Each capture carries its original opaque consent permit. Inventory reserves that
+permit before the fresh listing and retains it across every part. The worker uses the
 original enrollment owner only during mapping/admission, then releases it before
 waiting. Queue admission atomically checks the same permit. Pause/purge followed
 by resume cannot revive older buffered captures. Rejected/uncertain buffer
@@ -57,11 +89,12 @@ request is performed by the capture thread.
 
 ## Projection boundary
 
-The producer copies only seven named governance keys (client, principal, agent,
+Decision capture copies only seven named governance keys (client, principal, agent,
 server, tool, schema and policy), closed enums, bounded timing/version values and
-independent random invocation references. It has no field for arguments, results,
-tool names, descriptions, arbitrary JSON, environment, operator identity,
-evidence or complete policy/definition hashes.
+independent random invocation references. Inventory capture copies the server,
+tool and full-definition keys described above. Neither projection has a field
+for arguments, results, tool names, descriptions, arbitrary JSON, environment,
+operator identity or evidence. Complete hashes never enter the wire event.
 
 Governance keys remain customer-local catalog inputs. Only independent persisted
 random mappings enter checked wire events. Event IDs are fresh per record; call
@@ -72,7 +105,9 @@ sync events. The closed egress validator still checks every projected event.
 
 Fixed stderr diagnostics announce readiness, pause, unavailability and metadata
 loss without paths, key values, payloads or backend exception text. They never
-enter MCP stdout. There is no change to the enforcement configuration schema,
+enter MCP stdout. A failed startup privacy probe retains a closed category so a
+clock or operation-budget failure can be distinguished from failed assertions.
+There is no change to the enforcement configuration schema,
 local audit format, sync profile or wire event contract. Legacy profiles without
 a pinned reference catalog cannot start capture; missing catalogs are not
 recreated. Legacy queues require explicit resume before issuing capture permits.
@@ -81,10 +116,15 @@ recreated. Legacy queues require explicit resume before issuing capture permits.
 
 Unit tests cover independent reference mapping, lifecycle/approval correlation,
 unknown attribution, buffer saturation, disconnected workers and audit failure.
+Inventory tests cover all 512 tools, globally sorted parts, restart-stable random
+mappings, closed classifications, empty/unsupported distinction, oversize refusal,
+single-observation reservations and consent withdrawal during partial admission.
 Real-SQLite enrollment tests cover owner contention and pause/drain without
 native credential access. The opt-in native lifecycle fixture runs an actual CLI
 gateway against the synthetic MCP child, waits for readiness and durable records,
-then verifies restart correlation, denial, pause/purge and missing-profile
-isolation. Windows/Linux use `--cli`; macOS uses `--capture-cli` so only the
+then verifies restart correlation, denial, inventory after required audit,
+audit-failure refusal, continuation-page exclusion, fresh snapshot references,
+pause/purge and missing-profile isolation. Windows/Linux use `--cli`; macOS uses
+`--capture-cli` so only the
 creating fixture binary accesses its native Keychain item. These fixtures never
 contact Platform or read customer data.

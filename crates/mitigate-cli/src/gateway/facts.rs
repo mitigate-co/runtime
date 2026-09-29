@@ -3,7 +3,9 @@ use mitigate_fingerprint::{Domain, Fingerprint, fingerprint};
 use mitigate_gateway::Fault;
 use mitigate_mcp::{
     Snapshot, StdioServer,
-    classification::{CapabilityClass, ClassificationOverrides},
+    classification::{
+        CapabilityClass, ClassificationOverrides, ClassificationSource, Confidence, RiskFlag,
+    },
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -14,6 +16,9 @@ pub(super) struct ToolFacts {
     pub schema: Fingerprint,
     pub definition: Fingerprint,
     pub capabilities: Vec<CapabilityClass>,
+    pub risk_flags: Vec<RiskFlag>,
+    pub classification_sources: Vec<ClassificationSource>,
+    pub confidence: Confidence,
 }
 
 pub(super) fn bind(
@@ -59,21 +64,22 @@ pub(super) fn bind(
             Domain::GovernedToolDefinition,
             json!({"tool":identity,"input_schema":schema,"output_schema":output,"description":description}),
         )?;
-        let capabilities = report
+        let classification = &report
             .tools
             .iter()
             .find(|item| item.name == tool.name)
             .ok_or(Fault::GovernanceUnavailable)?
-            .classification
-            .classes
-            .clone();
+            .classification;
         facts.insert(
             tool.name.clone(),
             ToolFacts {
                 tool: identity,
                 schema,
                 definition,
-                capabilities,
+                capabilities: classification.classes.clone(),
+                risk_flags: classification.flags.clone(),
+                classification_sources: classification.sources.clone(),
+                confidence: classification.confidence,
             },
         );
     }

@@ -11,7 +11,7 @@ use mitigate_mcp::classification::CapabilityClass;
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
-pub(in crate::gateway) fn producer(path: &Path) -> (Producer, Receiver<Envelope>) {
+pub(in crate::gateway) fn producer(path: &Path) -> (Producer, Receiver<Message>) {
     let mut queue = Outbox::create(path, partition(), Limits::default()).unwrap();
     let (producer, receiver, shared) = channel();
     *shared.permit.lock().unwrap() = queue.capture_permit().unwrap();

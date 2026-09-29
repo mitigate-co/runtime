@@ -29,6 +29,7 @@ pub(super) struct Enforcement {
     server: Option<Fingerprint>,
     tools: BTreeMap<String, ToolFacts>,
     approval_timeout: Duration,
+    inventory_sync: Option<super::sync::Producer>,
 }
 struct CancellationGuard(Arc<AtomicBool>);
 impl Drop for CancellationGuard {
@@ -37,7 +38,10 @@ impl Drop for CancellationGuard {
     }
 }
 impl Enforcement {
-    pub fn attach_sync(&mut self, producer: super::sync::Producer) {
+    pub fn attach_sync(&mut self, producer: super::sync::Producer, inventory: bool) {
+        if inventory {
+            self.inventory_sync = Some(producer.clone());
+        }
         if let Ok(mut state) = self.state.lock() {
             state.sync = Some(producer);
         }
@@ -56,6 +60,7 @@ impl Enforcement {
             server: None,
             tools: BTreeMap::new(),
             approval_timeout: Duration::from_millis(config.approval_timeout_ms),
+            inventory_sync: None,
         })
     }
     pub fn bind(&mut self, server: &StdioServer) -> Result<(), Fault> {
@@ -66,6 +71,19 @@ impl Enforcement {
     }
     pub fn request_timeout(&self) -> Duration {
         self.approval_timeout + Duration::from_secs(30)
+    }
+    pub fn inventory_permit(&self) -> Option<super::sync::InventoryPermit> {
+        self.inventory_sync.as_ref()?.inventory_permit()
+    }
+    pub fn publish_inventory(
+        &self,
+        permit: super::sync::InventoryPermit,
+        supported: bool,
+        time_ms: u64,
+    ) {
+        if let (Some(producer), Some(server)) = (&self.inventory_sync, &self.server) {
+            producer.publish_inventory(permit, server, self.tools.values(), supported, time_ms);
+        }
     }
     async fn work<T: Send + 'static>(
         &self,
