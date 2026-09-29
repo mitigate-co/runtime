@@ -39,8 +39,9 @@ class BuildArchive:
     size: int
 
 
-def workflow_context(commit, tag, environment):
+def workflow_context(commit, tag, environment, *, job="sign"):
     require(expected_source(commit, tag) and len(tag) <= 64, "invalid_source")
+    require(job in {"preflight", "sign"}, "release_workflow_context")
     required = {
         "GITHUB_ACTIONS": "true",
         "GITHUB_REPOSITORY": REPOSITORY,
@@ -50,7 +51,7 @@ def workflow_context(commit, tag, environment):
         "GITHUB_WORKFLOW_REF": f"{REPOSITORY}/.github/workflows/release.yml@refs/tags/{tag}",
         "GITHUB_WORKFLOW_SHA": commit,
         "GITHUB_RUN_ATTEMPT": "1",
-        "GITHUB_JOB": "sign",
+        "GITHUB_JOB": job,
         "RUNNER_ENVIRONMENT": "github-hosted",
     }
     require(

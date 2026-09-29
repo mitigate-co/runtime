@@ -106,3 +106,7 @@ fresh-machine acceptance remain release gates. Issues #46, #50 and #57 remain
 unresolved; closing an issue or a later passing CI run does not establish a fix.
 Issue #36's prior privacy-probe failure also still needs technical resolution
 evidence. Nothing in this helper clears those gates or authorizes publication.
+
+The [read-only signing prerequisite check](RELEASE_SIGNING_GATES.md) observes
+source, workflow context, environment protections and the source-controlled
+unresolved failure list before a future privileged job may start.

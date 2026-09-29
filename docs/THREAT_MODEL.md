@@ -322,3 +322,10 @@ Source/CI evidence is rechecked after notarization, and final digests/layout
 must satisfy the installer contract. Context environment strings and staged
 manifest fields are not publisher authentication. No failed/partial output may
 be attested, and no protected signing workflow is enabled here; see ADR 0045.
+
+The [signing prerequisite check](RELEASE_SIGNING_GATES.md) requires valid empty
+failure policies from both the selected source and current protected main, plus
+observed source/CI/workflow and environment protections. Issue closure, retries
+or a later success cannot clear a source-controlled unresolved failure. GitHub
+approval enforcement and repository administrators remain trusted. Configuration
+checks and saved JSON reports are not signing/publication authority; see ADR 0046.

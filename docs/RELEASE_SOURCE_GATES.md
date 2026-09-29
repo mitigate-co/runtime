@@ -61,6 +61,11 @@ The [release-file authenticator](RELEASE_AUTHENTICATION.md) applies the fixed
 publisher policy to a bounded local file and attestation bundle. It is independent
 of these source checks; both are required, and neither is a production-ready flag.
 
+The [signing prerequisite check](RELEASE_SIGNING_GATES.md) adds the exact workflow
+context, clean selected checkout, checked-in unresolved failure policy and an
+existing protected signing environment. It does not acquire credentials or enable
+a signing workflow.
+
 The provider interfaces are GitHub's REST
 [workflow runs](https://docs.github.com/en/rest/actions/workflow-runs),
 [workflow jobs](https://docs.github.com/en/rest/actions/workflow-jobs),
