@@ -75,6 +75,10 @@ and the intended version/revision before extraction or execution; unsigned
 container release, supported-platform claim or signing/notarization success is
 implied by candidate packaging.
 
+The [read-only source preflight](RELEASE_SOURCE_GATES.md) checks the exact signed
+tag, main ancestry and both native CI workflows before release signing can begin.
+It is a necessary source gate, not a distribution authorization.
+
 The two new CI tools are build-only GitHub actions, pinned to reviewed release
 commits: `actions/setup-python` v7.0.0 and `actions/upload-artifact` v7.0.1 (both
 MIT). They download a fixed Python version/upload test artifacts through GitHub;
