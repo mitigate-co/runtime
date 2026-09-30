@@ -186,13 +186,18 @@ fn bounded_batches_and_capacity_refuse_partial_admission_without_eviction() {
 fn independent_connections_cannot_assign_two_references_to_the_same_key() {
     let fixture = Fixture::new();
     drop(fixture.create());
+    // Connection setup configures SQLite and can itself require a lock. This
+    // fixture races mapping resolution, not store initialization. Open both
+    // connections before either worker enters the coordinated resolution race.
+    let stores = (0..2)
+        .map(|_| ReferenceMap::open(&fixture.path(), partition()).unwrap())
+        .collect::<Vec<_>>();
     let barrier = Arc::new(Barrier::new(2));
-    let workers = (0..2)
-        .map(|_| {
-            let path = fixture.path();
+    let workers = stores
+        .into_iter()
+        .map(|mut store| {
             let barrier = Arc::clone(&barrier);
             thread::spawn(move || {
-                let mut store = ReferenceMap::open(&path, partition()).unwrap();
                 barrier.wait();
                 let until = Instant::now() + Duration::from_secs(10);
                 loop {
@@ -218,6 +223,24 @@ fn independent_connections_cannot_assign_two_references_to_the_same_key() {
             .unwrap(),
         2
     );
+}
+
+#[test]
+fn opening_a_locked_reference_store_refuses_without_replacing_identity() {
+    let fixture = Fixture::new();
+    let mut store = fixture.create();
+    let before = store.resolve(&[key(1)]).unwrap();
+    store.conn.execute_batch("BEGIN EXCLUSIVE").unwrap();
+    assert!(matches!(
+        ReferenceMap::open(&fixture.path(), partition()),
+        Err(Error::Storage(outbox::Error::Busy))
+    ));
+    store.conn.execute_batch("ROLLBACK").unwrap();
+    drop(store);
+
+    let mut reopened = ReferenceMap::open(&fixture.path(), partition()).unwrap();
+    assert_eq!(reopened.len().unwrap(), 1);
+    same(&reopened.resolve(&[key(1)]).unwrap(), &before);
 }
 
 #[test]

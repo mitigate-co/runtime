@@ -374,6 +374,82 @@ mod failure_tests {
         .unwrap()
     }
     #[test]
+    fn reader_blocked_decision_commit_rolls_back_record_and_clock() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        for choice in [Choice::Approve, Choice::Deny] {
+            let dir = std::env::temp_dir().join(format!(
+                "mitigate-approval-reader-{}",
+                fresh_reference().unwrap().as_str()
+            ));
+            std::fs::create_dir(&dir).unwrap();
+            let path = dir.join("approvals.db");
+            let mut store = ApprovalStore::create(&path).unwrap();
+            let request = store.request(binding(), 1000, 1000).unwrap();
+            let before = read(&store.conn).unwrap();
+            let writes = Arc::new(AtomicUsize::new(0));
+            let observed_writes = Arc::clone(&writes);
+            store
+                .conn
+                .update_hook(Some(
+                    move |_: rusqlite::hooks::Action, _: &str, table: &str, _: i64| {
+                        // The clock is a rowid table; the approval table is WITHOUT
+                        // ROWID, so SQLite deliberately does not hook its writes.
+                        if table == "clock" {
+                            observed_writes.fetch_add(1, Ordering::SeqCst);
+                        }
+                    },
+                ))
+                .unwrap();
+            let reader =
+                Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+            // A shared reader allows BEGIN IMMEDIATE and both updates, but
+            // prevents the final exclusive commit lock in DELETE journal mode.
+            // No sleep or race is used to manufacture this lock boundary.
+            reader
+                .execute_batch("BEGIN; SELECT count(*) FROM approvals;")
+                .unwrap();
+            assert!(matches!(
+                store.decide(
+                    &request.approval_ref,
+                    choice,
+                    fresh_reference().unwrap(),
+                    1100
+                ),
+                Err(Error::Busy)
+            ));
+            assert_eq!(writes.load(Ordering::SeqCst), 1);
+            let after = read(&store.conn).unwrap();
+            assert_eq!(after.0, before.0);
+            assert!(after.1 == before.1);
+            assert!(store.conn.is_autocommit());
+            reader.execute_batch("ROLLBACK").unwrap();
+            drop(reader);
+            drop(store);
+
+            // Inspect after restart before making a deliberate new decision.
+            // The failed commit must not leave an approval, denial or clock tick.
+            let mut reopened = ApprovalStore::open(&path).unwrap();
+            let retained = read(&reopened.conn).unwrap();
+            assert_eq!(retained.0, before.0);
+            assert!(retained.1 == before.1);
+            let result = reopened
+                .decide(
+                    &request.approval_ref,
+                    choice,
+                    fresh_reference().unwrap(),
+                    1100,
+                )
+                .unwrap();
+            assert_eq!(result.decisions.len(), 1);
+            assert_eq!(result.decisions[0].choice, choice);
+            drop(reopened);
+            std::fs::remove_dir_all(dir).unwrap();
+        }
+    }
+    #[test]
     fn failed_commit_never_releases_a_permit() {
         let dir = std::env::temp_dir().join(format!(
             "mitigate-approval-commit-{}",

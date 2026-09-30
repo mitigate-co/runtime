@@ -26,6 +26,28 @@ the request unapproved. Library tests separately require lock-refused consumptio
 to return no permit and retain the existing approved state. A failed commit still
 rolls back, and all original clock, expiry and one-use checks remain enforced.
 
+A separate regression holds a real SQLite shared read transaction to block the
+final decision commit, after the writer has updated its records and clock. Both
+approval and denial must return the busy category, restore the previous record and
+clock, and preserve that state after reopening. Only a new explicit decision after
+the reader releases its lock may commit. This controlled contention case does not
+identify the cause of the historical Windows failure above.
+
+Gateway unit fixtures hold approval time steady for state-machine assertions and
+advance it explicitly for expiry. Their five-second lifetime is unchanged. The
+exact-boundary regression verifies that requested and approved calls are usable
+one millisecond before expiry, denied at expiry, cannot be approved again, and
+never dispatch afterward. The fixture clock exists only in test builds; shipped
+gateway builds pass `SystemClock`, sampled inside the database transaction.
+
+This separates expiry coverage from machine speed after Windows
+[run 36778650214](https://github.com/mitigate-co/runtime/actions/runs/36778650214/job/110102865395)
+returned `Denied` after approval and `State` during an initial approval decision
+in fixtures using real time. Those transitions are reproduced by the explicit
+expiry regression. The run did not retain the original request timestamps, so
+it does not distinguish slow scheduling/storage from a forward OS-clock change.
+The real-process CLI contract continues to exercise OS time without an override.
+
 ## Try the local workflow
 
 Build with `cargo build --locked`. Use a private local directory for the database.
