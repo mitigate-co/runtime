@@ -26,6 +26,13 @@ the request unapproved. Library tests separately require lock-refused consumptio
 to return no permit and retain the existing approved state. A failed commit still
 rolls back, and all original clock, expiry and one-use checks remain enforced.
 
+A separate regression holds a real SQLite shared read transaction to block the
+final decision commit, after the writer has updated its records and clock. Both
+approval and denial must return the busy category, restore the previous record and
+clock, and preserve that state after reopening. Only a new explicit decision after
+the reader releases its lock may commit. This controlled contention case does not
+identify the cause of the historical Windows failure above.
+
 ## Try the local workflow
 
 Build with `cargo build --locked`. Use a private local directory for the database.
