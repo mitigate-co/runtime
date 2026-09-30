@@ -23,13 +23,35 @@ Updated 2026-09-29. Follow the canonical ordered work packages. This file report
 | MCP-017 — Registry v0 | Runtime contract/client merged | PR #26, main `768a4e0`; final cross-platform/security CI passed. Closed source-attributed catalogs and offline CLI lookup preserve conflicts and stale/unknown status. Hosted integration remains a separate gate. |
 | MCP-018 — Optional Platform sync | Runtime inventory producer merged | PR #47 at `48f993b` passed three-OS/security CI for explicit fresh inventory capture. Hosted composition and release acceptance are separate gates. |
 | MCP-019 — Reputation/index | Hosted implementation belongs to Platform | No private cohort/publication logic is added to Runtime. See the private repository's implementation evidence. |
-| MCP-020 — Release engineering | Native packaging and source gates merged; authenticated release pipeline under review | PR #48 at `6b6002d` and PR #49 at `7066315` passed native/security/package checks. Bounded publisher verification, verified installation, the [isolated signing pipeline](RELEASE_PIPELINE.md) and a [Homebrew draft](HOMEBREW.md) are implemented in the release stack. Authentic Apple/Sigstore acceptance, unresolved native failures, actual package installation and reviewed publication remain gates. |
+| MCP-020 — Release engineering | Release preparation merged through PR #65 at `b1b36a4` | Bounded publisher verification, verified installation, the [isolated signing pipeline](RELEASE_PIPELINE.md) and a [Homebrew draft](HOMEBREW.md) passed integration and protected-main checks. Authentic Apple/Sigstore acceptance, unresolved native failures, actual signed package installation and reviewed publication remain gates. |
 | MCP-021 — Adversarial hardening | Deterministic input corpus merged | PR #53 at `2389967` passed native/security CI for exact parser boundaries, hostile event controls, decoded duplicates and 6,144 bounded mutations. PR #58 at `a26c85f` preserves fixed capture failure diagnostics. Unresolved failure causes remain release gates; see [adversarial testing](ADVERSARIAL_TESTING.md). |
-| MCP-022 — Documentation/research | Source quickstart and publication methodology under review | Clear entry commands, stated scanner/privacy limits and separate synthetic/source/reproduction/aggregate evidence. GitHub private reporting is enabled; dedicated launch contact, signed distribution and an actual reviewed research dataset remain external acceptance work. |
-| MCP-023 — Design-partner readiness | Local diagnostics and support workflow under verification | An independent closed export gate, explicit configuration/synthetic checks, manual sharing, recovery runbook and privacy-conscious issue form. See [diagnostics](DIAGNOSTICS.md) and [support](SUPPORT.md). No background collection or automatic upload. Native CI and protected merge remain required. |
+| MCP-022 — Documentation/research | Source quickstart and publication methodology merged in PR #65 | Clear entry commands, stated scanner/privacy limits and separate synthetic/source/reproduction/aggregate evidence. GitHub private reporting is enabled; dedicated launch contact, signed distribution and an actual reviewed research dataset remain external acceptance work. |
+| MCP-023 — Design-partner readiness | Local diagnostics and support workflow merged in PR #65 | An independent closed export gate, explicit configuration/synthetic checks, manual sharing, recovery runbook and privacy-conscious issue form. See [diagnostics](DIAGNOSTICS.md) and [support](SUPPORT.md). No background collection or automatic upload. Actual partner deployments remain external acceptance work. |
 | MCP-024 — Production gate | Remaining acceptance work | Follow the [low-level packages](modules/mcp/LOW_LEVEL.md#19-work-packages). Signed fresh-machine installs and every release gate remain required. Existing prototype evidence does not establish acceptance. |
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
+
+
+## Component performance evidence
+
+The unpublished MCP fixture now has an explicit synthetic benchmark mode for
+schema canonicalization/fingerprints, scanner sizes, policy compilation/evaluation,
+egress validation, durable audit writes, classification and separate direct,
+managed-adapter and listener/adapter pipe paths. It keeps raw ordered samples and
+failed-operation timings without exporting inputs, results, paths or references.
+It cannot select a customer project, database or upstream. See
+[measurement boundaries](PERFORMANCE.md); this is not full governed-call latency.
+
+Local Linux/WSL verification passed strict fixture Clippy, the three statistics
+and argument-bound tests, the actual thirteen-case process/export/cleanup check,
+and an optimized run of 100 samples after ten warmups in every case. The first
+process check exposed an owned split-pipe shutdown error in the new harness;
+explicit shutdown/drop of both halves resolved it, and the process check passed.
+No production timeout, durability, authorization, telemetry or release-blocker
+policy changed. The harness contract is included in three-OS CI without a noisy
+latency threshold. Final CI and protected merge remain required for this slice.
+The [recorded baseline](performance-baselines/linux-wsl-x86_64.json) retains all
+thirteen optimized sample series, exact source revision and coarse environment.
 
 ## Approval storage failure evidence
 
@@ -41,6 +63,7 @@ not run. Approval errors now distinguish fixed SQLite busy/locked and interrupte
 categories without forwarding database text. Lock/budget/clock limits, refusal
 semantics and assertions remain unchanged. A later successful run does not resolve
 this failure or issues #36, #46, #50 and #57.
+
 
 Enforcing-gateway prerequisite merged in PR #16, main `eab5a6b`: exact private launch review binds
 executable/selected artifact bytes, argv, cwd, ordinary environment and native
