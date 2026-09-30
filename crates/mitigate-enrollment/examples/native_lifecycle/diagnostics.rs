@@ -18,6 +18,17 @@ pub(crate) fn messages(stderr: &[u8]) -> Vec<String> {
                 result.push(allowed);
             }
         }
+        for (label, states) in [
+            ("pending", &["unobserved", "empty", "partial", "busy"][..]),
+            ("worker", &["ready", "paused", "unavailable", "dropped"][..]),
+        ] {
+            for state in states {
+                let allowed = format!("Synthetic capture {label} state: {state}.");
+                if line == allowed {
+                    result.push(allowed);
+                }
+            }
+        }
         for stage in [
             "prepare",
             "first_start",
@@ -123,6 +134,8 @@ mod tests {
             "Synthetic capture privacy category: storage_clock.", "Synthetic capture stage: inventory.",
         ]);
         for input in [
+            "Synthetic capture pending state: private-canary.",
+            "Synthetic capture worker state: dropped. private-canary",
             "Synthetic capture inspection category: private-canary.",
             "Synthetic capture inspection category: outbox_busy. private-canary",
             "Synthetic capture privacy category: private-canary.",
@@ -162,5 +175,17 @@ mod tests {
             let input = format!("private-path-canary\n{allowed}\nprivate-payload-canary\n");
             assert_eq!(messages(input.as_bytes()), [allowed]);
         }
+    }
+
+    #[test]
+    fn timeout_state_projection_excludes_neighboring_private_payloads() {
+        let input = b"private-path-canary\nSynthetic capture pending state: partial.\nSynthetic capture worker state: dropped.\nprivate-payload-canary\n";
+        assert_eq!(
+            messages(input),
+            [
+                "Synthetic capture pending state: partial.",
+                "Synthetic capture worker state: dropped."
+            ]
+        );
     }
 }

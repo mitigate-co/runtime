@@ -16,7 +16,7 @@ pub(super) fn inspect(profile: &SyncProfile) -> Report {
     }
 }
 
-fn category(error: Error) -> &'static str {
+pub(super) fn category(error: Error) -> &'static str {
     match error {
         Error::Outbox(error) => match error {
             OutboxError::Input => "outbox_input",
