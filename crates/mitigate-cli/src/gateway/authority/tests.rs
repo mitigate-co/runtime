@@ -16,6 +16,7 @@ fn reference(ch: char) -> Fingerprint {
 struct Fixture {
     root: PathBuf,
     config: EnforcementConfig,
+    approval_time: u64,
 }
 impl Drop for Fixture {
     fn drop(&mut self) {
@@ -51,10 +52,23 @@ impl Fixture {
         drop(ApprovalStore::create(&config.approvals_db).unwrap());
         drop(ControlStore::create(&config.controls_db).unwrap());
         drop(AuditStore::create(&config.audit_db, Retention::default()).unwrap());
-        let fixture = Self { root, config };
+        let fixture = Self {
+            root,
+            config,
+            approval_time: now().unwrap(),
+        };
         fixture.policy(1, decision);
         fixture.grants("allow");
         fixture
+    }
+    fn open(&self) -> State {
+        let mut state = State::open(&self.config).unwrap();
+        state.approval_clock = ApprovalClock(Some(self.approval_time));
+        state
+    }
+    fn advance_approval_time(&mut self, state: &mut State, milliseconds: u64) {
+        self.approval_time += milliseconds;
+        state.approval_clock = ApprovalClock(Some(self.approval_time));
     }
     fn grants(&self, effect: &str) {
         fs::write(&self.config.grants, serde_json::to_vec(&json!({"schema_version":1,"grants":[{
@@ -109,7 +123,7 @@ impl Fixture {
     fn approval(&self) -> approvals::Record {
         ApprovalStore::open(&self.config.approvals_db)
             .unwrap()
-            .list(SystemClock)
+            .list(self.approval_time)
             .unwrap()
             .pop()
             .unwrap()
@@ -118,7 +132,12 @@ impl Fixture {
         let approval_ref = self.approval().approval_ref;
         ApprovalStore::open(&self.config.approvals_db)
             .unwrap()
-            .decide(&approval_ref, choice, reference(operator), SystemClock)
+            .decide(
+                &approval_ref,
+                choice,
+                reference(operator),
+                self.approval_time,
+            )
             .unwrap();
     }
     fn records(&self) -> Vec<Value> {
@@ -136,12 +155,12 @@ impl Fixture {
 #[test]
 fn a_clock_failure_while_awaiting_approval_preserves_blocked_local_authority() {
     let fixture = Fixture::new("require_approval");
-    let mut state = State::open(&fixture.config).unwrap();
+    let mut state = fixture.open();
     fixture.begin(&mut state, true);
     assert_eq!(state.authorize_request(), Ok(true));
     ApprovalStore::open(&fixture.config.approvals_db)
         .unwrap()
-        .list(now().unwrap() + 60_000)
+        .list(fixture.approval_time + 60_000)
         .unwrap();
     assert_eq!(state.approved(), Err(Fault::GovernanceUnavailable));
     assert_eq!(
@@ -157,7 +176,7 @@ fn a_clock_failure_while_awaiting_approval_preserves_blocked_local_authority() {
 #[test]
 fn allowance_has_durable_correlated_dispatch_and_observed_completion_without_content() {
     let fixture = Fixture::new("allow");
-    let mut state = State::open(&fixture.config).unwrap();
+    let mut state = fixture.open();
     fixture.begin(&mut state, true);
     assert_eq!(state.authorize_request(), Ok(false));
     state.dispatch().unwrap();
@@ -179,7 +198,7 @@ fn allowance_has_durable_correlated_dispatch_and_observed_completion_without_con
 #[test]
 fn optional_capture_requires_a_committed_audit_and_never_blocks_local_authority() {
     let fixture = Fixture::new("allow");
-    let mut state = State::open(&fixture.config).unwrap();
+    let mut state = fixture.open();
     let (producer, receiver) =
         crate::gateway::sync::tests::producer(&fixture.root.join("queue.sqlite"));
     state.sync = Some(producer);
@@ -218,7 +237,7 @@ fn unknown_client_and_explicit_grant_denial_cannot_be_overridden_by_allow_policy
         if known {
             fixture.grants("deny");
         }
-        let mut state = State::open(&fixture.config).unwrap();
+        let mut state = fixture.open();
         fixture.begin(&mut state, known);
         assert_eq!(state.authorize_request(), Err(Fault::Denied));
         state
@@ -235,10 +254,51 @@ fn unknown_client_and_explicit_grant_denial_cannot_be_overridden_by_allow_policy
 }
 
 #[test]
+fn requested_and_approved_calls_expire_at_the_exact_approval_boundary() {
+    for approved in [false, true] {
+        let mut fixture = Fixture::new("require_approval");
+        let mut state = fixture.open();
+        fixture.begin(&mut state, true);
+        assert_eq!(state.authorize_request(), Ok(true));
+        if approved {
+            fixture.decide(approvals::Choice::Approve, '2');
+        }
+        let lifetime = fixture.config.approval_timeout_ms;
+        fixture.advance_approval_time(&mut state, lifetime - 1);
+        assert_eq!(state.approved(), Ok(approved));
+        fixture.advance_approval_time(&mut state, 1);
+        assert_eq!(state.approved(), Err(Fault::Denied));
+        let expired = fixture.approval();
+        assert_eq!(expired.state, ApprovalState::Expired);
+        assert!(matches!(
+            ApprovalStore::open(&fixture.config.approvals_db)
+                .unwrap()
+                .decide(
+                    &expired.approval_ref,
+                    approvals::Choice::Approve,
+                    reference('2'),
+                    fixture.approval_time,
+                ),
+            Err(approvals::Error::State)
+        ));
+        assert_eq!(state.dispatch(), Err(Fault::Denied));
+        state
+            .finish(ResultClass::NotInvoked, Some(Fault::Denied))
+            .unwrap();
+        assert!(
+            fixture
+                .records()
+                .iter()
+                .all(|record| record["call"]["phase"] != "dispatch")
+        );
+    }
+}
+
+#[test]
 fn approvals_are_consumed_once_and_revocation_is_attributed_before_dispatch() {
     for revoke in [false, true] {
         let fixture = Fixture::new("require_approval");
-        let mut state = State::open(&fixture.config).unwrap();
+        let mut state = fixture.open();
         fixture.begin(&mut state, true);
         assert_eq!(state.authorize_request(), Ok(true));
         assert_eq!(state.approved(), Ok(false));
@@ -283,7 +343,7 @@ fn approvals_are_consumed_once_and_revocation_is_attributed_before_dispatch() {
 #[test]
 fn policy_replacement_invalidates_waiting_approval_and_missing_policy_keeps_cached_authority() {
     let fixture = Fixture::new("require_approval");
-    let mut state = State::open(&fixture.config).unwrap();
+    let mut state = fixture.open();
     fixture.begin(&mut state, true);
     state.authorize_request().unwrap();
     fixture.decide(approvals::Choice::Approve, '2');
@@ -311,7 +371,7 @@ fn policy_replacement_invalidates_waiting_approval_and_missing_policy_keeps_cach
 #[test]
 fn live_control_and_grant_changes_are_rechecked_and_quota_is_not_refunded_after_dispatch() {
     let fixture = Fixture::new("allow");
-    let mut state = State::open(&fixture.config).unwrap();
+    let mut state = fixture.open();
     fixture.begin(&mut state, true);
     assert_eq!(state.authorize_request(), Ok(false));
     let mut control = ControlStore::open(&fixture.config.controls_db).unwrap();
@@ -367,7 +427,7 @@ fn live_control_and_grant_changes_are_rechecked_and_quota_is_not_refunded_after_
 #[test]
 fn cancellation_finishes_pending_metadata_and_grant_parse_errors_never_allow() {
     let fixture = Fixture::new("require_approval");
-    let mut state = State::open(&fixture.config).unwrap();
+    let mut state = fixture.open();
     let cancelled = fixture.begin(&mut state, true);
     state.authorize_request().unwrap();
     cancelled.store(true, Ordering::Release);

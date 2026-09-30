@@ -25,6 +25,20 @@ use std::{
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
+// The shipped gateway always samples OS time inside ApprovalStore transactions.
+// Unit fixtures may hold/advance approval time without changing production TTLs.
+#[cfg(not(test))]
+type ApprovalClock = SystemClock;
+#[cfg(test)]
+#[derive(Clone, Copy, Default)]
+struct ApprovalClock(Option<u64>);
+#[cfg(test)]
+impl mitigate_policy::Clock for ApprovalClock {
+    fn now_ms(self) -> Option<u64> {
+        self.0.or_else(|| SystemClock.now_ms())
+    }
+}
+
 pub(super) struct State {
     policy_store: PolicyStore,
     policy: ActivePolicy,
@@ -36,6 +50,7 @@ pub(super) struct State {
     pub sync: Option<super::sync::Producer>,
     environment: Option<String>,
     approval_timeout_ms: u64,
+    approval_clock: ApprovalClock,
     active: Option<Invocation>,
 }
 struct Invocation {
@@ -131,6 +146,7 @@ impl State {
             )),
             environment: config.environment.clone(),
             approval_timeout_ms: config.approval_timeout_ms,
+            approval_clock: ApprovalClock::default(),
             active: None,
             sync: None,
         })
@@ -242,7 +258,7 @@ impl State {
         {
             if let Some(reference) = &call.detail.approval_ref {
                 self.approvals
-                    .cancel(reference, Cancellation::ContextChanged, SystemClock)
+                    .cancel(reference, Cancellation::ContextChanged, self.approval_clock)
                     .map_err(approval_failure)?;
             }
             call.detail.decision = Decision::Deny;
@@ -324,7 +340,11 @@ impl State {
             let binding = call.bind(state.environment.clone())?;
             let record = state
                 .approvals
-                .request(binding.clone(), SystemClock, state.approval_timeout_ms)
+                .request(
+                    binding.clone(),
+                    state.approval_clock,
+                    state.approval_timeout_ms,
+                )
                 .map_err(approval_failure)?;
             call.detail.approval_ref = Some(record.approval_ref);
             call.binding = Some(binding);
@@ -353,7 +373,7 @@ impl State {
                 .ok_or(Fault::GovernanceUnavailable)?;
             let record = state
                 .approvals
-                .get(reference, SystemClock)
+                .get(reference, state.approval_clock)
                 .map_err(approval_failure)?;
             if let Some(decision) = record.decisions.last() {
                 call.context.approval_actor = Some(ApprovalActor {
@@ -399,7 +419,7 @@ impl State {
                     .ok_or(Fault::GovernanceUnavailable)?;
                 match state
                     .approvals
-                    .consume(reference, binding, SystemClock)
+                    .consume(reference, binding, state.approval_clock)
                     .map_err(approval_failure)?
                 {
                     Consumption::Ready(permit) => {
@@ -412,7 +432,7 @@ impl State {
                     _ => {
                         let record = state
                             .approvals
-                            .get(reference, SystemClock)
+                            .get(reference, state.approval_clock)
                             .map_err(approval_failure)?;
                         if let Some(decision) = record.decisions.last() {
                             call.context.approval_actor = Some(ApprovalActor {
@@ -449,7 +469,7 @@ impl State {
             if !call.dispatched {
                 if let Some(reference) = &call.detail.approval_ref {
                     self.approvals
-                        .cancel(reference, Cancellation::SessionEnded, SystemClock)
+                        .cancel(reference, Cancellation::SessionEnded, self.approval_clock)
                         .map_err(approval_failure)?;
                 }
                 call.context.phase = CallPhase::Decision;
