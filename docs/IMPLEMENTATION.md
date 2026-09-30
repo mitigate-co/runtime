@@ -14,7 +14,7 @@ Updated 2026-09-29. Follow the canonical ordered work packages. This file report
 | MCP-008 — Upstream adapters | Stdio and CLI merged | PR #8 `b99b139`, CLI PR #9 `d3be494`. Managed calls, drift, progress and cancellation verified with real processes. Initial supported transport is stdio; PR #20 subsequently integrated governed call authorization and progress. |
 | MCP-009 — Secret broker | Merged | PR #10, main `334dfc1`. Native Windows/macOS/Linux storage, scoped injection and management CLI. 77 unit/integration tests, compile-fail privacy check, Windows persistence fixture and real native-store/CLI/child contracts passed on all three operating systems; dependency/license/secret gates passed. |
 | MCP-010 — Local audit | Merged | PR #11, main `e8e0f9b`. Bounded SQLite metadata, retention checkpoints, chain verification and inventory-gateway recording. 89 Windows tests plus compile-fail privacy test, Linux/macOS suites, actual CLI/gateway contracts and security gates passed. Reviewed SQLite 3.53.4 source and compiled version verified. PR #20 subsequently integrated mandatory governed-call audit. |
-| MCP-011 — Regorus | Merged | PR #12, main `2ff8669`. Restricted Rego profile, closed inputs/decisions, strict Ed25519 trust, native signing CLI and transactional activation. Windows/macOS/Linux suites, actual CLI/native signing contracts, 22 OPA comparison cases and dependency/license/secret gates passed. Local Windows still requires the MSVC Spectre component; isolated WSL supports verification. |
+| MCP-011 — Regorus | Merged | PR #12, main `2ff8669`. Restricted Rego profile, closed inputs/decisions, strict Ed25519 trust, native signing CLI and transactional activation. Windows/macOS/Linux suites, actual CLI/native signing contracts, 22 OPA comparison cases and dependency/license/secret gates passed. The matching MSVC Spectre component is now installed locally; the Windows workspace build and native lifecycle verification pass. |
 | MCP-012 — Grants | Merged | PR #13, main `cc13a10`. Explicit scopes, deny precedence, whole-action allowance and independent policy constraint. Policy/grant unit tests, actual CLI/privacy fixtures and complete Windows/macOS/Linux/security CI passed. |
 | MCP-013 — Approvals | Merged | PR #14, main `60fc055`. One-call binding, local decisions, atomic consumption, expiry/revocation/cancellation and bounded storage. Approval, CLI/privacy, full Windows/macOS/Linux and dependency/secret gates passed. PR #20 subsequently integrated live one-call approval enforcement; unresolved native failures remain release blockers. |
 | MCP-014 — Kill switch and limits | Merged | Controls PR #15, governance PR #20 and exact-reference setup PR #21, main `72e68fe`. Governed calls enforce stops/targets/quotas alongside policy/grants/approvals and required audit. Both final CI runs passed all three operating systems and security gates. |
@@ -62,6 +62,35 @@ not run. Approval errors now distinguish fixed SQLite busy/locked and interrupte
 categories without forwarding database text. Lock/budget/clock limits, refusal
 semantics and assertions remain unchanged. A later successful run does not resolve
 this failure or issues #36, #46, #50 and #57.
+
+## Local Windows acceptance
+
+The installed Visual Studio 18 Build Tools and MSVC 14.50 Spectre libraries now
+build the complete Windows workspace. Local executable governance and native
+enrollment/sync fixtures passed approval/denial/drift, credential recovery,
+confirmed signing, capture, continuous sending, consent, pause/drain, purge and
+exact synthetic credential deletion. They contact no external Platform service.
+Protected-main source `1dfa113` passed both complete Verify and Package candidates
+workflows (`36675469182` and `36675469134`). These results do not resolve the
+historical failure causes in the source-controlled release blocker policy.
+
+The subsequent local all-feature workspace run failed before the gate-expiry
+assertion: fixture startup returned `Timeout` at
+`fixtures/mcp-server/tests/gate/mod.rs:103` under the test's one-second launch
+budget. The test now uses the ordinary fixture startup budget, reaches the gate
+explicitly, and advances only the test clock to exercise late pending/ready
+outcomes without sleeping. The original failed run is retained here; this is a
+test synchronization correction, not a fix for issues #36/#46/#50/#57/#67.
+The neighboring stalled-response test had the same short startup assumption; it
+now uses the ordinary fixture budget and requires the child's call marker before
+accepting a timeout, preventing inventory failure from posing as response expiry.
+
+With the gate correction, the full local Windows all-feature workspace passed
+371 tests, including compile-fail contracts. The separately enabled native Windows
+credential-persistence test passed; the other ignored entry is a lock helper
+invoked by its parent. After the stalled-response assertion was added, all 18
+upstream tests passed again. Formatting, strict all-target/all-feature workspace
+Clippy and the source secret scan passed. Final protected CI remains required.
 
 Enforcing-gateway prerequisite merged in PR #16, main `eab5a6b`: exact private launch review binds
 executable/selected artifact bytes, argv, cwd, ordinary environment and native

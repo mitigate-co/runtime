@@ -273,11 +273,9 @@ async fn failures_poison_connection_without_returning_upstream_error_content() {
         ("relay-wrong-id", Error::Protocol),
     ] {
         let project = Project::new();
-        let mut server = StdioServer::connect(
-            &project.config(mode, if mode == "relay-timeout" { 1000 } else { 5000 }),
-        )
-        .await
-        .unwrap();
+        let mut server = StdioServer::connect(&project.config(mode, 5000))
+            .await
+            .unwrap();
         let error = match server
             .call("read_status", json!({}), Some(&mut |_| {}))
             .await
@@ -286,6 +284,12 @@ async fn failures_poison_connection_without_returning_upstream_error_content() {
             Ok(_) => panic!("upstream failure fixture unexpectedly succeeded"),
         };
         assert_eq!(error, expected);
+        if mode == "relay-timeout" {
+            assert!(
+                project.0.join("call-marker").exists(),
+                "the timeout must follow dispatch, not startup or inventory refresh"
+            );
+        }
         assert!(!error.to_string().contains("canary"));
         assert_eq!(
             server.check_inventory().await.err(),
