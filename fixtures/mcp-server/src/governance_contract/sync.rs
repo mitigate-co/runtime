@@ -1,6 +1,8 @@
 //! Native lifecycle fixture supplies an already-consented synthetic profile.
 //! This exercises the shipped CLI producer; no Platform endpoint is contacted.
+mod inspection;
 use super::*;
+use inspection::inspect;
 use mitigate_egress::{
     CheckedEvent,
     outbox::{Outbox, Partition},
@@ -81,9 +83,9 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
     let profile = SyncProfile::open(profile_path).unwrap();
     let config: Value = serde_json::from_slice(&fs::read(profile_path).unwrap()).unwrap();
     let queue = PathBuf::from(config["outbox_file"].as_str().unwrap());
-    let partition = profile.inspect().unwrap().partition;
-    assert_eq!(profile.inspect().unwrap().pending, 0);
-    assert!(!profile.inspect().unwrap().paused);
+    let partition = inspect(&profile).partition;
+    assert_eq!(inspect(&profile).pending, 0);
+    assert!(!inspect(&profile).paused);
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -166,10 +168,10 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
                 .send(json!({"jsonrpc":"2.0","id":15,"method":"tools/list"}))
                 .await;
             assert!(client.read().await["result"].is_object());
-            assert_eq!(profile.inspect().unwrap().pending, 8);
+            assert_eq!(inspect(&profile).pending, 8);
             client.call(4, json!({})).await;
             assert_eq!(client.result(4).await.0["error"]["code"], -32001);
-            assert_eq!(profile.inspect().unwrap().pending, 8);
+            assert_eq!(inspect(&profile).pending, 8);
             eprintln!("Synthetic capture stage: purge.");
             assert_eq!(profile.purge().unwrap().pending, 0);
             client.finish(0).await;
@@ -207,15 +209,15 @@ async fn inventory(
 ) {
     // The parent native fixture owns credential resume (including macOS ACLs).
     // This child uses already-consented local metadata state only.
-    assert!(!profile.inspect().unwrap().paused);
-    assert_eq!(profile.inspect().unwrap().pending, 5);
+    assert!(!inspect(profile).paused);
+    assert_eq!(inspect(profile).pending, 5);
     let list = |id| json!({"jsonrpc":"2.0","id":id,"method":"tools/list"});
     let lock = rusqlite::Connection::open(project.path("audit.sqlite")).unwrap();
     lock.execute_batch("BEGIN IMMEDIATE").unwrap();
     client.send(list(10)).await;
     assert_eq!(client.read().await["error"]["code"], -32007);
     lock.execute_batch("ROLLBACK").unwrap();
-    assert_eq!(profile.inspect().unwrap().pending, 5);
+    assert_eq!(inspect(profile).pending, 5);
 
     client.send(list(11)).await;
     assert_eq!(
@@ -254,7 +256,7 @@ async fn inventory(
         .send(json!({"jsonrpc":"2.0","id":12,"method":"tools/list","params":{"cursor":"m1:0"}}))
         .await;
     assert!(client.read().await["result"].is_object());
-    assert_eq!(profile.inspect().unwrap().pending, 6);
+    assert_eq!(inspect(profile).pending, 6);
 
     client
         .call(13, json!({"value":"inventory-argument-canary"}))

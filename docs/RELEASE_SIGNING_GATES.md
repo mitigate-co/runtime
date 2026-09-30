@@ -68,6 +68,8 @@ It currently retains:
   gateway-capture failure; retained diagnostics do not establish its cause.
 - [#67](https://github.com/mitigate-co/runtime/issues/67): unexplained Windows
   approval-decision storage failure during the schema-drift fixture.
+- [#75](https://github.com/mitigate-co/runtime/issues/75): unexplained Linux
+  read-only queue inspection failure during native inventory capture.
 
 Remove a number only in a reviewed corrective PR that links the demonstrated
 cause, fix or justified fixture correction, regression coverage and required CI

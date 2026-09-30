@@ -63,3 +63,9 @@ The [approval storage contract](APPROVALS.md#storage-failures) now distinguishes
 fixed lock and interruption categories and verifies refusal against an explicitly
 held competing SQLite transaction. That deterministic refusal does not identify
 the historical failure's cause or clear the release blocker.
+
+Linux native inspection issue [#75](https://github.com/mitigate-co/runtime/issues/75)
+remains a separate release gate. The capture fixture now retains a fixed outbox
+failure category while excluding arbitrary child stderr. An explicitly held
+exclusive lock verifies read-only refusal without file mutation; this regression
+does not identify the original failure's cause.
