@@ -1,5 +1,5 @@
 use super::*;
-use std::cell::Cell;
+use std::{cell::Cell, future::Future, task::Poll};
 
 #[tokio::test]
 async fn gate_observes_changes_during_refresh_and_rejection_preserves_connection() {
@@ -96,22 +96,39 @@ async fn cancellation_while_gate_waits_never_dispatches_or_reuses_the_connection
 
 #[tokio::test]
 async fn expired_gate_cannot_dispatch_even_if_it_returns_ready_without_yielding() {
-    for blocking in [false, true] {
+    for ready in [false, true] {
         let project = Project::new();
-        let mut server = StdioServer::connect(&project.config("relay", 1000))
+        let mut server = StdioServer::connect(&project.config("relay", 5000))
             .await
             .unwrap();
+        let visited = Cell::new(0);
         let outcome = server
             .call_with_gate("read_status", json!({}), None, || async {
-                if blocking {
-                    // Deliberately exceed the configured deadline in one poll.
-                    std::thread::sleep(Duration::from_millis(1200));
-                } else {
+                visited.set(visited.get() + 1);
+                // Startup and inventory use real time. Advance only when the
+                // gate is reached, so neither can impersonate the timeout under
+                // test. Poll advance once: it changes time before yielding, and
+                // this wrapper stays ready in the same poll as the gate.
+                tokio::time::pause();
+                let before = tokio::time::Instant::now();
+                let elapsed = Duration::from_millis(5001);
+                let mut advance = std::pin::pin!(tokio::time::advance(elapsed));
+                std::future::poll_fn(|cx| {
+                    let _ = advance.as_mut().poll(cx);
+                    Poll::Ready(())
+                })
+                .await;
+                assert_eq!(tokio::time::Instant::now() - before, elapsed);
+                // Process cleanup must wait on the real OS, not an automatically
+                // advancing test timer that could outrun process termination.
+                tokio::time::resume();
+                if !ready {
                     std::future::pending::<()>().await;
                 }
                 Ok::<(), ()>(())
             })
             .await;
+        assert_eq!(visited.get(), 1, "the intended gate must be exercised");
         assert_eq!(outcome, Err(CallFailure::Upstream(Error::Timeout)));
         assert!(!project.0.join("call-marker").exists());
         assert_eq!(server.check_inventory().await, Err(Error::Disconnected));

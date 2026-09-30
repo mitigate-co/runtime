@@ -74,3 +74,13 @@ CLI contracts, before native-credential verification. Its synchronous-storage
 suites completed successfully but consumed most of the job time. This CI budget
 change does not extend a Runtime lease, SQLite deadline, transport timeout or
 fixture assertion, and does not resolve the separate failures in issues #46/#50.
+
+The upstream gate-expiry regression uses the same five-second startup budget as
+the other real-process fixtures. Only after the final gate is reached does it
+advance Tokio's test clock past the configured transaction deadline. Both pending
+and immediately ready gate outcomes must time out, dispatch no call and leave the
+connection unusable. Real time resumes before OS process cleanup. An explicit gate
+visit assertion prevents a slow startup or inventory timeout from satisfying this
+test accidentally. No production clock, timeout or authorization code is changed.
+The stalled-upstream case also uses the ordinary startup budget and requires its
+child's call marker, proving its timeout followed dispatch rather than inventory.
