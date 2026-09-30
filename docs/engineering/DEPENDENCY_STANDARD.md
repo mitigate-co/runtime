@@ -43,3 +43,6 @@ Private/proprietary Platform still requires license review. "Server-side" does n
 - Dependabot/Renovate-style updates may open PRs but do not auto-merge security-sensitive dependency changes without tests/review,
 - major-version updates require release notes/migration review,
 - new cryptography should use well-reviewed libraries, never custom primitives.
+
+Record targeted maintenance reviews in [dependency reviews](../DEPENDENCY_REVIEWS.md)
+when a withdrawn release or changed dependency trust surface needs retained context.
