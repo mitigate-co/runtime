@@ -1,6 +1,7 @@
 //! Native lifecycle fixture supplies an already-consented synthetic profile.
 //! This exercises the shipped CLI producer; no Platform endpoint is contacted.
 mod inspection;
+mod timeout_diagnostics;
 use super::*;
 use inspection::inspect;
 use mitigate_egress::{
@@ -42,20 +43,42 @@ async fn diagnostic(client: &mut Client, expected: &str) {
     .await
     .expect("bounded capture readiness");
 }
-async fn pending(queue: &Path, partition: &Partition, count: usize) {
-    timeout(Duration::from_secs(15), async {
+async fn pending(client: &mut Client, queue: &Path, partition: &Partition, count: usize) {
+    let mut last_observation = "unobserved";
+    let result = timeout(Duration::from_secs(15), async {
         loop {
             match Outbox::inspect_file(queue, partition.clone()) {
                 Ok(report) if report.pending == count => return,
-                Ok(report) => assert!(report.pending < count),
-                Err(mitigate_egress::outbox::Error::Busy) => (),
-                Err(_) => panic!("synthetic queue must remain readable"),
+                Ok(report) => {
+                    assert!(report.pending < count);
+                    last_observation = if report.pending == 0 {
+                        "empty"
+                    } else {
+                        "partial"
+                    };
+                }
+                Err(mitigate_egress::outbox::Error::Busy) => last_observation = "busy",
+                Err(error) => {
+                    eprintln!(
+                        "Synthetic capture inspection category: {}.",
+                        inspection::category(mitigate_enrollment::storage::sync::Error::Outbox(
+                            error
+                        ))
+                    );
+                    panic!("synthetic queue must remain readable");
+                }
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     })
-    .await
-    .expect("bounded durable capture");
+    .await;
+    if result.is_err() {
+        eprintln!("Synthetic capture pending state: {last_observation}.");
+        for status in timeout_diagnostics::worker_status(&mut client.diagnostics).await {
+            eprintln!("Synthetic capture worker state: {status}.");
+        }
+    }
+    result.expect("bounded durable capture");
 }
 fn events(queue: &Path) -> Vec<Value> {
     let db =
@@ -104,7 +127,7 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
                 true
             );
             eprintln!("Synthetic capture stage: first_commit.");
-            pending(&queue, &partition, 2).await;
+            pending(&mut client, &queue, &partition, 2).await;
             let first = events(&queue);
             assert_eq!(first[0]["facts"]["call_ref"], first[1]["facts"]["call_ref"]);
             assert_ne!(first[0]["event_id"], first[1]["event_id"]);
@@ -138,7 +161,7 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
                 client.result(2).await.0["result"]["structuredContent"]["ok"],
                 true
             );
-            pending(&queue, &partition, 4).await;
+            pending(&mut client, &queue, &partition, 4).await;
             for event in events(&queue) {
                 for field in [
                     "client_ref",
@@ -155,7 +178,7 @@ pub(crate) fn verify_capture(binary: &Path, profile_path: &Path) {
             project.policy(2, "deny");
             client.call(3, json!({})).await;
             assert_eq!(client.result(3).await.0["error"]["code"], -32001);
-            pending(&queue, &partition, 5).await;
+            pending(&mut client, &queue, &partition, 5).await;
             assert!(events(&queue).iter().any(
                 |e| e["facts"]["decision"] == "deny" && e["facts"]["outcome"] == "not_invoked"
             ));
@@ -224,7 +247,7 @@ async fn inventory(
         client.read().await["result"]["tools"][0]["name"],
         "read_status"
     );
-    pending(queue, partition, 6).await;
+    pending(client, queue, partition, 6).await;
     let first = events(queue)
         .into_iter()
         .find(|e| e["event_type"] == "mcp_inventory_snapshot")
@@ -262,7 +285,7 @@ async fn inventory(
         .call(13, json!({"value":"inventory-argument-canary"}))
         .await;
     assert_eq!(client.result(13).await.0["error"]["code"], -32001);
-    pending(queue, partition, 7).await;
+    pending(client, queue, partition, 7).await;
     let decisions: Vec<_> = events(queue)
         .into_iter()
         .filter(|e| e["event_type"] == "mcp_tool_decision")
@@ -282,7 +305,7 @@ async fn inventory(
     }
     client.send(list(14)).await;
     assert!(client.read().await["result"].is_object());
-    pending(queue, partition, 8).await;
+    pending(client, queue, partition, 8).await;
     let observations: Vec<_> = events(queue)
         .into_iter()
         .filter(|e| e["event_type"] == "mcp_inventory_snapshot")

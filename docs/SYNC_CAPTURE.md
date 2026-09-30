@@ -160,3 +160,19 @@ new files, then confirms the original pending event after rollback. This proves
 the lock-refusal contract; it does not establish that contention caused #75.
 Inspection does not sample the OS wall clock or access native credentials.
 The original failure remains a release gate until its cause is demonstrated.
+
+A fixed two-process WSL/Linux campaign at `088c674` returned one failure and one
+pass, with separate synthetic native identities and no network requests or retries.
+The failed child reached `first_commit` and exhausted the existing fifteen-second
+durable-record wait at `sync.rs:58:6`. This is separate evidence retained in #75;
+it did not reproduce the inventory inspection failure. Successful single-process
+and CI runs do not cancel this failed run.
+
+On a durable-record timeout the fixture now retains only its last observation
+(`unobserved`, `empty`, `partial` or `busy`) and any exact fixed worker-status lines.
+Reading those lines occurs only after failure, with a 500-ms / 4-KiB / 16-line
+bound. Incomplete lines and arbitrary stderr are discarded. Non-busy inspection
+errors project the same closed outbox categories and still fail immediately.
+The fifteen-second record wait, expected counts and existing Busy-only polling
+are unchanged. Tests include a stalled stream using virtual time, payload canaries,
+partial lines and output bounds. These diagnostics do not resolve either failure.
