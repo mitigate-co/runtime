@@ -88,7 +88,9 @@ Interpret results using the [research methodology](RESEARCH_METHODS.md). Keep
 separate baselines for OS/build/filesystem and preserve unsuccessful runs. This
 harness does not resolve the [open release blockers](RELEASE_BLOCKERS.json).
 
-## Recorded baseline
+## Recorded baselines
+
+### Linux / WSL2
 
 [Raw samples and environment](performance-baselines/linux-wsl-x86_64.json) record
 the 2026-09-29 optimized run of source `7af11d9`, Rust 1.98.1, on WSL2 x86-64.
@@ -111,3 +113,33 @@ These component values are not a customer latency promise, a production SLO,
 cross-platform comparison or full governed CLI measurement. Keep the raw sample
 order and environment when comparing a later run; do not sum medians or subtract
 percentiles to invent an end-to-end distribution.
+
+### Windows
+
+[Raw samples and environment](performance-baselines/windows-x86_64.json) record
+the 2026-09-30 optimized run of clean source `34aeb864`, Rust 1.98.1, on native
+Windows 11 Pro x86-64 (build 26200). The host exposed twenty logical processors
+on an Intel Core i9-10850K and 65,400 MiB of memory. Fixture data and executable
+used NTFS. Interactive development continued, so this is an uncontrolled local
+baseline. It is a separate observation from the WSL run, not an OS comparison.
+
+All thirteen cases completed 100 measured operations after ten warmups each.
+The external harness retained the original report, independently checked every
+sample count and nearest-rank statistic, and confirmed cleanup and preservation
+of an unrelated sentinel. It passed only the minimum OS and owned temporary
+directory environment to the fixture. No customer state or network was used.
+
+| Selected case | Median | p95 |
+| --- | --- | --- |
+| Schema fingerprint, 32 fields | 78.900 µs | 121.200 µs |
+| Scan, 128 declarations | 1.928 ms | 2.638 ms |
+| Compiled policy evaluation | 24.200 µs | 42.500 µs |
+| Durable audit append, growing history | 8.033 ms | 11.796 ms |
+| Direct synthetic stdio call | 0.050 ms | 0.082 ms |
+| Managed adapter call | 0.248 ms | 0.411 ms |
+| Listener plus managed adapter | 0.289 ms | 0.476 ms |
+
+The same component boundaries and interpretation limits apply. This harness does
+not measure the durable privacy self-test or the complete governed CLI. These
+samples cannot explain historical CI timeouts, establish their cause or clear an
+unresolved release blocker. No production deadline or acceptance threshold changes.
