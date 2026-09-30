@@ -111,6 +111,24 @@ jobs:
           export XDG_DATA_HOME="$RUNNER_TEMP/mitigate-keyring-fixture"
           mkdir -p "$XDG_DATA_HOME"
           dbus-run-session -- bash scripts/verify-linux-secrets.sh
+      # Preserve exact synthetic test executables for Windows failure investigation.
+      # Do not upload state, credentials, process logs or the whole target directory.
+      - name: Retain Windows reproduction executables
+        if: >-
+          !cancelled() && runner.os == 'Windows' &&
+          hashFiles('target/debug/mitigate.exe') != '' &&
+          hashFiles('target/debug/mitigate-test-mcp.exe') != '' &&
+          hashFiles('target/debug/examples/native_lifecycle.exe') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, MIT
+        with:
+          name: windows-test-executables-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/debug/mitigate.exe
+            target/debug/mitigate-test-mcp.exe
+            target/debug/examples/native_lifecycle.exe
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 2
   dependencies:
     runs-on: ubuntu-latest
     timeout-minutes: 20
