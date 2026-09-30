@@ -66,3 +66,12 @@ cargo run -p mitigate-egress --example reference_mapping --locked
 
 The demonstration owns a temporary local fixture and removes its exact files.
 It prints only a fixed verification result, never keys or mapping pairs.
+
+The concurrent-allocation fixture opens its independent connections before
+starting the coordinated resolution race. Windows [run 36776763277](https://github.com/mitigate-co/runtime/actions/runs/36776763277/job/110096518699)
+failed in `ReferenceMap::open` with `Storage(Busy)`, before reaching that race:
+simultaneous SQLite connection setup is not guaranteed to succeed within the
+existing lock budget. A separate deterministic exclusive-lock fixture requires
+opening to return `Storage(Busy)` and verifies that explicit reopening after lock
+release preserves the original reference. Production lock limits and resolution
+assertions are unchanged; opening is not automatically retried.
