@@ -29,11 +29,15 @@ jobs:
           python-version: '3.13.14'
       - run: python -m unittest discover --start-directory scripts/release --pattern "test_*.py"
       - name: Build native unsigned candidate
+        id: build_candidate
         run: python scripts/release/package.py --target ${{ matrix.target }} --output dist/candidate
       - name: Exercise the extracted executable with fresh synthetic state
         run: python scripts/release/smoke.py dist/candidate --target ${{ matrix.target }} --commit ${{ github.sha }}
       # Test candidates only. No release credentials, OIDC token or signing authority.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, MIT
+        # Keep the exact package for diagnosis when smoke fails. Failed runs
+        # remain ineligible for release; never upload test state or raw logs.
+        if: ${{ !cancelled() && steps.build_candidate.outcome == 'success' }}
         with:
           name: unsigned-candidate-${{ matrix.target }}
           path: dist/candidate/*

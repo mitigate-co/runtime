@@ -70,6 +70,8 @@ It currently retains:
   approval-decision storage failure during the schema-drift fixture.
 - [#75](https://github.com/mitigate-co/runtime/issues/75): unexplained Linux
   read-only queue inspection failure during native inventory capture.
+- [#78](https://github.com/mitigate-co/runtime/issues/78): Windows packaged
+  privacy self-test exceeded the unchanged thirty-second smoke deadline.
 
 Remove a number only in a reviewed corrective PR that links the demonstrated
 cause, fix or justified fixture correction, regression coverage and required CI

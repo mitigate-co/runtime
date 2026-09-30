@@ -58,6 +58,21 @@ inspection. A malformed configuration must return the documented error without
 its synthetic content. Native credential and full gateway tests remain in Verify;
 this smoke does not replace them.
 
+Each command retains its thirty-second process deadline. The harness emits only
+a fixed step (`version`, `config`, `scan`, `privacy`, `egress`, `invalid_config`),
+process outcome (`exited`, `timeout`, `unavailable`) and monotonic elapsed
+milliseconds capped at 120,000. `exited` is not assertion success. Command lines,
+environment values, stdout/stderr and underlying process exceptions are excluded.
+No command is retried. These timings separate startup/command costs without
+changing the CLI or its privacy report.
+
+Windows run [36787855992](https://github.com/mitigate-co/runtime/actions/runs/36787855992/job/110133461063)
+built source `4f70508` but its extracted privacy self-test exceeded thirty seconds.
+[Issue #78](https://github.com/mitigate-co/runtime/issues/78) retains the failure;
+the probe did not produce a completed report. Timing out does not establish an
+assertion failure, disk/scheduling cause, or a relationship to the earlier
+privacy-probe clock rejection. It remains a release blocker.
+
 ## Distribution boundary
 
 Checksums detect changed bytes; they do not authenticate a publisher. The smoke
@@ -65,6 +80,12 @@ harness is only for a trusted locally built/CI candidate and is not an installer
 Candidate CI has read-only repository permission, no signing or OIDC authority,
 no release upload and seven-day test artifact retention. Pull-request artifacts
 must never be promoted directly into customer releases.
+After a successful build, candidate CI also retains the exact unsigned package
+when smoke testing fails, using the same seven-day retention. It uploads only
+the existing candidate directory, not synthetic state, credentials or process
+logs. The failed job/workflow remains failed; artifact presence never substitutes
+for the required successful source checks. The original #78 run predates this
+diagnostic retention and did not retain its failed candidate.
 
 Before public distribution, the release standard still requires a protected,
 clean, CI-green source revision and tag, authenticated artifacts/manifests with
