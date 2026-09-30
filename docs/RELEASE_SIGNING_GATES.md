@@ -66,6 +66,8 @@ It currently retains:
   pre-transport readiness failure.
 - [#57](https://github.com/mitigate-co/runtime/issues/57): unexplained Windows
   gateway-capture failure; retained diagnostics do not establish its cause.
+- [#67](https://github.com/mitigate-co/runtime/issues/67): unexplained Windows
+  approval-decision storage failure during the schema-drift fixture.
 
 Remove a number only in a reviewed corrective PR that links the demonstrated
 cause, fix or justified fixture correction, regression coverage and required CI

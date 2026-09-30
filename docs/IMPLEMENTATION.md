@@ -48,7 +48,7 @@ process check exposed an owned split-pipe shutdown error in the new harness;
 explicit shutdown/drop of both halves resolved it, and the process check passed.
 No production timeout, durability, authorization, telemetry or release-blocker
 policy changed. The harness contract is included in three-OS CI without a noisy
-latency threshold. Final CI and protected merge remain required for this slice.
+latency threshold. PR #66 passed all nine required checks and merged at `2c4c2d0`.
 The [recorded baseline](performance-baselines/linux-wsl-x86_64.json) retains all
 thirteen optimized sample series, exact source revision and coarse environment.
 
@@ -90,7 +90,14 @@ With the gate correction, the full local Windows all-feature workspace passed
 credential-persistence test passed; the other ignored entry is a lock helper
 invoked by its parent. After the stalled-response assertion was added, all 18
 upstream tests passed again. Formatting, strict all-target/all-feature workspace
-Clippy and the source secret scan passed. Final protected CI remains required.
+Clippy and the source secret scan passed. PR #71 passed all nine required checks
+at `4f972c9` and merged at `1cbd75a`.
+
+A fixed four-run local Windows governance campaign at `4f972c9`, with at most
+two concurrent fixture processes and no retries, also passed. Each run exercised
+the unchanged allow/deny/approval/drift contract and finished in about 70 seconds.
+No historical failure recurred. This does not establish the causes of issues
+#36/#46/#50/#57/#67 or remove any entry from the release blocker policy.
 
 Enforcing-gateway prerequisite merged in PR #16, main `eab5a6b`: exact private launch review binds
 executable/selected artifact bytes, argv, cwd, ordinary environment and native

@@ -107,7 +107,7 @@ approval, scoped permissions, current unresolved-failure checks, attestation of
 exact final files and authenticated installation/smoke checks. Reviewed
 publication, a real owned Apple identity, real positive Apple/Sigstore
 verification, release notes, rollback policy, supported-platform decisions and
-fresh-machine acceptance remain release gates. Issues #46, #50 and #57 remain
+fresh-machine acceptance remain release gates. Issues #46, #50, #57 and #67 remain
 unresolved; closing an issue or a later passing CI run does not establish a fix.
 Issue #36's prior privacy-probe failure also still needs technical resolution
 evidence. Nothing in this helper clears those gates or authorizes publication.
