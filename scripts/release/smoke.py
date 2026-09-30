@@ -10,12 +10,12 @@ import os
 from pathlib import Path
 import re
 import stat
-import subprocess
 import tempfile
 import zipfile
 
 from package import TARGETS
 from sbom import sha256
+from smoke_command import run as run_command
 
 MAX_ARCHIVE = 128 * 1024 * 1024
 MAX_FILE = 256 * 1024 * 1024
@@ -128,29 +128,22 @@ def exercise(executable, version):
             {"HOME": str(root), "USERPROFILE": str(root), "XDG_DATA_HOME": str(root)}
         )
 
-        def report(*args):
-            result = subprocess.run(
-                [str(executable), *args, "--json"],
-                cwd=root,
-                env=environment,
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                timeout=30,
-            )
+        def report(step, *args):
+            result = run_command(executable, step, args, root, environment)
             require(
                 result.returncode == 0 and not result.stderr,
                 "Packaged CLI command failed",
             )
             return json.loads(result.stdout)
 
-        require(report("version")["version"] == version, "Packaged version mismatch")
+        require(report("version", "version")["version"] == version, "Packaged version mismatch")
         require(
-            report("config", "check", "--config", str(config))["valid"] is True,
+            report("config", "config", "check", "--config", str(config))["valid"] is True,
             "Config check failed",
         )
-        scan = report("mcp", "scan", "--root", str(project))
+        scan = report("scan", "mcp", "scan", "--root", str(project))
         require(scan["servers"] == [], "Fresh scan was not empty")
-        privacy = report("privacy", "self-test", "--work-dir", str(root))
+        privacy = report("privacy", "privacy", "self-test", "--work-dir", str(root))
         require(
             all(
                 privacy[key] is True
@@ -164,7 +157,7 @@ def exercise(executable, version):
             and privacy["network_requests"] == 0,
             "Privacy probe failed",
         )
-        egress = report("egress", "inspect")
+        egress = report("egress", "egress", "inspect")
         require(
             egress["destination"] is None
             and egress["queue"] is None
@@ -174,14 +167,8 @@ def exercise(executable, version):
         config.write_text(
             '{"schema_version":1,"credential":"private-smoke-canary"}', encoding="utf-8"
         )
-        result = subprocess.run(
-            [str(executable), "config", "check", "--config", str(config), "--json"],
-            cwd=root,
-            env=environment,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            timeout=30,
-        )
+        result = run_command(executable, "invalid_config",
+                             ("config", "check", "--config", str(config)), root, environment)
         require(
             result.returncode == 2
             and not result.stdout

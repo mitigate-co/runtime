@@ -15,6 +15,7 @@ import install
 from package import TARGETS
 import release_bundle
 import smoke
+import smoke_command
 from stage_release import finalize, read_candidate
 from test_stage_release import COMMIT, TAG, candidate, context
 
@@ -218,7 +219,7 @@ class SmokeIsolationTests(unittest.TestCase):
             self.assertNotIn("PRIVATE_INPUT", env)
             self.assertEqual(env["HOME"], str(cwd))
             self.assertEqual(timeout, 30)
-            self.assertEqual(stdin, smoke.subprocess.DEVNULL)
+            self.assertEqual(stdin, smoke_command.subprocess.DEVNULL)
             seen.append(cwd)
             category = tuple(argv[1:3])
             reports = {
@@ -256,7 +257,7 @@ class SmokeIsolationTests(unittest.TestCase):
                 "APPLE_CERTIFICATE_PASSWORD": "private-fixture",
                 "PRIVATE_INPUT": "private-fixture",
             },
-        ), patch.object(smoke.subprocess, "run", side_effect=command):
+        ), patch.object(smoke_command.subprocess, "run", side_effect=command):
             smoke.exercise(Path("synthetic-never-executed"), "0.1.0")
         self.assertEqual(len(seen), 6)
         self.assertTrue(all(not path.exists() for path in seen))
