@@ -5,6 +5,7 @@ mod cli_contract;
 mod gateway_contract;
 mod governance_contract;
 mod listener_contract;
+mod performance;
 mod schema_contract;
 mod secret_contract;
 mod sync_sender_contract;
@@ -30,6 +31,9 @@ fn tool(name: &str) -> Value {
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     let mode = args.get(1).map_or("ok", String::as_str);
+    if mode == "benchmark" {
+        std::process::exit(performance::run(&args[2..]));
+    }
     if mode == "offline-contract" {
         governance_contract::verify_offline(std::path::Path::new(
             args.get(2).expect("explicit CLI path"),

@@ -31,6 +31,27 @@ Updated 2026-09-29. Follow the canonical ordered work packages. This file report
 
 The original private prototype and local preview remain intact. No private history or account-bound executable was imported into Runtime. Reviewed customer-side pieces may be adapted in later changes with provenance.
 
+## Component performance evidence
+
+The unpublished MCP fixture now has an explicit synthetic benchmark mode for
+schema canonicalization/fingerprints, scanner sizes, policy compilation/evaluation,
+egress validation, durable audit writes, classification and separate direct,
+managed-adapter and listener/adapter pipe paths. It keeps raw ordered samples and
+failed-operation timings without exporting inputs, results, paths or references.
+It cannot select a customer project, database or upstream. See
+[measurement boundaries](PERFORMANCE.md); this is not full governed-call latency.
+
+Local Linux/WSL verification passed strict fixture Clippy, the three statistics
+and argument-bound tests, the actual thirteen-case process/export/cleanup check,
+and an optimized run of 100 samples after ten warmups in every case. The first
+process check exposed an owned split-pipe shutdown error in the new harness;
+explicit shutdown/drop of both halves resolved it, and the process check passed.
+No production timeout, durability, authorization, telemetry or release-blocker
+policy changed. The harness contract is included in three-OS CI without a noisy
+latency threshold. Final CI and protected merge remain required for this slice.
+The [recorded baseline](performance-baselines/linux-wsl-x86_64.json) retains all
+thirteen optimized sample series, exact source revision and coarse environment.
+
 ## Approval storage failure evidence
 
 Windows Verify `36608722466` at `76c9914` failed during the existing governance

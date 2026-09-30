@@ -95,6 +95,10 @@ Use `--details` for full human reports, or `--json` for the versioned machine co
 
 ## Verify
 
+The [performance harness](docs/PERFORMANCE.md) measures synthetic scanner,
+schema, policy, audit, egress and relay operations separately. Release builds
+produce raw local samples; CI verifies the harness without latency thresholds.
+
 The [adversarial test guide](docs/ADVERSARIAL_TESTING.md) describes the synthetic
 input corpus and its limits. The [research methodology](docs/RESEARCH_METHODS.md)
 defines what fixture results and source-attributed observations can support.
