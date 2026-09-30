@@ -697,3 +697,29 @@ fn inspection_is_read_only_and_never_repairs_or_prunes_retained_state() {
     ));
     assert!(!missing.exists());
 }
+
+#[test]
+fn read_only_inspection_refuses_exclusive_lock_without_mutating_state() {
+    let fixture = Fixture::new();
+    let mut store = fixture.store(Limits::default());
+    store.admit(&event('1')).unwrap();
+    drop(store);
+    let before = fs::read(fixture.db()).unwrap();
+    let lock = rusqlite::Connection::open(fixture.db()).unwrap();
+    lock.execute_batch("BEGIN EXCLUSIVE").unwrap();
+    assert!(matches!(
+        Outbox::inspect_file(&fixture.db(), partition()),
+        Err(Error::Busy)
+    ));
+    assert_eq!(fs::read(fixture.db()).unwrap(), before);
+    assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 1);
+    lock.execute_batch("ROLLBACK").unwrap();
+    drop(lock);
+    assert_eq!(
+        Outbox::inspect_file(&fixture.db(), partition())
+            .unwrap()
+            .pending,
+        1
+    );
+    assert_eq!(fs::read(fixture.db()).unwrap(), before);
+}

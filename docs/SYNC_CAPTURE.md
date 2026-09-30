@@ -134,12 +134,29 @@ failed in the native gateway-capture child with only a stage name retained;
 [issue #57](https://github.com/mitigate-co/runtime/issues/57) preserves that evidence.
 The diagnostic projector now accepts Windows and POSIX spellings of only the
 two known public fixture source files, with positive numeric line/column values.
-At most 8 KiB / 64 lines are inspected. Only fixed stages/privacy categories and
-the child's numeric exit code can be printed; raw stderr, paths and panic payloads
-remain excluded. Regression fixtures cover both path formats, malformed/overflow
+At most 8 KiB / 64 lines are inspected. Only fixed stages, privacy/inspection
+categories, public assertion positions and the child's numeric exit code can be
+printed; raw stderr, paths and panic payloads remain excluded. Regression fixtures cover both path formats, malformed/overflow
 positions, private text and bounds. Capture stage labels carry no workload values.
 
 This fixes missing Windows assertion diagnostics, not the underlying capture
 failure. Readiness deadlines, required counts, privacy probes and expected MCP
 outcomes are unchanged. A successful subsequent run cannot close the release
 blocker without establishing its cause.
+
+Linux main run [36781795025](https://github.com/mitigate-co/runtime/actions/runs/36781795025/job/110113580375)
+failed at `sync.rs:218:34` on source `9f213a7`: the read-only `profile.inspect()`
+returned an error after the fixture released its deliberate audit-store lock.
+The pending-count comparison had not run. [Issue #75](https://github.com/mitigate-co/runtime/issues/75)
+retains this separate failure; the original inner error was not projected.
+The fixture now projects each closed outbox error through an explicit allowlist,
+preserving caller assertion positions and refusing all arbitrary payload text.
+Inspection still fails immediately on any error, without retries or repairs.
+No count, deadline, storage budget, audit requirement or production behavior changes.
+
+A deterministic regression holds an exclusive lock on the synthetic outbox,
+requires `Busy` from read-only inspection, verifies unchanged file bytes and no
+new files, then confirms the original pending event after rollback. This proves
+the lock-refusal contract; it does not establish that contention caused #75.
+Inspection does not sample the OS wall clock or access native credentials.
+The original failure remains a release gate until its cause is demonstrated.

@@ -39,6 +39,24 @@ pub(crate) fn messages(stderr: &[u8]) -> Vec<String> {
                 result.push(allowed);
             }
         }
+        for category in [
+            "outbox_input",
+            "outbox_path",
+            "outbox_busy",
+            "outbox_storage",
+            "outbox_interrupted",
+            "outbox_integrity",
+            "outbox_partition",
+            "outbox_clock",
+            "outbox_stale_lease",
+            "outbox_budget",
+            "unexpected_control",
+        ] {
+            let allowed = format!("Synthetic capture inspection category: {category}.");
+            if line == allowed {
+                result.push(allowed);
+            }
+        }
         let Some((_, location)) = line.split_once("panicked at ") else {
             continue;
         };
@@ -105,6 +123,8 @@ mod tests {
             "Synthetic capture privacy category: storage_clock.", "Synthetic capture stage: inventory.",
         ]);
         for input in [
+            "Synthetic capture inspection category: private-canary.",
+            "Synthetic capture inspection category: outbox_busy. private-canary",
             "Synthetic capture privacy category: private-canary.",
             "Synthetic capture stage: private-canary.",
             "Synthetic capture stage: inventory. private-canary",
@@ -121,5 +141,26 @@ mod tests {
         let after_bytes = "x".repeat(8192) + "\nSynthetic capture stage: complete.";
         assert!(messages(after_bytes.as_bytes()).is_empty());
         assert!(messages(&[0xff, 0xfe, 0]).is_empty());
+    }
+
+    #[test]
+    fn closed_inspection_categories_survive_without_error_payloads() {
+        for category in [
+            "outbox_input",
+            "outbox_path",
+            "outbox_busy",
+            "outbox_storage",
+            "outbox_interrupted",
+            "outbox_integrity",
+            "outbox_partition",
+            "outbox_clock",
+            "outbox_stale_lease",
+            "outbox_budget",
+            "unexpected_control",
+        ] {
+            let allowed = format!("Synthetic capture inspection category: {category}.");
+            let input = format!("private-path-canary\n{allowed}\nprivate-payload-canary\n");
+            assert_eq!(messages(input.as_bytes()), [allowed]);
+        }
     }
 }
