@@ -41,11 +41,11 @@ not prove genuine signing, notarization or customer installation.
 The manual release workflow remains undispatched. It has no publication step.
 Both selected-tag and current-main blocker policies must be clear, and real
 provider identity, protected-environment approval, signed tag and native acceptance
-are still required. Issues #36, #46, #50 and #57 retain their technical release
+are still required. Issues #36, #46, #50, #57 and #67 retain their technical release
 blocks. Closing an issue or passing a later run is insufficient evidence of a fix.
 
 The optional private Platform is a separate repository and approval boundary.
-Its blocked hosted CI and provider acceptance cannot be satisfied by Runtime CI.
+Its own CI and provider acceptance cannot be satisfied by Runtime CI.
 No deployment, public release, tag, package tap, signing environment or credentials
 are created by this integration.
 
