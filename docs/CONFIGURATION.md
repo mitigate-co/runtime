@@ -16,6 +16,11 @@ cargo run -- config check --config examples/runtime.json --json
 
 Unknown/duplicate fields, wrong types, trailing JSON, documents over 64 KiB, directories, and final-component symlinks are rejected. Default JSON recursion limits remain enabled. File checks are not a defense against a same-user attacker concurrently replacing filesystem paths.
 
-Success goes to stdout. Operational errors go to stderr and never include configuration contents, paths, or parser diagnostics. `--json` adds a `schema_version: 1` output contract. Exit codes: `0` success, `2` invalid command/configuration, `1` output failure. Clap usage errors use its human help format even with `--json`. A consumer closing stdout early is normal success.
+Success goes to stdout. Operational errors go to stderr and never include configuration contents, paths, or parser diagnostics. `--json` adds a `schema_version: 1` output contract. Exit codes: `0` success, `2` invalid command/configuration, `1` output failure. Invalid arguments use the fixed `cli_invalid_arguments` contract, including JSON when requested; explicit help remains human-readable. A consumer closing stdout early is normal success.
 
-No background telemetry or file logging is enabled. There is no default credential lookup, home-directory configuration search, or Platform dependency. Later work packages add explicit scanner/gateway actions; they are not advertised as implemented commands today.
+Configuration checking enables no background telemetry or file logging and does
+not look up credentials, search home directories or require Platform. Use
+[scan](SCANNER.md) for project declarations, [inspect](ENUMERATION.md) to explicitly
+launch a selected server, and [serve](GATEWAY.md) for an MCP endpoint. Server launch,
+governed authority and [optional sync](SYNC_CONTROLS.md) use separate explicit
+configuration; this resource-limit document does not enable them.

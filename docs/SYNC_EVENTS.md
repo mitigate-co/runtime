@@ -12,8 +12,10 @@ See [ADR 0024](decisions/0024-closed-events-before-durable-sync.md).
 The [inventory protocol](INVENTORY_PROTOCOL.md) validates version-two bounded
 parts and complete observations. Checked parts use the same consent/journal/outbox
 boundary as decisions. The v1 decision schema below remains unchanged; an explicit
-type/version dispatch prevents mixing its fields with inventory facts. Live
-inventory production and hosted receiver composition remain separate work.
+type/version dispatch prevents mixing its fields with inventory facts.
+[Gateway capture](SYNC_CAPTURE.md) produces inventory only with the explicit
+`--sync-inventory` flag. Hosted ingest and fleet composition belong to the
+separate private Platform; validating a Runtime event is not hosted acceptance.
 
 ## Version 1: `mcp_tool_decision`
 

@@ -56,24 +56,26 @@ Platform
 
 No module bypasses the egress guard for Mitigate telemetry.
 
-The first implemented [closed event candidate contract](SYNC_EVENTS.md) uses only
-fixed enum strings and enrollment-scoped random reference shapes. It excludes
-free-form identifiers and local content-derived fingerprints. This is a validation
-component, not a complete egress path. The [local outbox](OUTBOX.md) records fixed
+The [closed decision event contract](SYNC_EVENTS.md) and
+[inventory contract](INVENTORY_PROTOCOL.md) use fixed enums, bounded facts and
+enrollment-scoped random references. They exclude free-form identifiers and local
+content-derived fingerprints. The [local outbox](OUTBOX.md) records fixed
 admission reasons/counts and durably queues only validated candidates, scoped to
 one runtime/enrollment pair. Rejected input, identifiers and input digests are
 never persisted. The [signed event contract](SIGNED_EVENTS.md) hashes only an
 already validated, journaled event and checks its enrollment partition. Its closed
 envelope adds only version, enrollment reference and signature; no bootstrap
-credential, key or arbitrary metadata. Active delivery and consent composition
-remain required; a signature alone never enables sync.
+credential, key or arbitrary metadata. [Explicit sync controls](SYNC_CONTROLS.md)
+compose enrollment, consent and delivery; [gateway capture](SYNC_CAPTURE.md) is
+separately selected. A signature alone never enables sync.
 
 The [local reference catalog](SYNC_REFERENCES.md) maps fixed-size, domain-separated
 customer-local identity/schema keys to independent random wire references. Keys
 never enter event serialization or command reports. Mapping batches commit before
 returning references, remain scoped to the original enrollment and never evict
-stable mappings at capacity. This separate bounded library does not activate a
-gateway producer or replace the event/queue admission boundary.
+stable mappings at capacity. Gateway capture uses the catalog before admitting
+typed events. Mapping alone does not activate capture or replace the event/queue
+admission boundary.
 
 New explicit sync setup binds that catalog in a version-two local profile without
 another CLI argument. Resume verifies the original catalog; pause/purge keep

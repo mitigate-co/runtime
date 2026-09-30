@@ -1,10 +1,10 @@
 # Local MCP policy
 
-MCP-011 embeds Regorus and provides offline validation, signing, activation and
-evaluation. It does **not** enable tool invocation: `mcp serve` still requires
-`--inventory-only`. Gateway grants, exact launch binding, approval and enforcement
-integration follow in the ordered packages. An `allow` policy result is one check,
-never standalone authorization. `require_approval` is never permission to execute.
+The local policy engine embeds Regorus for offline validation, signing, activation
+and evaluation. These commands do not execute tools. [Governed-call mode](ENFORCEMENT.md)
+composes policy with grants, exact launch review, approvals, controls and audit.
+An `allow` policy result is one check, never standalone authorization.
+`require_approval` is never permission to execute.
 
 ## Quick start
 
@@ -138,9 +138,11 @@ Bad signatures, wrong trust, invalid source, lower/equal versions, locks and wri
 failures leave the loaded policy intact. A failed commit can have uncertain disk
 durability: reopen/status before choosing the next version. Restart rechecks the
 signature against the independent trust document; invalid cached state fails closed.
-Network fetching, automatic refresh scheduling and offline approval rules belong
-to later packages. Key rotation is an explicit new trust configuration, not a
-bundle-driven operation.
+The [governed gateway](ENFORCEMENT.md) rechecks locally activated policy at
+authorization boundaries. [Offline rules](OFFLINE.md) retain a verified policy
+through failed refreshes and require valid local approval authority. There is no
+automatic network policy fetching. Key rotation is an explicit new trust
+configuration, not a bundle-driven operation.
 
 Protect the store, trust file and their parent directories. Unix state files are
 created 0600 and shared permissions are rejected; Windows uses inherited ACLs.

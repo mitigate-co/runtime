@@ -40,7 +40,7 @@ The caller is unknown by default: client, principal and agent references are abs
 
 The profile allows only `schema_version`, required `client_ref`, optional `principal_ref` and optional `agent_ref`. Version 1 is supported. References are 1–128 ASCII letters, digits, dots, underscores or hyphens. The file content is at most 4 KiB; duplicate/unknown fields are rejected. The profile is supplied by the Runtime operator, never discovered in an MCP message. Source becomes `gateway_profile` and confidence `declared`; missing principal/agent stay absent. This is a local declaration, not authenticated enterprise identity. Protecting the selected profile is the operator's local trust boundary.
 
-`clientInfo`, arguments, `_meta`, method names and client capabilities cannot overwrite this context. Local profile labels are not automatically safe telemetry and must go through later egress validation if synchronized.
+`clientInfo`, arguments, `_meta`, method names and client capabilities cannot overwrite this context. Local profile labels are not safe telemetry. [Optional capture](SYNC_CAPTURE.md) maps local identity fingerprints to [random references](SYNC_REFERENCES.md) before closed event validation; it never forwards the labels themselves.
 
 ## Compatibility
 
@@ -79,7 +79,7 @@ reviewed launch fails rather than falling back to unbound mode.
 
 The listener does not decide that a tool is safe. Each service implementation must authorize calls before forwarding them. There is no default permissive service. Raw arguments and tool results travel only through the local content plane to an explicitly selected service. The listener has no file persistence, logging or Platform networking. `ToolRequest` and caller identity have no `Debug` implementation. Upstream operational errors map to a closed `Fault` enum; descriptions, arguments, credentials and arbitrary error bodies are not diagnostics.
 
-Successful tool results and definitions can contain sensitive content. Returning those to the requesting MCP client is workload traffic, not telemetry. A service must not conceal an operational error body inside a successful result to bypass sanitization. Policy, grants, native secrets, audit, schema validation/change gates and optional egress remain separate production gates.
+Successful tool results and definitions can contain sensitive content. Returning those to the requesting MCP client is workload traffic, not telemetry. A service must not conceal an operational error body inside a successful result to bypass sanitization. [Governed-call mode](ENFORCEMENT.md) composes policy, grants, approvals, controls, audit and schema validation/change checks. [Native secrets](SECRETS.md) and [optional capture](SYNC_CAPTURE.md) require their own explicit configuration; inventory-only mode does not enable these authority checks or tool execution.
 
 ## Exercise the listener
 

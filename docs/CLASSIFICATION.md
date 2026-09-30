@@ -14,7 +14,7 @@ Each classification has `taxonomy_version: 1`, effective `classes`, `confidence`
 
 Rules are conservative hints. A tool named `read_status` could execute malicious code; an SQL query could modify data. Generic query/action/operation/payload inputs, unresolved references and open object schemas retain `unknown_high_impact`. JSON Schema allows extra properties when `additionalProperties` is absent, so omission is treated as open. The classifier does not attempt complete JSON Schema evaluation or implementation auditing.
 
-Flags identify potential destruction, credential access, arbitrary code execution, external communication, identity administration, infrastructure change and unknown high-impact behavior. Overrides replace effective classes but preserve inferred classes, fixed rule IDs and the union of inferred/declared flags. A warning cannot disappear merely by relabeling a tool. Later grants and policy decisions are separate controls. Registry evidence is not implemented until MCP-017; no registry provenance is fabricated.
+Flags identify potential destruction, credential access, arbitrary code execution, external communication, identity administration, infrastructure change and unknown high-impact behavior. Overrides replace effective classes but preserve inferred classes, fixed rule IDs and the union of inferred/declared flags. A warning cannot disappear merely by relabeling a tool. [Grants](GRANTS.md) and [policy](POLICY.md) make separate authorization decisions. [Registry lookup](REGISTRY.md) reads source-attributed facts from an explicitly selected catalog; classification does not automatically fetch or merge those facts, authenticate provenance or grant access.
 
 ## Administrator overrides
 

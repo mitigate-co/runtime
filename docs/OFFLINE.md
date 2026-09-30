@@ -1,8 +1,9 @@
 # Local operation and outage recovery
 
 Scanner and governed stdio calls require no Mitigate account or Platform
-connection. The gateway evaluates `input.offline = true`; there is currently no
-Platform transport. Upstream tools can still require their own network access.
+connection. The gateway evaluates `input.offline = true`: local authorization
+does not consult Platform, even when optional metadata sync is configured.
+Upstream tools can still require their own network access.
 This guarantee concerns Mitigate control availability, not the tool's availability.
 
 ## Policy
@@ -44,10 +45,15 @@ local audit commits remain required during an outage.
 
 The [optional outbox](OUTBOX.md) durably retains only closed validated events with
 bounded capacity, expiry, retry leases and content-free rejection diagnostics.
-It has no sender or automatic gateway integration yet. Local audit exports are
-not Platform telemetry and must not be uploaded directly. Queue failure is
+[Enrollment](ENROLLMENT_CLI.md), [sync consent and delivery](SYNC_CONTROLS.md),
+[gateway capture](SYNC_CAPTURE.md) and the [privacy self-test](PRIVACY_COMMANDS.md)
+are explicit operator steps. Capture never starts HTTP delivery; use `sync send`
+for one delivery attempt or `sync run` for the foreground sender. An unavailable
+Platform does not suspend local policy or replay tool calls. Local audit exports
+are not Platform telemetry and must not be uploaded directly. Queue failure is
 separate from local authority and must never cause a raw-content fallback.
-MCP-016 CLI inspection/self-test and MCP-018 enrollment/delivery remain open gates.
+Production provider acceptance and the unresolved failures in
+[the release blocker policy](RELEASE_BLOCKERS.json) remain release gates.
 
 ## Verify with synthetic processes
 

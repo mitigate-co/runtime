@@ -33,7 +33,9 @@ new hosted identity while older events still refer to the previous one. A new
 enrollment uses a new catalog. Version-two [sync profiles](SYNC_CONTROLS.md)
 create and pin the catalog during explicit consent. Pause/purge retain stable
 mappings; resume verifies the original store and never regenerates a missing one.
-Gateway production and continuous sending remain separate implementation work.
+[Gateway capture](SYNC_CAPTURE.md) resolves these references on a separate
+metadata worker. [Continuous sending](SYNC_CONTROLS.md) is an explicit foreground
+command; neither mapping nor gateway capture starts network delivery.
 
 The shared private SQLite opener applies the existing 16 MiB file cap, 250 ms
 busy wait, two-second work budget, defensive/trusted-schema settings, restricted
