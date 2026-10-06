@@ -4,7 +4,7 @@ use rusqlite::{Connection, TransactionBehavior};
 use sha2::{Digest, Sha256};
 use std::{
     path::Path,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 /// Bounded SQLite outbox with atomic privacy journal/admission and delivery leases.
@@ -199,13 +199,37 @@ impl Outbox {
     /// Recheck consent, exact ownership and remaining time immediately before a
     /// sender starts I/O. The budget must cover its entire bounded exchange and
     /// completion. A false result forbids sending; this never extends a lease.
+    /// Recheck time after the maintenance commit, including its elapsed time.
     /// Pause/purge can still race after return, so the sender must coordinate
     /// shutdown separately and never claim an in-flight request was retracted.
     pub fn delivery_ready(&mut self, lease: &Lease, budget_ms: u64) -> Result<bool, Error> {
+        let started = Instant::now();
+        #[cfg(test)]
+        let override_time = self.test_time;
+        #[cfg(not(test))]
+        let override_time = None;
+        self.delivery_ready_with_clock(lease, budget_ms, || {
+            let now = clock_time(override_time)?;
+            // Existing fixed-clock fixtures model a frozen timeline, including
+            // elapsed time. Production always samples both real clocks.
+            let elapsed = if override_time.is_some() {
+                Duration::ZERO
+            } else {
+                started.elapsed()
+            };
+            Ok((now, elapsed))
+        })
+    }
+    pub(super) fn delivery_ready_with_clock(
+        &mut self,
+        lease: &Lease,
+        budget_ms: u64,
+        after_commit: impl FnOnce() -> Result<(u64, Duration), Error>,
+    ) -> Result<bool, Error> {
         if !(1..=LEASE_MS).contains(&budget_ms) {
             return Err(Error::Input);
         }
-        self.update(|state, rows, _| {
+        let window = self.update(|state, rows, _| {
             let id = lease.event.event_id().as_str();
             let record = rows.get(id).ok_or(Error::StaleLease)?;
             let current = record.lease.as_ref().ok_or(Error::StaleLease)?;
@@ -215,11 +239,23 @@ impl Outbox {
             if record.event.as_bytes() != lease.event.as_bytes() {
                 return Err(Error::Integrity);
             }
-            Ok(!state.paused
-                && current.until_ms.saturating_sub(state.last_time) > budget_ms
-                && (record.admitted_ms + state.limits.max_age_ms).saturating_sub(state.last_time)
-                    > budget_ms)
-        })
+            Ok((!state.paused).then_some(DeliveryWindow {
+                observed_ms: state.last_time,
+                maximum_ms: MAX_TIME - MAX_BACKOFF_MS - LEASE_MS - state.limits.max_age_ms,
+                until_ms: current
+                    .until_ms
+                    .min(record.admitted_ms + state.limits.max_age_ms),
+            }))
+        })?;
+        let Some(window) = window else {
+            return Ok(false);
+        };
+        // SQLite's commit can block in filesystem I/O, outside its VM progress
+        // callbacks. A pre-commit reservation must not authorize a late send.
+        // Count the whole preflight conservatively so a stalled wall clock also
+        // cannot hide time spent here. Neither observation renews the lease.
+        let (now, elapsed) = after_commit()?;
+        window.ready(now, elapsed, budget_ms)
     }
     /// Record a classified response only for the still-current lease. Completion
     /// consumes the handle; stale acknowledgements cannot remove a newer attempt.
@@ -437,21 +473,44 @@ impl Outbox {
         result
     }
 }
+struct DeliveryWindow {
+    observed_ms: u64,
+    maximum_ms: u64,
+    until_ms: u64,
+}
+impl DeliveryWindow {
+    fn ready(&self, now: u64, elapsed: Duration, budget_ms: u64) -> Result<bool, Error> {
+        if now < self.observed_ms || now > self.maximum_ms {
+            return Err(Error::Clock);
+        }
+        let margin = self
+            .until_ms
+            .saturating_sub(self.observed_ms)
+            .saturating_sub(budget_ms);
+        Ok(
+            self.until_ms.saturating_sub(now) > budget_ms
+                && elapsed < Duration::from_millis(margin),
+        )
+    }
+}
 fn observed_time(state: &State, override_time: Option<u64>) -> Result<u64, Error> {
-    let now = match override_time {
-        Some(value) => value,
-        None => SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| Error::Clock)?
-            .as_millis()
-            .try_into()
-            .map_err(|_| Error::Clock)?,
-    };
+    let now = clock_time(override_time)?;
     if now < state.last_time || now > MAX_TIME - MAX_BACKOFF_MS - LEASE_MS - state.limits.max_age_ms
     {
         return Err(Error::Clock);
     }
     Ok(now)
+}
+fn clock_time(override_time: Option<u64>) -> Result<u64, Error> {
+    match override_time {
+        Some(value) => Ok(value),
+        None => SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| Error::Clock)?
+            .as_millis()
+            .try_into()
+            .map_err(|_| Error::Clock),
+    }
 }
 fn readiness(state: &State, rows: &Rows, now: u64, budget_ms: u64) -> Readiness {
     if state.paused {

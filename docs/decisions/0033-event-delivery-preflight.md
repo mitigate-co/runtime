@@ -11,6 +11,12 @@ partition, clock, remaining lease and retention. The transport requires more tha
 25 seconds for its 20-second exchange plus local completion. It never renews a
 lease or extends retention. Storage/preflight failure sends nothing.
 
+The final clock observation occurs after the maintenance commit. It checks both
+wall time and monotonic elapsed time across preflight so a slow SQLite filesystem
+commit cannot spend a previously reserved exchange budget unnoticed. Insufficient
+time retains the claim without sending or silently retrying. Suspension after
+this final check remains an owner-coordination limitation, as before.
+
 An explicit runner claims and sends at most one event, then commits a fixed
 outcome. It returns acceptance only after receipt verification and local commit.
 Permanent rejection removes unchanged input; uncertain delivery retains the same

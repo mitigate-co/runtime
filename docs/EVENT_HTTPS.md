@@ -14,6 +14,13 @@ extend either deadline. Preflight commits clock/expiry maintenance before sendin
 storage failure releases no permission. A paused queue, purged/replaced claim,
 clock rollback or insufficient time sends nothing.
 
+After that commit returns, preflight samples wall time again and checks monotonic
+time spent in the whole preflight. SQLite filesystem work can outlast its VM
+progress callbacks; time reserved before a slow commit cannot authorize a late
+send. Either clock can refuse readiness, but neither renews the lease or retention.
+A refused final observation preserves the original claim for ordinary recovery;
+it does not mark delivery, pause consent or retry the operation automatically.
+
 This is not an active sync service. Neither API obtains consent, creates events,
 runs a background worker or changes native credentials. Local MCP operation does
 not call it automatically. Run it on the owning blocking worker, outside an async
@@ -139,5 +146,8 @@ composed runner additionally tests durable acceptance, permanent refusal, backof
 authority/redirect pause, withdrawal after claim, and purge before local completion.
 Outbox tests cover independent-connection controls, exact time boundaries, retention,
 foreign/replaced claims, modified bytes, rollback and injected commit failure. The
+commit-boundary regressions use a private clock seam with real SQLite commits to
+verify exact lease/retention boundaries, stalled/backward/unavailable clocks and
+unchanged pending events. No host clock changes or timing sleeps are required. The
 existing bootstrap transport suite runs against the same extracted policy and
 reader so the shared implementation cannot silently weaken enrollment.
