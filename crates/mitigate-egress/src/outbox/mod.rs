@@ -4,6 +4,8 @@
 mod consent_tests;
 pub(crate) mod db;
 #[cfg(test)]
+mod delivery_commit_tests;
+#[cfg(test)]
 mod inventory_tests;
 #[cfg(test)]
 mod readiness_tests;
